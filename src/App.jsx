@@ -252,11 +252,14 @@ function AuthScreen({ onAuth }) {
       const {data:authData, error:authError} = await sb.auth.signUp(email, password);
       if (authError) throw new Error(authError.message||"Signup failed");
       const userId = sb._userId || authData?.user?.id;
+      if (!userId) throw new Error("Could not get user ID after signup. Please try again.");
       const {data:fams} = await sb.from("families").select("*").eq("invite_code", inviteCode.toUpperCase().trim());
       const fam = Array.isArray(fams) ? fams[0] : fams;
       if (!fam) throw new Error("Invite code not found. Please check and try again.");
-      if (userId) await sb.from("user_profiles").insert({id:userId, family_id:fam.id, display_name:email, is_admin:false});
-      setSuccess(`✅ Joined ${fam.name}! Check email to verify, then sign in.`);
+      // Create user_profiles row — this is critical for the member to see the family
+      const {error:profErr} = await sb.from("user_profiles").insert({id:userId, family_id:fam.id, display_name:email, is_admin:false});
+      if (profErr && !profErr.message?.includes("duplicate")) throw new Error("Could not link you to the family: "+profErr.message);
+      setSuccess(`✅ Joined ${fam.name}! Check your email to verify, then sign in.`);
       setMode("login"); setJoinMode(false);
     } catch(e) { setError(e.message); }
     setLoading(false);
@@ -673,7 +676,7 @@ function CalendarScreen({ familyId, members }) {
       {upcoming.length===0&&!events.loading&&<Card style={{textAlign:"center",padding:20}}><div style={{color:T.muted,fontSize:13}}>No upcoming events</div></Card>}
       {upcoming.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`}}><span style={{fontSize:22}}>{e.emoji}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div><div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}{e.member?" · "+e.member:""}{e.repeat&&e.repeat!=="none"?" · 🔄":""}</div></div><button onClick={()=>events.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:16}}>×</button></div>))}
       {past.length>0&&<><Sec style={{marginTop:8}}>Past Events</Sec>{past.slice(0,3).map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,opacity:0.6}}><span style={{fontSize:20}}>{e.emoji}</span><div style={{flex:1}}><div style={{fontSize:13,color:T.muted}}>{e.title} · {new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div><button onClick={()=>events.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted}}>×</button></div>))}</>}
-      {showAdd?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Event</div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{emojis.map(e=><button key={e} onClick={()=>setF(p=>({...p,emoji:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${f.emoji===e?T.brown:T.border}`,background:f.emoji===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Event Name</label><input style={inp} value={f.title} onChange={e=>setF(p=>({...p,title:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Date</label><input style={inp} type="date" value={f.date} onChange={e=>setF(p=>({...p,date:e.target.value}))}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}><div><label style={lbl}>Member (optional)</label><select style={inp} value={f.member} onChange={e=>setF(p=>({...p,member:e.target.value}))}><option value="">All family</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div><label style={lbl}>Repeat</label><select style={inp} value={f.repeat} onChange={e=>setF(p=>({...p,repeat:e.target.value}))}>{repeats.map(r=><option key={r.v} value={r.v}>{r.l}</option>)}</select></div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(f.title&&f.date){await events.add({title:f.title,date:f.date,emoji:f.emoji,member:f.member||"",repeat:f.repeat});setF({title:"",date:"",emoji:"📅",member:"",repeat:"none"});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Event</button>}
+      {showAdd?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Event</div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{emojis.map(e=><button key={e} onClick={()=>setF(p=>({...p,emoji:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${f.emoji===e?T.brown:T.border}`,background:f.emoji===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Event Name</label><input style={inp} value={f.title} onChange={e=>setF(p=>({...p,title:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Date</label><input style={inp} type="date" value={f.date} onChange={e=>setF(p=>({...p,date:e.target.value}))}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}><div><label style={lbl}>Member (optional)</label><select style={inp} value={f.member} onChange={e=>setF(p=>({...p,member:e.target.value}))}><option value="">All family</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div><label style={lbl}>Repeat</label><select style={inp} value={f.repeat} onChange={e=>setF(p=>({...p,repeat:e.target.value}))}>{repeats.map(r=><option key={r.v} value={r.v}>{r.l}</option>)}</select></div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(f.title&&f.date){const {error:evErr}=await sb.from("events").insert({title:f.title,date:f.date,emoji:f.emoji,member:f.member||"",repeat:f.repeat,family_id:familyId});if(evErr){alert("Save failed: "+evErr.message);return;}await events.refetch();setF({title:"",date:"",emoji:"📅",member:"",repeat:"none"});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Event</button>}
     </div>
   );
 }
@@ -786,8 +789,19 @@ export default function App() {
   useEffect(()=>{
     const seen=localStorage.getItem("fn_onboarding_seen");
     if(!seen)setShowOnboarding(true);
-    if(sb.auth.restore())setUser({id:sb._userId,email:localStorage.getItem("fn_email")||""});
-    setAL(false);
+    if(sb.auth.restore()){
+      // Verify the stored token is still valid with Supabase
+      sb._req("/auth/v1/user").then(r=>{
+        if(r.data?.id){
+          setUser({id:r.data.id, email:r.data.email||localStorage.getItem("fn_email")||""});
+        } else {
+          sb.auth.signOut(); // token expired — clear and show login
+        }
+        setAL(false);
+      }).catch(()=>{ sb.auth.signOut(); setAL(false); });
+    } else {
+      setAL(false);
+    }
   },[]);
 
   useEffect(()=>{localStorage.setItem("fn_theme",theme);},[theme]);
