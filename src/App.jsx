@@ -422,12 +422,30 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   const [tab,setTab]=useState("expenses");
   const [showE,setShowE]=useState(false);
   const [showG,setShowG]=useState(false);
+  const [editId,setEditId]=useState(null);
+  const [filterWho,setFilterWho]=useState("all");
   const [ef,setEf]=useState({label:"",amount:"",cat:"🛒",who:""});
   const [gf,setGf]=useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});
-  const cats=["🛒","⚡","📚","📺","🏥","🚗","🍔","👗","🎮","✈️","🏠","💊","🎓","☕","🐾"];
+  const cats=["🛒","⚡","🏥","🚗","🍔","🎓","🏠","✈️","☕","🎮"];
   const colors=[T.blue,T.rose,T.green,T.lav,T.amber,T.brown];
   const month=new Date().getMonth();
   const spent=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
+  const filteredExp=filterWho==="all"?expenses.data:expenses.data.filter(e=>e.who===filterWho);
+
+  const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label,amount:String(e.amount),cat:e.cat,who:e.who||""});setShowE(true);};
+  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🛒",who:""});setShowE(false);};
+  const saveExpense=async()=>{
+    if(!ef.label||!ef.amount)return;
+    if(editId){
+      await expenses.update(editId,{label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who});
+      setEditId(null);
+    } else {
+      await expenses.add({label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who,date:new Date().toISOString()});
+      await onPts(10);
+    }
+    setEf({label:"",amount:"",cat:"🛒",who:""});setShowE(false);
+  };
+
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Family Finances</div>
@@ -442,11 +460,15 @@ function MoneyScreen({ family, members, familyId, onPts }) {
           <Card style={{marginBottom:0}}><div style={{fontSize:22,marginBottom:4}}>💸</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.rose}}>₹{spent.toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Spent this month</div></Card>
           <Card style={{marginBottom:0}}><div style={{fontSize:22,marginBottom:4}}>🏦</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.green}}>₹{Math.max(0,(family?.monthly_expenses||0)-spent).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Remaining</div></Card>
         </div>
-        <Sec>Recent Expenses</Sec>
+        <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:4}}>
+          <Pill label="All" active={filterWho==="all"} onClick={()=>setFilterWho("all")} color={T.teal}/>
+          {members?.map(m=><Pill key={m.id} label={m.name} active={filterWho===m.name} onClick={()=>setFilterWho(m.name)} color={T.teal}/>)}
+        </div>
+        <Sec>Recent Expenses {filterWho!=="all"&&`· ${filterWho}`}</Sec>
         {expenses.loading&&<Spinner/>}
-        {!expenses.loading&&expenses.data.length===0&&<Card style={{textAlign:"center",padding:24}}><div style={{color:T.muted}}>No expenses yet!</div></Card>}
-        {expenses.data.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:40,height:40,borderRadius:10,background:T.warm,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20}}>{e.cat}</div><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.label}</div><div style={{fontSize:12,color:T.muted}}>{e.who} · {new Date(e.date||e.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{fontWeight:700,color:T.dark}}>₹{Number(e.amount).toLocaleString()}</div><button onClick={()=>expenses.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:16}}>×</button></div></div>))}
-        {showE?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Expense</div><div style={{marginBottom:10}}><label style={lbl}>Category</label><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{cats.map(c=><button key={c} onClick={()=>setEf(f=>({...f,cat:c}))} style={{width:36,height:36,borderRadius:8,border:`2px solid ${ef.cat===c?T.brown:T.border}`,background:ef.cat===c?T.warm:"#fff",fontSize:18,cursor:"pointer"}}>{c}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Description</label><input style={inp} value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Weekly groceries"/></div><div style={{marginBottom:10}}><label style={lbl}>Amount (₹)</label><input style={inp} type="number" value={ef.amount} onChange={e=>setEf(f=>({...f,amount:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Paid by</label><select style={inp} value={ef.who} onChange={e=>setEf(f=>({...f,who:e.target.value}))}><option value="">Select</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowE(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(ef.label&&ef.amount){await expenses.add({label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who,date:new Date().toISOString()});await onPts(10);setEf({label:"",amount:"",cat:"🛒",who:""});setShowE(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save +10pts</button></div></Card>):<button onClick={()=>setShowE(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Expense</button>}
+        {!expenses.loading&&filteredExp.length===0&&<Card style={{textAlign:"center",padding:24}}><div style={{color:T.muted}}>No expenses yet!</div></Card>}
+        {filteredExp.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:44,height:44,borderRadius:12,background:T.warm,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{e.cat}</div><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.label}</div><div style={{fontSize:12,color:T.muted}}>{e.who} · {new Date(e.date||e.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontWeight:700,color:T.dark}}>₹{Number(e.amount).toLocaleString()}</div><button onClick={()=>startEdit(e)} style={{background:T.amber+"20",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12,color:T.brown,fontWeight:700}}>✏️</button><button onClick={()=>expenses.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:16}}>×</button></div></div>))}
+        {showE?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>{editId?"Edit Expense":"Add Expense"}</div><div style={{marginBottom:10}}><label style={lbl}>Category</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{cats.map(c=><button key={c} onClick={()=>setEf(f=>({...f,cat:c}))} style={{width:48,height:48,borderRadius:12,border:`2px solid ${ef.cat===c?T.brown:T.border}`,background:ef.cat===c?T.warm:"#fff",fontSize:24,cursor:"pointer"}}>{c}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Description</label><input style={inp} value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Weekly groceries"/></div><div style={{marginBottom:10}}><label style={lbl}>Amount (₹)</label><input style={inp} type="number" value={ef.amount} onChange={e=>setEf(f=>({...f,amount:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Paid by</label><select style={inp} value={ef.who} onChange={e=>setEf(f=>({...f,who:e.target.value}))}><option value="">Select</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div style={{display:"flex",gap:8}}><button onClick={cancelEdit} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={saveExpense} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{editId?"Update":"Save +10pts"}</button></div></Card>):<button onClick={()=>{setEditId(null);setShowE(true);}} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Expense</button>}
       </>}
       {tab==="goals" && <>
         {goals.loading&&<Spinner/>}
@@ -660,21 +682,69 @@ function CalendarScreen({ familyId, members }) {
   const [showAdd,setShowAdd]=useState(false);
   const [view,setView]=useState("month");
   const [f,setF]=useState({title:"",date:"",emoji:"📅",member:"",repeat:"none"});
+  const [calDate,setCalDate]=useState(new Date());
+  const [selectedDay,setSelectedDay]=useState(null);
   const emojis=["📅","🎂","🏥","🎓","✈️","🎉","🏅","🍽️","⚡","💊","🎹","⚽","🎪","📝"];
   const repeats=[{v:"none",l:"No repeat"},{v:"weekly",l:"Every week"},{v:"monthly",l:"Every month"},{v:"yearly",l:"Every year"}];
-  const now=new Date();const m=now.getMonth();const y=now.getFullYear();
-  const dim=new Date(y,m+1,0).getDate();const fd=new Date(y,m,1).getDay();
+  const now=new Date();
+  const m=calDate.getMonth(); const y=calDate.getFullYear();
+  const dim=new Date(y,m+1,0).getDate(); const fd=new Date(y,m,1).getDay();
   const evDays=events.data.map(e=>new Date(e.date).getDate());
-  const upcoming=[...events.data].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
+  const allUpcoming=[...events.data].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date));
   const past=[...events.data].filter(e=>new Date(e.date)<new Date()).sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const selectedDateStr=selectedDay?`${y}-${String(m+1).padStart(2,"0")}-${String(selectedDay).padStart(2,"0")}`:null;
+  const dayEvents=selectedDay?events.data.filter(e=>e.date&&e.date.startsWith(selectedDateStr)):[];
+  const prevMonth=()=>{const d=new Date(calDate);d.setMonth(d.getMonth()-1);setCalDate(d);setSelectedDay(null);};
+  const nextMonth=()=>{const d=new Date(calDate);d.setMonth(d.getMonth()+1);setCalDate(d);setSelectedDay(null);};
+  const handleDayClick=(day)=>{
+    setSelectedDay(day===selectedDay?null:day);
+    const ds=`${y}-${String(m+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    setF(p=>({...p,date:ds}));
+    setShowAdd(false);
+  };
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}><div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark}}>{now.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</div><div style={{display:"flex",gap:6}}><Pill label="Month" active={view==="month"} onClick={()=>setView("month")}/><Pill label="List" active={view==="list"} onClick={()=>setView("list")}/></div></div>
-      {view==="month"&&<Card><div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>{["S","M","T","W","T","F","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:11,color:T.muted,fontWeight:700,padding:"4px 0"}}>{d}</div>)}</div><div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>{[...Array(fd)].map((_,i)=><div key={`e${i}`}/>)}{[...Array(dim)].map((_,i)=>{const day=i+1,isT=day===now.getDate(),hasEv=evDays.includes(day);return(<div key={day} style={{textAlign:"center",padding:"7px 2px",borderRadius:8,fontSize:13,fontWeight:isT?700:400,background:isT?T.brown:"transparent",color:isT?"#fff":T.text}}>{day}{hasEv&&<div style={{width:4,height:4,background:isT?"#fff":T.amber,borderRadius:"50%",margin:"2px auto 0"}}/>}</div>);})}</div></Card>}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark}}>{calDate.toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <button onClick={prevMonth} style={{width:32,height:32,borderRadius:"50%",border:`1.5px solid ${T.border}`,background:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>‹</button>
+          <button onClick={nextMonth} style={{width:32,height:32,borderRadius:"50%",border:`1.5px solid ${T.border}`,background:"#fff",cursor:"pointer",fontSize:16,display:"flex",alignItems:"center",justifyContent:"center"}}>›</button>
+          <Pill label="List" active={view==="list"} onClick={()=>setView("list")}/>
+          <Pill label="Month" active={view==="month"} onClick={()=>setView("month")}/>
+        </div>
+      </div>
+      {view==="month"&&<Card style={{marginBottom:12}}>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>
+          {["S","M","T","W","T","F","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:11,color:T.muted,fontWeight:700,padding:"4px 0"}}>{d}</div>)}
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+          {[...Array(fd)].map((_,i)=><div key={`e${i}`}/>)}
+          {[...Array(dim)].map((_,i)=>{
+            const day=i+1;
+            const isToday=day===now.getDate()&&m===now.getMonth()&&y===now.getFullYear();
+            const isSelected=day===selectedDay;
+            const hasEv=evDays.includes(day);
+            return(
+              <div key={day} onClick={()=>handleDayClick(day)} style={{textAlign:"center",padding:"7px 2px",borderRadius:8,fontSize:13,fontWeight:isToday||isSelected?700:400,background:isSelected?T.amber:isToday?T.brown:"transparent",color:isSelected?"#fff":isToday?"#fff":T.text,cursor:"pointer",position:"relative"}}>
+                {day}
+                {hasEv&&<div style={{width:4,height:4,background:isToday||isSelected?"#fff":T.amber,borderRadius:"50%",margin:"2px auto 0"}}/>}
+              </div>
+            );
+          })}
+        </div>
+        {selectedDay&&(
+          <div style={{marginTop:12,paddingTop:12,borderTop:`1px solid ${T.border}`}}>
+            <div style={{fontSize:12,fontWeight:700,color:T.brown,marginBottom:8}}>{new Date(selectedDateStr).toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"})}</div>
+            {dayEvents.length===0?<div style={{fontSize:12,color:T.muted,marginBottom:8}}>No events · <button onClick={()=>setShowAdd(true)} style={{background:"none",border:"none",color:T.brown,fontWeight:700,cursor:"pointer",fontSize:12}}>+ Add one</button></div>
+            :dayEvents.map(e=><div key={e.id} style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}><span style={{fontSize:16}}>{e.emoji}</span><div style={{flex:1,fontSize:13,color:T.dark}}>{e.title}</div><button onClick={()=>events.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:14}}>×</button></div>)}
+            <button onClick={()=>setShowAdd(true)} style={{fontSize:12,color:T.brown,fontWeight:700,background:T.warm,border:"none",borderRadius:8,padding:"6px 12px",cursor:"pointer",marginTop:4}}>+ Add Event</button>
+          </div>
+        )}
+      </Card>}
       <Sec>📅 Upcoming</Sec>
       {events.loading&&<Spinner/>}
-      {upcoming.length===0&&!events.loading&&<Card style={{textAlign:"center",padding:20}}><div style={{color:T.muted,fontSize:13}}>No upcoming events</div></Card>}
-      {upcoming.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`}}><span style={{fontSize:22}}>{e.emoji}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div><div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}{e.member?" · "+e.member:""}{e.repeat&&e.repeat!=="none"?" · 🔄":""}</div></div><button onClick={()=>events.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:16}}>×</button></div>))}
+      {allUpcoming.length===0&&!events.loading&&<Card style={{textAlign:"center",padding:20}}><div style={{color:T.muted,fontSize:13}}>No upcoming events</div></Card>}
+      {allUpcoming.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`}}><span style={{fontSize:22}}>{e.emoji}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div><div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}{e.member?" · "+e.member:""}{e.repeat&&e.repeat!=="none"?" · 🔄":""}</div></div><button onClick={()=>events.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:16}}>×</button></div>))}
       {past.length>0&&<><Sec style={{marginTop:8}}>Past Events</Sec>{past.slice(0,3).map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,opacity:0.6}}><span style={{fontSize:20}}>{e.emoji}</span><div style={{flex:1}}><div style={{fontSize:13,color:T.muted}}>{e.title} · {new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div><button onClick={()=>events.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted}}>×</button></div>))}</>}
       {showAdd?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Event</div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{emojis.map(e=><button key={e} onClick={()=>setF(p=>({...p,emoji:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${f.emoji===e?T.brown:T.border}`,background:f.emoji===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Event Name</label><input style={inp} value={f.title} onChange={e=>setF(p=>({...p,title:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Date</label><input style={inp} type="date" value={f.date} onChange={e=>setF(p=>({...p,date:e.target.value}))}/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}><div><label style={lbl}>Member (optional)</label><select style={inp} value={f.member} onChange={e=>setF(p=>({...p,member:e.target.value}))}><option value="">All family</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div><label style={lbl}>Repeat</label><select style={inp} value={f.repeat} onChange={e=>setF(p=>({...p,repeat:e.target.value}))}>{repeats.map(r=><option key={r.v} value={r.v}>{r.l}</option>)}</select></div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(f.title&&f.date){const {error:evErr}=await sb.from("events").insert({title:f.title,date:f.date,emoji:f.emoji,member:f.member||"",repeat:f.repeat,family_id:familyId});if(evErr){alert("Save failed: "+evErr.message);return;}await events.refetch();setF({title:"",date:"",emoji:"📅",member:"",repeat:"none"});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Event</button>}
     </div>
@@ -733,7 +803,18 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
   const score=computeScore(family);
   const [copied,setCopied]=useState(false);
   const [activeTab,setActiveTab]=useState("profile");
+  const [editing,setEditing]=useState(false);
+  const [saving,setSaving]=useState(false);
+  const [pf,setPf]=useState({name:"",city:"",monthly_income:"",monthly_expenses:"",savings:"",debts:"",insurance:"",age:""});
+  const cities=["Gurgaon","Mumbai","Delhi","Bangalore","Chennai","Hyderabad","Pune","Kolkata","Ahmedabad","Jaipur","Noida","Chandigarh"];
   const copyCode=()=>{if(family?.invite_code){navigator.clipboard?.writeText(family.invite_code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000);}};
+  const startEdit=()=>{setPf({name:family?.name||"",city:family?.city||"",monthly_income:String(family?.monthly_income||""),monthly_expenses:String(family?.monthly_expenses||""),savings:String(family?.savings||""),debts:String(family?.debts||""),insurance:String(family?.insurance||""),age:String(family?.age||"")});setEditing(true);};
+  const saveProfile=async()=>{
+    setSaving(true);
+    await sb.from("families").update({name:pf.name,city:pf.city,monthly_income:Number(pf.monthly_income)||0,monthly_expenses:Number(pf.monthly_expenses)||0,savings:Number(pf.savings)||0,debts:Number(pf.debts)||0,insurance:Number(pf.insurance)||0,age:Number(pf.age)||30}).eq("id",family.id);
+    setSaving(false);setEditing(false);
+    window.location.reload();
+  };
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Profile & Settings</div>
@@ -743,14 +824,38 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
         <Pill label="👑 Admin"   active={activeTab==="admin"}   onClick={()=>setActiveTab("admin")}/>
       </div>
       {activeTab==="profile"&&<>
-        <Card style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff"}}>
-          <div style={{fontSize:32,marginBottom:8}}>🏡</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,marginBottom:4}}>{family?.name}</div>
-          <div style={{fontSize:13,opacity:0.75,marginBottom:12}}>{family?.city} · {members?.length||0} members</div>
-          {score&&<div style={{display:"flex",gap:20,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.2)"}}><div><div style={{fontSize:10,opacity:0.65}}>Score</div><div style={{fontWeight:800,fontSize:20,color:score.gradeColor}}>{score.score}/100</div></div><div><div style={{fontSize:10,opacity:0.65}}>Freedom Age</div><div style={{fontWeight:800,fontSize:20}}>{score.freedomAge}</div></div><div><div style={{fontSize:10,opacity:0.65}}>Points</div><div style={{fontWeight:800,fontSize:20,color:T.amber}}>🏆 {family?.points||0}</div></div></div>}
-        </Card>
+        {!editing?(<>
+          <Card style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+              <div style={{fontSize:32,marginBottom:8}}>🏡</div>
+              <button onClick={startEdit} style={{background:"rgba(255,255,255,0.2)",border:"none",borderRadius:8,padding:"6px 12px",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>✏️ Edit</button>
+            </div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,marginBottom:4}}>{family?.name}</div>
+            <div style={{fontSize:13,opacity:0.75,marginBottom:12}}>{family?.city} · {members?.length||0} members</div>
+            {score&&<div style={{display:"flex",gap:20,paddingTop:12,borderTop:"1px solid rgba(255,255,255,0.2)"}}><div><div style={{fontSize:10,opacity:0.65}}>Score</div><div style={{fontWeight:800,fontSize:20,color:score.gradeColor}}>{score.score}/100</div></div><div><div style={{fontSize:10,opacity:0.65}}>Freedom Age</div><div style={{fontWeight:800,fontSize:20}}>{score.freedomAge}</div></div><div><div style={{fontSize:10,opacity:0.65}}>Points</div><div style={{fontWeight:800,fontSize:20,color:T.amber}}>🏆 {family?.points||0}</div></div></div>}
+          </Card>
+        </>):(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:16}}>Edit Family Profile</div>
+          <div style={{marginBottom:10}}><label style={lbl}>Family Name</label><input style={inp} value={pf.name} onChange={e=>setPf(p=>({...p,name:e.target.value}))}/></div>
+          <div style={{marginBottom:10}}><label style={lbl}>City</label><select style={inp} value={pf.city} onChange={e=>setPf(p=>({...p,city:e.target.value}))}>{cities.map(c=><option key={c}>{c}</option>)}</select></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <div><label style={lbl}>Monthly Income (₹)</label><input style={inp} type="number" value={pf.monthly_income} onChange={e=>setPf(p=>({...p,monthly_income:e.target.value}))}/></div>
+            <div><label style={lbl}>Monthly Expenses (₹)</label><input style={inp} type="number" value={pf.monthly_expenses} onChange={e=>setPf(p=>({...p,monthly_expenses:e.target.value}))}/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+            <div><label style={lbl}>Savings (₹)</label><input style={inp} type="number" value={pf.savings} onChange={e=>setPf(p=>({...p,savings:e.target.value}))}/></div>
+            <div><label style={lbl}>Debts (₹)</label><input style={inp} type="number" value={pf.debts} onChange={e=>setPf(p=>({...p,debts:e.target.value}))}/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
+            <div><label style={lbl}>Insurance (₹)</label><input style={inp} type="number" value={pf.insurance} onChange={e=>setPf(p=>({...p,insurance:e.target.value}))}/></div>
+            <div><label style={lbl}>Your Age</label><input style={inp} type="number" value={pf.age} onChange={e=>setPf(p=>({...p,age:e.target.value}))}/></div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setEditing(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+            <button onClick={saveProfile} disabled={saving} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{saving?"Saving...":"Save Changes"}</button>
+          </div>
+        </Card>)}
         <Sec>Members</Sec>
-        {(members||[]).map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{m.emoji}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div><div style={{fontSize:11,color:T.muted}}>{m.relationship}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div></div>))}
+        {(members||[]).map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{m.emoji}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div><div style={{fontSize:11,color:T.muted}}>{m.relationship||""}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div></div>))}
         <Sec style={{marginTop:16}}>Invite Family Members</Sec>
         <Card style={{background:"#FFFBF0",border:`1.5px solid ${T.amber}40`}}>
           {family?.invite_code?<><div style={{fontSize:13,color:T.brown,marginBottom:10,lineHeight:1.6}}>Share this code with family members to join.</div><div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{flex:1,background:T.warm,borderRadius:10,padding:"12px 16px",fontFamily:"monospace",fontSize:18,fontWeight:800,color:T.dark,letterSpacing:2,textAlign:"center"}}>{family.invite_code}</div><button onClick={copyCode} style={{padding:"12px 16px",borderRadius:10,border:"none",background:copied?T.green:T.brown,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",transition:"background 0.2s",flexShrink:0}}>{copied?"✓ Copied!":"Copy"}</button></div></>:<div style={{fontSize:13,color:T.muted}}>Invite code will appear here after signup.</div>}
@@ -829,10 +934,15 @@ export default function App() {
   const handleTabChange=(id)=>{setTab(id);setShowMore(false);};
 
   if(authLoading)return(
-    <div style={{minHeight:"100vh",background:T.cream,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,fontFamily:"Lato,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${T.brown},${T.dark})`,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{fontSize:48}}>🏡</div><Spinner/>
-      <div style={{fontSize:14,color:T.muted}}>Loading Famillion...</div>
+      <div style={{fontSize:72,marginBottom:16,animation:"splashBounce 1.2s ease infinite alternate"}}>🏡</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#fff",marginBottom:6,letterSpacing:0.5}}>Famillion</div>
+      <div style={{fontSize:14,color:"rgba(255,255,255,0.6)",marginBottom:40,letterSpacing:1}}>Your family's everything app</div>
+      <div style={{display:"flex",gap:8}}>
+        {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.4)",animation:`splashDot 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}
+      </div>
+      <style>{`@keyframes splashBounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-10px) scale(1.05)}}@keyframes splashDot{0%,60%,100%{opacity:0.3;transform:scale(1)}30%{opacity:1;transform:scale(1.3)}}`}</style>
     </div>
   );
 
