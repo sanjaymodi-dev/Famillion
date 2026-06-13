@@ -1032,6 +1032,8 @@ export default function App() {
   const [members,setMembers]=useState([]);
   const [tab,setTab]=useState("home");
   const [showMore,setShowMore]=useState(false);
+  const [selectedMember,setSelectedMember]=useState(null);
+const [showHeader,setShowHeader]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
@@ -1118,10 +1120,7 @@ export default function App() {
     </div>
   );
 
-  const [selectedMember,setSelectedMember]=useState(null);
-  const [showHeader,setShowHeader]=useState(false);
-
-  const handleMemberClick=(m)=>setSelectedMember(m);
+    const handleMemberClick=(m)=>setSelectedMember(m);
 
   if(selectedMember)return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
