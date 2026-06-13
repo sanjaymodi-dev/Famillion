@@ -397,7 +397,9 @@ function DayImage() {
   return {url, label:labels[slot]};
 }
 
-function HomeScreen({ family, members, expenses, events, onMemberClick }) {
+
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange }) {
+  
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
@@ -421,13 +423,19 @@ function HomeScreen({ family, members, expenses, events, onMemberClick }) {
           </div>))}
         </div>)}
         <div style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:20,padding:"20px",marginBottom:16,color:"#fff",boxShadow:"0 6px 24px rgba(92,61,46,0.25)"}}>
-          <div style={{fontSize:12,opacity:0.7,marginBottom:3}}>This Month's Spending</div>
+          
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+  <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
+  <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget →</button>
+</div>
+
+          
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,marginBottom:3}}>₹{spent.toLocaleString()}</div>
           <div style={{fontSize:13,opacity:0.7,marginBottom:10}}>of ₹{(family?.monthly_expenses||0).toLocaleString()} budget</div>
           <Bar value={spent} max={family?.monthly_expenses||1} color={spent>(family?.monthly_expenses||0)?T.rose:T.amber} h={8}/>
           {score&&(<div style={{marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.15)",display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:10,opacity:0.65}}>Freedom Score</div><div style={{fontWeight:800,fontSize:18,color:score.gradeColor}}>{score.score}/100</div></div><div style={{textAlign:"center"}}><div style={{fontSize:10,opacity:0.65}}>Points</div><div style={{fontWeight:800,fontSize:18,color:T.amber}}>🏆 {family?.points||0}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,opacity:0.65}}>Freedom Age</div><div style={{fontWeight:800,fontSize:18}}>{score.freedomAge}</div></div></div>)}
         </div>
-        {upcoming.length>0&&<><Sec>📅 Coming Up</Sec>{upcoming.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`}}><span style={{fontSize:20}}>{e.emoji||"📅"}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div><div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div></div>))}</>}
+       {upcoming.length>0&&<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><Sec style={{marginBottom:0}}>📅 Coming Up</Sec><button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>See all →</button></div> {upcoming.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`}}><span style={{fontSize:20}}>{e.emoji||"📅"}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div><div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div></div>))}</>}
         <Card style={{background:`linear-gradient(135deg,${T.lav}22,${T.blue}11)`,border:`1.5px solid ${T.lav}44`,marginTop:4}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:32}}>🤖</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark,fontSize:14}}>AI Family Concierge</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>Smart nudges & family assistant — coming soon!</div></div><Badge label="SOON" color={T.lav}/></div>
         </Card>
@@ -1087,7 +1095,20 @@ const [showHeader,setShowHeader]=useState(false);
   },[family]);
 
   const handleSignOut=()=>{sb.auth.signOut();setUser(null);setFamily(null);setMembers([]);};
-  const handleTabChange=(id)=>{setTab(id);setShowMore(false);};
+  const handleTabChange=(id)=>{
+  setTab(id);setShowMore(false);setSelectedMember(null);
+  window.history.pushState({tab:id},"","");
+};
+
+useEffect(()=>{
+  const onBack=(e)=>{
+    if(selectedMember){setSelectedMember(null);window.history.pushState({},"","");return;}
+    if(showMore){setShowMore(false);window.history.pushState({},"","");return;}
+    if(tab!=="home"){setTab("home");window.history.pushState({},"","");return;}
+  };
+  window.addEventListener("popstate",onBack);
+  return()=>window.removeEventListener("popstate",onBack);
+},[tab,showMore,selectedMember]);
 
   if(authLoading)return(
     <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${T.brown},${T.dark})`,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,fontFamily:"Lato,sans-serif"}}>
@@ -1132,7 +1153,9 @@ const [showHeader,setShowHeader]=useState(false);
   );
 
   const screens={
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} onMemberClick={handleMemberClick}/>,
+    
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange}/>,
+    
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
     budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
