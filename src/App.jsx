@@ -1059,14 +1059,22 @@ export default function App() {
 
   useEffect(()=>{
     if(!user?.id)return;
+    // Safety timeout — never stay on splash more than 8 seconds
+    const timeout=setTimeout(()=>{
+      setFamily(prev=>prev||{id:null,name:"My Family",city:"",points:0,monthly_income:0,monthly_expenses:0,savings:0,debts:0,insurance:0,age:30,_noProfile:true});
+    },8000);
     (async()=>{
-      const {data:profile}=await sb.from("user_profiles").select("*").eq("id",user.id).single();
-      if(!profile?.family_id)return;
-      const {data:fam}=await sb.from("families").select("*").eq("id",profile.family_id).single();
-      const {data:mems}=await sb.from("members").select("*").eq("family_id",profile.family_id).order("created_at",{ascending:true});
-      setFamily(Array.isArray(fam)?fam[0]:fam);
-      setMembers(Array.isArray(mems)?mems:[]);
+      try {
+        const {data:profile}=await sb.from("user_profiles").select("*").eq("id",user.id).single();
+        if(!profile?.family_id){clearTimeout(timeout);setFamily({id:null,name:"My Family",city:"",points:0,monthly_income:0,monthly_expenses:0,savings:0,debts:0,insurance:0,age:30,_noProfile:true});return;}
+        const {data:fam}=await sb.from("families").select("*").eq("id",profile.family_id).single();
+        const {data:mems}=await sb.from("members").select("*").eq("family_id",profile.family_id).order("created_at",{ascending:true});
+        clearTimeout(timeout);
+        setFamily(Array.isArray(fam)?fam[0]:fam);
+        setMembers(Array.isArray(mems)?mems:[]);
+      } catch(e){ clearTimeout(timeout); setFamily({id:null,name:"My Family",city:"",points:0,monthly_income:0,monthly_expenses:0,savings:0,debts:0,insurance:0,age:30,_noProfile:true}); }
     })();
+    return()=>clearTimeout(timeout);
   },[user]);
 
   const handlePts=useCallback(async(pts)=>{
