@@ -187,8 +187,8 @@ function OnboardingSlides({ onDone }) {
           {SLIDES.map((_,i) => (<div key={i} onClick={()=>setIdx(i)} style={{width:i===idx?24:8, height:8, borderRadius:99, background:i===idx?slide.color:T.border, transition:"all 0.3s", cursor:"pointer"}}/>))}
         </div>
         <div style={{display:"flex", gap:12}}>
-          {idx > 0 && (<button onClick={()=>setIdx(i=>i-1)} style={{flex:1, padding:16, borderRadius:16, border:`2px solid ${T.border}`, background:"transparent", color:T.brown, fontWeight:700, fontSize:15, cursor:"pointer"}}>← Back</button>)}
-          <button onClick={()=>isLast?onDone():setIdx(i=>i+1)} style={{flex:2, padding:16, borderRadius:16, border:"none", background:`linear-gradient(135deg,${slide.color},${T.dark})`, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer", boxShadow:`0 4px 20px ${slide.color}44`}}>{isLast?"Let's Begin 🚀":"Next →"}</button>
+          {idx > 0 && (<button onClick={()=>setIdx(i=>i-1)} style={{flex:1, padding:16, borderRadius:16, border:`2px solid ${T.border}`, background:"transparent", color:T.brown, fontWeight:700, fontSize:15, cursor:"pointer"}}>&larr; Back</button>)}
+          <button onClick={()=>isLast?onDone():setIdx(i=>i+1)} style={{flex:2, padding:16, borderRadius:16, border:"none", background:`linear-gradient(135deg,${slide.color},${T.dark})`, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer", boxShadow:`0 4px 20px ${slide.color}44`}}>{isLast?"Let's Begin":"Next &rarr;"}</button>
         </div>
         <button onClick={onDone} style={{width:"100%", marginTop:12, padding:8, background:"transparent", border:"none", color:T.muted, fontSize:13, cursor:"pointer"}}>Skip intro</button>
       </div>
@@ -342,7 +342,7 @@ function AuthScreen({ onAuth }) {
             <label style={lbl}>Password</label>
             <PwdInput value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
           </div>
-          <button onClick={handleLogin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Signing in...":"Sign In →"}</button>
+          <button onClick={handleLogin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Signing in...":"Sign In"}</button>
           <button onClick={()=>{setMode("forgot");reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Forgot password?</button>
           <div style={{textAlign:"center",marginTop:16}}>
             <button onClick={()=>{setJoinMode(true);reset();}} style={{background:"transparent",border:`1.5px solid ${T.amber}`,borderRadius:12,padding:"10px 20px",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer"}}>🔗 Join a Family with Invite Code</button>
@@ -354,7 +354,7 @@ function AuthScreen({ onAuth }) {
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:20}}>Reset Password</div>
           <div style={{marginBottom:16}}><label style={lbl}>Email</label><input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
           <button onClick={async()=>{setLoading(true);await sb._req("/auth/v1/recover",{method:"POST",body:JSON.stringify({email})});setSuccess("Reset link sent! Check your email.");setLoading(false);}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer",marginBottom:12}}>{loading?"Sending...":"Send Reset Link"}</button>
-          <button onClick={()=>{setMode("login");reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>← Back to Sign In</button>
+          <button onClick={()=>{setMode("login");reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Back to Sign In</button>
         </>}
 
         {/* JOIN */}
@@ -368,7 +368,7 @@ function AuthScreen({ onAuth }) {
             <PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/>
           </div>
           <button onClick={handleJoin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Joining...":"Join Family 🏡"}</button>
-          <button onClick={()=>{setJoinMode(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>← Back to Sign In</button>
+          <button onClick={()=>{setJoinMode(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Back to Sign In</button>
         </>}
 
         {/* SIGNUP */}
@@ -383,7 +383,7 @@ function AuthScreen({ onAuth }) {
               <label style={lbl}>Password (min 6 chars)</label>
               <PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/>
             </div>
-            <button onClick={()=>{if(!email||password.length<6){setError("Valid email and min 6-char password required");return;}setError("");setStep(2);}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Continue →</button>
+            <button onClick={()=>{if(!email||password.length<6){setError("Valid email and min 6-char password required");return;}setError("");setStep(2);}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Continue</button>
           </>}
           {step===2 && <>
             <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:20}}>Your family details</div>
@@ -403,7 +403,7 @@ function AuthScreen({ onAuth }) {
             </div>
             <div style={{display:"flex",gap:10}}>
               <button onClick={()=>setStep(1)} style={{flex:1,padding:14,borderRadius:14,border:`2px solid ${T.border}`,background:"transparent",color:T.brown,fontWeight:700,cursor:"pointer"}}>Back</button>
-              <button onClick={()=>{if(!familyName.trim()){setError("Please enter family name");return;}setError("");setStep(3);}} style={{flex:2,padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Continue →</button>
+              <button onClick={()=>{if(!familyName.trim()){setError("Please enter family name");return;}setError("");setStep(3);}} style={{flex:2,padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Continue</button>
             </div>
           </>}
           {step===3 && <>
@@ -479,7 +479,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
         <div style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:20,padding:"20px",marginBottom:16,color:"#fff",boxShadow:"0 6px 24px rgba(92,61,46,0.25)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
             <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
-            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget →</button>
+            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget /button>
           </div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,marginBottom:3}}>₹{spent.toLocaleString()}</div>
           <div style={{fontSize:13,opacity:0.7,marginBottom:10}}>of ₹{(family?.monthly_expenses||0).toLocaleString()} budget</div>
@@ -490,7 +490,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <Sec style={{marginBottom:0}}>📅 Coming Up</Sec>
-              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan →</button>
+              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan /button>
             </div>
             {upcoming.map(e=>(
               <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer",WebkitTapHighlightColor:"rgba(232,168,56,0.2)",transition:"opacity 0.15s"}} onTouchStart={e=>e.currentTarget.style.opacity="0.7"} onTouchEnd={e=>e.currentTarget.style.opacity="1"}>
@@ -696,7 +696,7 @@ function ChoresScreen({ familyId, onPts }) {
   const totalMonthSpend=providers.data.reduce((s,p)=>s+monthTotal(p.id),0);
   if (view==="add") return (
     <div style={{padding:"0 16px 16px"}}>
-      <button onClick={()=>setView("list")} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>← Back</button>
+      <button onClick={()=>setView("list")} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:12}}>Add Service Provider</div>
       <div style={{marginBottom:12}}><label style={lbl}>Type</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{PROVIDER_TYPES.map(pt=>(<button key={pt.id} onClick={()=>setNp(p=>({...p,type:pt.id}))} style={{padding:"8px 12px",borderRadius:10,border:`2px solid ${np.type===pt.id?T.brown:T.border}`,background:np.type===pt.id?T.warm:"#fff",cursor:"pointer",fontSize:13,fontWeight:600,display:"flex",alignItems:"center",gap:4}}>{pt.emoji} {pt.label}</button>))}</div></div>
       <div style={{marginBottom:12}}><label style={lbl}>Provider Name</label><input style={inp} placeholder="e.g. Ramesh bhaiya" value={np.name} onChange={e=>setNp(p=>({...p,name:e.target.value}))}/></div>
@@ -959,7 +959,7 @@ function ConciergeScreen({ family, members }) {
       </div>
       <div style={{padding:"12px 16px 0",display:"flex",gap:10}}>
         <input style={{...inp,flex:1}} placeholder="Ask me anything..." value={msg} onChange={e=>setMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button onClick={send} style={{padding:"12px 18px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.lav},${T.blue})`,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:18}}>→</button>
+        <button onClick={send} style={{padding:"12px 18px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.lav},${T.blue})`,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:18}}>/button>
       </div>
       <style>{`@keyframes dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}`}</style>
     </div>
@@ -1144,7 +1144,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   };
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>← Back</button>
+      <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
       <div style={{textAlign:"center",marginBottom:20}}>
         <label style={{cursor:"pointer",display:"inline-block",position:"relative"}}>
           <div style={{width:80,height:80,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
