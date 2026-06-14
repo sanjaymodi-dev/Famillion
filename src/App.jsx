@@ -197,6 +197,46 @@ function OnboardingSlides({ onDone }) {
   );
 }
 
+function ResetPasswordScreen({ token }) {
+  const [password,setPassword]=useState("");
+  const [confirm,setConfirm]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [error,setError]=useState("");
+  const [done,setDone]=useState(false);
+  const handleReset=async()=>{
+    if(password.length<6){setError("Password must be at least 6 characters");return;}
+    if(password!==confirm){setError("Passwords don't match");return;}
+    setLoading(true);setError("");
+    sb._token=token;
+    const r=await sb._req("/auth/v1/user",{method:"PUT",body:JSON.stringify({password})});
+    setLoading(false);
+    if(r.error){setError(r.error.message||"Something went wrong");return;}
+    setDone(true);
+    setTimeout(()=>{window.location.hash="";window.location.reload();},2500);
+  };
+  return(
+    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#FDF6EC,#F5ECD7)",display:"flex",justifyContent:"center",fontFamily:"Lato,sans-serif"}}>
+      <div style={{width:"100%",maxWidth:420,padding:"48px 24px 24px"}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:48,marginBottom:12}}>🔑</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:T.dark}}>Set New Password</div>
+          <div style={{fontSize:13,color:T.muted,marginTop:6}}>Choose a strong password for your account</div>
+        </div>
+        {done?(<div style={{textAlign:"center",padding:"32px 0"}}>
+          <div style={{fontSize:48,marginBottom:12}}>✅</div>
+          <div style={{fontWeight:700,color:T.green,fontSize:16}}>Password updated!</div>
+          <div style={{fontSize:13,color:T.muted,marginTop:8}}>Taking you to sign in…</div>
+        </div>):(<>
+          {error&&<div style={{background:"#FFF0F0",border:`1px solid ${T.rose}40`,borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.rose}}>{error}</div>}
+          <div style={{marginBottom:14}}><label style={lbl}>New Password</label><input style={inp} type="password" placeholder="Min 6 characters" value={password} onChange={e=>setPassword(e.target.value)}/></div>
+          <div style={{marginBottom:20}}><label style={lbl}>Confirm Password</label><input style={inp} type="password" placeholder="Repeat password" value={confirm} onChange={e=>setConfirm(e.target.value)}/></div>
+          <button onClick={handleReset} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{loading?"Updating…":"Update Password →"}</button>
+        </>)}
+      </div>
+    </div>
+  );
+}
+
 function AuthScreen({ onAuth }) {
   const [mode,setMode]             = useState("login");
   const [step,setStep]             = useState(1);
@@ -1286,6 +1326,7 @@ function WealthScreen({ family, members, familyId, onPts }) {
 export default function App() {
   const [user,setUser]=useState(null);
   const [authLoading,setAL]=useState(true);
+  const [recoveryToken,setRecoveryToken]=useState(null);
   const [showOnboarding,setShowOnboarding]=useState(false);
   const [family,setFamily]=useState(null);
   const [members,setMembers]=useState([]);
@@ -1300,6 +1341,12 @@ const [showHeader,setShowHeader]=useState(false);
   const currentTheme=THEMES.find(t=>t.id===theme)||THEMES[0];
 
   useEffect(()=>{
+    const hash=window.location.hash;
+    if(hash.includes("type=recovery")&&hash.includes("access_token=")){
+      const params=new URLSearchParams(hash.replace("#",""));
+      const token=params.get("access_token");
+      if(token){setRecoveryToken(token);setAL(false);return;}
+    }
     const seen=localStorage.getItem("fn_onboarding_seen");
     if(!seen)setShowOnboarding(true);
     if(sb.auth.restore()){
@@ -1382,6 +1429,7 @@ useEffect(()=>{
   return()=>window.removeEventListener("popstate",onBack);
 },[tab,showMore,selectedMember]);
 
+  if(recoveryToken)return <ResetPasswordScreen token={recoveryToken}/>;
   if(authLoading)return(
     <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${T.brown},${T.dark})`,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
