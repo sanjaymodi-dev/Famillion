@@ -18,12 +18,19 @@ const sb = {
       if (r.data?.access_token) { sb._token = r.data.access_token; sb._userId = r.data.user?.id; }
       return r;
     },
-    async signIn(email, password) {
+async signIn(email, password) {
       const r = await sb._req("/auth/v1/token?grant_type=password", { method: "POST", body: JSON.stringify({ email, password }) });
-      if (r.data?.access_token) { sb._token = r.data.access_token; sb._userId = r.data.user?.id; localStorage.setItem("fn_token", r.data.access_token); localStorage.setItem("fn_uid", r.data.user?.id); }
+      if (r.data?.access_token) {
+        sb._token = r.data.access_token;
+        sb._userId = r.data.user?.id;
+        localStorage.setItem("fn_token", r.data.access_token);
+        localStorage.setItem("fn_uid", r.data.user?.id);
+        if(r.data.refresh_token) localStorage.setItem("fn_refresh", r.data.refresh_token);
+      }
       return r;
     },
-    async signOut() { sb._token = null; sb._userId = null; ["fn_token","fn_uid","fn_email"].forEach(k => localStorage.removeItem(k)); },
+    
+    async signOut() { sb._token = null; sb._userId = null; ["fn_token","fn_uid","fn_email","fn_refresh"].forEach(k => localStorage.removeItem(k)); },
     restore() { const t = localStorage.getItem("fn_token"), u = localStorage.getItem("fn_uid"); if (t && u) { sb._token = t; sb._userId = u; return true; } return false; },
   },
   from(table) {
@@ -1063,20 +1070,40 @@ const [showHeader,setShowHeader]=useState(false);
     const seen=localStorage.getItem("fn_onboarding_seen");
     if(!seen)setShowOnboarding(true);
     if(sb.auth.restore()){
-      // Verify the stored token is still valid with Supabase
-      sb._req("/auth/v1/user").then(r=>{
+      // First try to validate existing token
+      sb._req("/auth/v1/user").then(async r=>{
         if(r.data?.id){
+          // Token still valid — great
           setUser({id:r.data.id, email:r.data.email||localStorage.getItem("fn_email")||""});
+          setAL(false);
         } else {
-          sb.auth.signOut(); // token expired — clear and show login
+          // Token expired — try to refresh it
+          const refreshToken=localStorage.getItem("fn_refresh");
+          if(refreshToken){
+            try {
+              const rr=await sb._req("/auth/v1/token?grant_type=refresh_token",{method:"POST",body:JSON.stringify({refresh_token:refreshToken})});
+              if(rr.data?.access_token){
+                sb._token=rr.data.access_token;
+                sb._userId=rr.data.user?.id;
+                localStorage.setItem("fn_token",rr.data.access_token);
+                localStorage.setItem("fn_uid",rr.data.user?.id);
+                if(rr.data.refresh_token)localStorage.setItem("fn_refresh",rr.data.refresh_token);
+                setUser({id:rr.data.user?.id, email:rr.data.user?.email||localStorage.getItem("fn_email")||""});
+              } else {
+                sb.auth.signOut();
+              }
+            } catch(e){ sb.auth.signOut(); }
+          } else {
+            sb.auth.signOut();
+          }
+          setAL(false);
         }
-        setAL(false);
       }).catch(()=>{ sb.auth.signOut(); setAL(false); });
     } else {
       setAL(false);
     }
   },[]);
-
+  
   useEffect(()=>{localStorage.setItem("fn_theme",theme);},[theme]);
 
   useEffect(()=>{
