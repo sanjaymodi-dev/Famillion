@@ -987,6 +987,7 @@ function WealthScreen({ family, members, familyId, onPts }) {
   const goals=useTable("goals",familyId);
   const [tab,setTab]=useState("overview");
   const [showGoal,setShowGoal]=useState(false);
+  const [expanded,setExpanded]=useState(null);
   const [gf,setGf]=useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue,category:"savings"});
   const colors=[T.blue,T.rose,T.green,T.lav,T.amber,T.brown];
   const goalCategories=[{v:"savings",l:"💰 Savings"},{v:"investment",l:"📈 Investment"},{v:"purchase",l:"🛒 Purchase"},{v:"education",l:"🎓 Education"},{v:"travel",l:"✈️ Travel"},{v:"emergency",l:"🛡️ Emergency"}];
@@ -994,14 +995,22 @@ function WealthScreen({ family, members, familyId, onPts }) {
   const savingsRate=family?.monthly_income>0?Math.round(((family.monthly_income-family.monthly_expenses)/family.monthly_income)*100):0;
   const totalGoalTarget=goals.data.reduce((s,g)=>s+Number(g.target),0);
   const totalGoalSaved=goals.data.reduce((s,g)=>s+Number(g.saved),0);
+
+  const overviewCards=[
+    {id:"income",icon:"💰",label:"Monthly Income",value:`₹${(family?.monthly_income||0).toLocaleString()}`,color:T.green,detail:`Monthly expenses: ₹${(family?.monthly_expenses||0).toLocaleString()}\nSavings rate: ${savingsRate}%\nNet monthly surplus: ₹${((family?.monthly_income||0)-(family?.monthly_expenses||0)).toLocaleString()}`},
+    {id:"savings",icon:"📈",label:"Savings Rate",value:`${savingsRate}%`,color:savingsRate>=20?T.green:T.rose,detail:`A healthy savings rate is 20%+.\nYours is currently ${savingsRate}%.\n${savingsRate<20?"Try reducing discretionary expenses.":savingsRate<30?"Good! Consider SIP investments.":"Excellent discipline! Review asset allocation."}`},
+    {id:"insurance",icon:"🛡️",label:"Insurance Cover",value:`₹${(family?.insurance||0).toLocaleString()}`,color:T.blue,detail:`Life cover: ₹${(family?.insurance||0).toLocaleString()}\nRule of thumb: Cover should be 10x annual income.\nRecommended: ₹${((family?.monthly_income||0)*120).toLocaleString()}`},
+    {id:"goals",icon:"🎯",label:"Active Goals",value:`${goals.data.length}`,color:T.amber,detail:`Total target: ₹${totalGoalTarget.toLocaleString()}\nTotal saved: ₹${totalGoalSaved.toLocaleString()}\nProgress: ${totalGoalTarget>0?Math.round(totalGoalSaved/totalGoalTarget*100):0}% across all goals`},
+  ];
+
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Wealth Management</div>
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
-        <Pill label="📊 Overview"    active={tab==="overview"}    onClick={()=>setTab("overview")}/>
-        <Pill label="🎯 Goals"       active={tab==="goals"}       onClick={()=>setTab("goals")}/>
-        <Pill label="📈 Score"       active={tab==="score"}       onClick={()=>setTab("score")}/>
-        <Pill label="🏦 Net Worth"   active={tab==="networth"}    onClick={()=>setTab("networth")}/>
+        <Pill label="📊 Overview"  active={tab==="overview"}  onClick={()=>setTab("overview")}/>
+        <Pill label="🎯 Goals"     active={tab==="goals"}     onClick={()=>setTab("goals")}/>
+        <Pill label="📈 Score"     active={tab==="score"}     onClick={()=>setTab("score")}/>
+        <Pill label="🏦 Net Worth" active={tab==="networth"}  onClick={()=>setTab("networth")}/>
       </div>
 
       {tab==="overview"&&<>
@@ -1011,10 +1020,23 @@ function WealthScreen({ family, members, familyId, onPts }) {
           <div style={{fontSize:12,opacity:0.7}}>Savings ₹{(family?.savings||0).toLocaleString()} · Debts ₹{(family?.debts||0).toLocaleString()}</div>
         </Card>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>💰</div><div style={{fontWeight:800,fontSize:16,color:T.green}}>₹{(family?.monthly_income||0).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Monthly income</div></Card>
-          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>📈</div><div style={{fontWeight:800,fontSize:16,color:savingsRate>=20?T.green:T.rose}}>{savingsRate}%</div><div style={{fontSize:11,color:T.muted}}>Savings rate</div></Card>
-          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>🛡️</div><div style={{fontWeight:800,fontSize:16,color:T.blue}}>₹{(family?.insurance||0).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Insurance cover</div></Card>
-          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>🎯</div><div style={{fontWeight:800,fontSize:16,color:T.amber}}>{goals.data.length}</div><div style={{fontSize:11,color:T.muted}}>Active goals</div></Card>
+          {overviewCards.map(c=>(
+            <div key={c.id} onClick={()=>setExpanded(expanded===c.id?null:c.id)} style={{cursor:"pointer"}}>
+              <Card style={{marginBottom:0,border:expanded===c.id?`2px solid ${c.color}`:`2px solid transparent`,transition:"border 0.15s"}}>
+                <div style={{fontSize:20,marginBottom:4}}>{c.icon}</div>
+                <div style={{fontWeight:800,fontSize:16,color:c.color}}>{c.value}</div>
+                <div style={{fontSize:11,color:T.muted}}>{c.label}</div>
+                <div style={{fontSize:10,color:T.muted,marginTop:4}}>{expanded===c.id?"▲ tap to close":"▼ tap for details"}</div>
+              </Card>
+              {expanded===c.id&&(
+                <div style={{background:c.color+"12",border:`1px solid ${c.color}30`,borderRadius:"0 0 12px 12px",padding:"10px 14px",marginTop:-4}}>
+                  {c.detail.split("\n").map((line,i)=>(
+                    <div key={i} style={{fontSize:12,color:T.dark,lineHeight:1.8}}>{line}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
         </div>
         {totalGoalTarget>0&&<Card><div style={{fontWeight:700,color:T.dark,marginBottom:8}}>Goals Progress</div><div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><div style={{fontSize:12,color:T.muted}}>Total saved towards goals</div><div style={{fontSize:12,fontWeight:700,color:T.brown}}>₹{totalGoalSaved.toLocaleString()} / ₹{totalGoalTarget.toLocaleString()}</div></div><Bar value={totalGoalSaved} max={totalGoalTarget} color={T.green}/></Card>}
         <Card style={{background:T.warm,border:`1px solid ${T.border}`}}><div style={{fontSize:13,color:T.brown,lineHeight:1.8}}>💡 <strong>Tip:</strong> {savingsRate<20?"Try to increase your savings rate to at least 20% of income.":savingsRate<30?"Great savings rate! Consider investing the surplus in SIP/mutual funds.":"Excellent! You're saving well. Review your investment allocation."}</div></Card>
@@ -1061,6 +1083,7 @@ export default function App() {
   const [showMore,setShowMore]=useState(false);
   const [selectedMember,setSelectedMember]=useState(null);
 const [showHeader,setShowHeader]=useState(false);
+  const [showPoints,setShowPoints]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
@@ -1209,8 +1232,8 @@ useEffect(()=>{
     profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
-  const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
@@ -1226,8 +1249,50 @@ useEffect(()=>{
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <span style={{fontSize:11,color:T.muted,fontWeight:700}}>{family?.city}</span>
-            <span style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown}}>🏆 {family?.points||0}</span>
+            <span onClick={()=>setShowPoints(true)} style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown,cursor:"pointer"}}>🏆 {family?.points||0}</span>
           </div>
+
+          {/* POINTS MODAL */}
+          {showPoints&&(
+            <>
+              <div onClick={()=>setShowPoints(false)} style={{position:"fixed",inset:0,zIndex:400,background:"rgba(0,0,0,0.4)"}}/>
+              <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"#FDF6EC",borderRadius:"20px 20px 0 0",zIndex:401,boxShadow:"0 -8px 40px rgba(92,61,46,0.18)",paddingBottom:32,maxHeight:"80vh",overflowY:"auto"}}>
+                <div style={{width:40,height:4,background:T.border,borderRadius:99,margin:"12px auto 0"}}/>
+                <div style={{padding:"16px 20px 12px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div>
+                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:T.dark}}>🏆 Family Points</div>
+                    <div style={{fontSize:12,color:T.muted,marginTop:2}}>Earn by staying on top of family life</div>
+                  </div>
+                  <div style={{textAlign:"center",background:T.amber+"20",borderRadius:14,padding:"8px 16px"}}>
+                    <div style={{fontSize:24,fontWeight:800,color:T.brown}}>{family?.points||0}</div>
+                    <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5}}>TOTAL PTS</div>
+                  </div>
+                </div>
+                <div style={{padding:"14px 20px"}}>
+                  <div style={{fontSize:11,fontWeight:800,color:T.brown,letterSpacing:0.8,marginBottom:10}}>HOW TO EARN</div>
+                  {[
+                    {icon:"✅",action:"Complete a chore",pts:"+5"},
+                    {icon:"💸",action:"Log an expense",pts:"+5"},
+                    {icon:"💊",action:"Add a medicine",pts:"+5"},
+                    {icon:"📅",action:"Add a family event",pts:"+10"},
+                    {icon:"💳",action:"Mark a bill as paid",pts:"+15"},
+                    {icon:"✔️",action:"Complete homework task",pts:"+15"},
+                    {icon:"💎",action:"Add a wealth goal",pts:"+20"},
+                    {icon:"👨‍👩‍👧",action:"Invite a family member",pts:"+50"},
+                  ].map(r=>(
+                    <div key={r.action} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${T.border}`}}>
+                      <span style={{fontSize:18,width:26,textAlign:"center",flexShrink:0}}>{r.icon}</span>
+                      <span style={{flex:1,fontSize:13,color:T.dark}}>{r.action}</span>
+                      <span style={{fontSize:13,fontWeight:800,color:T.amber}}>{r.pts} pts</span>
+                    </div>
+                  ))}
+                  <div style={{marginTop:14,background:T.warm,borderRadius:12,padding:"12px 14px",fontSize:12,color:T.brown,lineHeight:1.6}}>
+                    🎯 <strong>Coming soon:</strong> Redeem points for badges, rewards & family milestones!
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
        {/* HEADER DRAWER — sliding quarter-pane from left */}
