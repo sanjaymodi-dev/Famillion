@@ -1130,7 +1130,8 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
         c2.getContext("2d").drawImage(canvas,0,0,c2.width,c2.height);
         blob=await new Promise(res=>c2.toBlob(res,"image/jpeg",0.6));
       }
-      const token=sb._token;
+      const token=sb._token||localStorage.getItem("fn_token");
+      if(!token){alert("Not logged in — please sign out and sign back in.");setUploading(false);return;}
       const fileName=`${familyId}/${member.id}_${Date.now()}.jpg`;
       const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
       if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
@@ -1138,7 +1139,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
       await sb.from("members").update({avatar_url:publicUrl}).eq("id",member.id);
       setAvatarUrl(publicUrl);
       if(setMembers)setMembers(prev=>prev.map(m=>m.id===member.id?{...m,avatar_url:publicUrl}:m));
-    } catch(err){alert("Upload failed: "+err.message);}
+    } catch(err){alert("Upload error: "+err.message);}
     setUploading(false);
   };
   return (
