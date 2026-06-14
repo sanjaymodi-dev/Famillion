@@ -445,63 +445,149 @@ function DayImage() {
 }
 
 
-function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough }) {
+const COLLAGES=[
+  {panels:["👨‍👩‍👦","🎂","🌅"],bg:["linear-gradient(145deg,#8B5E14,#C4923A)","linear-gradient(145deg,#1A4A6B,#2A6FA0)","linear-gradient(145deg,#4A1A5E,#8B3AAE)"]},
+  {panels:["🏖️","🎊","🌿"],bg:["linear-gradient(145deg,#1A5E4A,#2A9A7A)","linear-gradient(145deg,#6B3A1A,#B06A30)","linear-gradient(145deg,#1A3A6B,#3A6AAE)"]},
+  {panels:["🎭","🌸","🏔️"],bg:["linear-gradient(145deg,#5E1A4A,#AE3A8B)","linear-gradient(145deg,#5E4A1A,#AE8B3A)","linear-gradient(145deg,#1A4A3A,#3A8B7A)"]},
+];
+
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
-  const {url,label}=DayImage();
-  const [imgLoaded,setImgLoaded]=useState(false);
+  const unseenNudges=(nudges||[]).filter(n=>!n.seen).slice(0,1);
+  const [slide,setSlide]=useState(0);
+  const totalSlides=COLLAGES.length;
+  const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
+  const hr=new Date().getHours();
+  const greeting=hr<12?"Good morning ☀️":hr<17?"Good afternoon 🌤️":"Good evening 🌙";
+  const HL="#0F1F3D";
+  const SAF="#F4A724";
+
+  useEffect(()=>{
+    const t=setInterval(()=>setSlide(s=>(s+1)%totalSlides),3500);
+    return()=>clearInterval(t);
+  },[]);
+
   return (
-    <div style={{padding:"0 0 86px"}}>
-      <div style={{position:"relative",marginBottom:16,overflow:"hidden",height:140,background:"linear-gradient(135deg,#5C3D2E,#A0522D)"}}>
-        <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block",opacity:imgLoaded?1:0,transition:"opacity 0.4s ease"}} onLoad={()=>setImgLoaded(true)} onError={()=>setImgLoaded(false)}/>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
-        </div>
-      </div>
-      <div style={{padding:"0 16px"}}>
-        {members?.length>0&&(<div style={{display:"flex",gap:12,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
-          {members.map(m=>(<div key={m.id} onClick={()=>onMemberClick(m)} style={{textAlign:"center",flexShrink:0,cursor:"pointer"}}>
-            <div style={{width:52,height:52,borderRadius:"50%",background:T.warm,border:`2.5px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,overflow:"hidden"}}>
-              {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
-            </div>
-            <div style={{fontSize:10,color:T.muted,marginTop:3}}>{m.name.split(" ")[0]}</div>
-          </div>))}
-        </div>)}
-        <div style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:20,padding:"20px",marginBottom:16,color:"#fff",boxShadow:"0 6px 24px rgba(92,61,46,0.25)"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-            <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
-            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget</button>
+    <div style={{padding:"0 0 86px",background:"#EDE8DF",minHeight:"100vh"}}>
+      <div style={{padding:"8px 8px 0",display:"flex",flexDirection:"column",gap:6}}>
+
+        {/* ROW 1 — Greeting + Members */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <div style={{background:HL,borderRadius:12,padding:"14px 12px",minHeight:90,display:"flex",flexDirection:"column",justifyContent:"center"}}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginBottom:4}}>{dateStr}</div>
+            <div style={{fontSize:15,fontWeight:700,color:SAF,lineHeight:1.35}}>{greeting}</div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginTop:5}}>{family?.name||"My Family"}</div>
           </div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,marginBottom:3}}>₹{spent.toLocaleString()}</div>
-          <div style={{fontSize:13,opacity:0.7,marginBottom:10}}>of ₹{(family?.monthly_expenses||0).toLocaleString()} budget</div>
-          <Bar value={spent} max={family?.monthly_expenses||1} color={spent>(family?.monthly_expenses||0)?T.rose:T.amber} h={8}/>
-          {score&&(<div style={{marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.15)",display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:10,opacity:0.65}}>Freedom Score</div><div style={{fontWeight:800,fontSize:18,color:score.gradeColor}}>{score.score}/100</div></div><div style={{textAlign:"center"}}><div style={{fontSize:10,opacity:0.65}}>Points</div><div style={{fontWeight:800,fontSize:18,color:T.amber}}>🏆 {family?.points||0}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,opacity:0.65}}>Freedom Age</div><div style={{fontWeight:800,fontSize:18}}>{score.freedomAge}</div></div></div>)}
-        </div>
-        {upcoming.length>0&&(
-          <div style={{marginBottom:16}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <Sec style={{marginBottom:0}}>📅 Coming Up</Sec>
-              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan</button>
-            </div>
-            {upcoming.map(e=>(
-              <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer",WebkitTapHighlightColor:"rgba(232,168,56,0.2)",transition:"opacity 0.15s"}} onTouchStart={e=>e.currentTarget.style.opacity="0.7"} onTouchEnd={e=>e.currentTarget.style.opacity="1"}>
-                <span style={{fontSize:20}}>{e.emoji||"📅"}</span>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div>
-                  <div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div>
+          <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
+              {(members||[]).slice(0,3).map(m=>(
+                <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
+                  <div style={{width:30,height:30,borderRadius:"50%",background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,overflow:"hidden"}}>
+                    {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+                  </div>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
                 </div>
+              ))}
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                <div style={{width:30,height:30,borderRadius:"50%",background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>➕</div>
+                <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ROW 2 — Collage slider */}
+        <div style={{borderRadius:12,overflow:"hidden",height:240,position:"relative"}}>
+          <div style={{display:"flex",height:"100%",transition:"transform 0.4s ease",transform:`translateX(-${slide*100}%)`}}>
+            {COLLAGES.map((c,ci)=>(
+              <div key={ci} style={{minWidth:"100%",height:"100%",display:"grid",gridTemplateColumns:"2fr 1fr",gridTemplateRows:"1fr 1fr",gap:2,flexShrink:0}}>
+                <div style={{gridRow:"1/3",background:c.bg[0],display:"flex",alignItems:"center",justifyContent:"center",fontSize:52}}>{c.panels[0]}</div>
+                <div style={{background:c.bg[1],display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{c.panels[1]}</div>
+                <div style={{background:c.bg[2],display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{c.panels[2]}</div>
               </div>
             ))}
           </div>
+          <div style={{position:"absolute",top:10,left:10,background:"rgba(0,0,0,0.38)",borderRadius:99,padding:"3px 10px",fontSize:9,color:"rgba(255,255,255,0.85)"}}>📸 Our moments</div>
+          <div style={{position:"absolute",bottom:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:5}}>
+            {COLLAGES.map((_,i)=>(
+              <div key={i} onClick={()=>setSlide(i)} style={{width:6,height:6,borderRadius:"50%",background:i===slide?SAF:"rgba(255,255,255,0.3)",cursor:"pointer",transition:"background 0.3s"}}/>
+            ))}
+          </div>
+          <div onClick={()=>setSlide(s=>(s-1+totalSlides)%totalSlides)} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.35)",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:14,userSelect:"none"}}>‹</div>
+          <div onClick={()=>setSlide(s=>(s+1)%totalSlides)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.35)",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:14,userSelect:"none"}}>›</div>
+        </div>
+
+        {/* ROW 3 — Budget + Coming Up */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <div onClick={()=>onTabChange("budget")} style={{background:HL,borderRadius:12,padding:12,cursor:"pointer"}}>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.42)",marginBottom:4}}>This month</div>
+            <div style={{fontSize:20,fontWeight:700,color:SAF}}>₹{spent>=1000?Math.round(spent/1000)+"k":spent.toLocaleString()}</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginBottom:7}}>of ₹{(family?.monthly_expenses||0)>=1000?Math.round((family?.monthly_expenses||0)/1000)+"k":(family?.monthly_expenses||0)} budget</div>
+            <div style={{height:4,background:"rgba(255,255,255,0.12)",borderRadius:99}}>
+              <div style={{height:"100%",background:spent>(family?.monthly_expenses||0)?"#EF4444":SAF,borderRadius:99,width:`${Math.min(100,family?.monthly_expenses?Math.round(spent/family.monthly_expenses*100):0)}%`}}/>
+            </div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.28)",marginTop:6}}>💸 Budget →</div>
+          </div>
+          <div onClick={()=>onTabChange("plan")} style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12,cursor:"pointer"}}>
+            <div style={{fontSize:9,color:"#888",marginBottom:6}}>📅 Coming up</div>
+            {upcoming.length===0&&<div style={{fontSize:10,color:"#AAA"}}>No upcoming events</div>}
+            {upcoming.slice(0,3).map((e,i)=>(
+              <div key={e.id} style={{fontSize:10,color:"#1A1A1A",paddingBottom:i<Math.min(upcoming.length,3)-1?4:0,marginBottom:i<Math.min(upcoming.length,3)-1?4:0,borderBottom:i<Math.min(upcoming.length,3)-1?"0.5px solid #E8E0D5":"none"}}>
+                {e.emoji||"📅"} {e.title} · {new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}
+              </div>
+            ))}
+            <div style={{fontSize:9,color:SAF,marginTop:6,fontWeight:700}}>See all →</div>
+          </div>
+        </div>
+
+        {/* ROW 4 — Nudges (only if unseen) */}
+        {unseenNudges.length>0&&(
+          <div style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12}}>
+            <div style={{fontSize:9,color:"#888",marginBottom:8}}>👋 Nudges</div>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>👤</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:12,color:"#1A1A1A",fontWeight:700}}>{unseenNudges[0].from_member} nudged you</div>
+                <div style={{fontSize:10,color:"#888",marginTop:1}}>{unseenNudges[0].note}</div>
+              </div>
+              <div style={{fontSize:9,background:HL,color:SAF,borderRadius:99,padding:"4px 10px",whiteSpace:"nowrap",flexShrink:0,cursor:"pointer"}}>View</div>
+            </div>
+          </div>
         )}
-        <Card style={{background:`linear-gradient(135deg,${T.lav}22,${T.blue}11)`,border:`1.5px solid ${T.lav}44`,marginTop:4}}>
-          <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:32}}>🤖</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark,fontSize:14}}>AI Family Concierge</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>Smart nudges & family assistant — coming soon!</div></div><Badge label="SOON" color={T.lav}/></div>
-        </Card>
-        <button onClick={onShowWalkthrough} style={{width:"100%",marginTop:12,padding:"10px 16px",borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontSize:12,fontWeight:700,cursor:"pointer"}}>👋 How does Famillion work?</button>
+
+        {/* ROW 5 — AI Concierge + Freedom Score */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <div onClick={()=>onTabChange("concierge")} style={{background:"#1A2F52",borderRadius:12,padding:12,cursor:"pointer"}}>
+            <div style={{fontSize:22,marginBottom:6}}>🤖</div>
+            <div style={{fontSize:11,color:"#fff",fontWeight:700}}>AI Concierge</div>
+            <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginTop:2}}>Family assistant</div>
+            <div style={{marginTop:8,fontSize:9,background:"rgba(244,167,36,0.15)",color:SAF,borderRadius:99,padding:"3px 8px",display:"inline-block"}}>SOON</div>
+          </div>
+          {score?(
+            <div onClick={()=>onTabChange("budget")} style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12,cursor:"pointer"}}>
+              <div style={{fontSize:9,color:"#888",marginBottom:4}}>Freedom score</div>
+              <div style={{fontSize:28,fontWeight:700,color:HL}}>{score.score}</div>
+              <div style={{fontSize:9,color:"#888"}}>/100 · {score.grade}</div>
+              <div style={{height:4,background:"#EDE8DF",borderRadius:99,marginTop:8}}>
+                <div style={{height:"100%",background:SAF,borderRadius:99,width:`${score.score}%`}}/>
+              </div>
+            </div>
+          ):(
+            <div onClick={()=>onTabChange("profile")} style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12,cursor:"pointer"}}>
+              <div style={{fontSize:9,color:"#888",marginBottom:4}}>Freedom score</div>
+              <div style={{fontSize:11,color:"#1A1A1A",fontWeight:700,marginTop:4}}>Set up finances</div>
+              <div style={{fontSize:9,color:"#AAA",marginTop:2}}>Add income in Profile</div>
+              <div style={{fontSize:9,color:SAF,marginTop:6,fontWeight:700}}>Go →</div>
+            </div>
+          )}
+        </div>
+
+        {/* Walkthrough */}
+        <div onClick={onShowWalkthrough} style={{textAlign:"center",padding:"10px 0 4px",fontSize:12,color:"#AAA",cursor:"pointer"}}>👋 How does Famillion work?</div>
+
       </div>
     </div>
   );
@@ -658,7 +744,7 @@ function ErrandsScreen({ familyId, onPts }) {
   const overdueBills=bills.data.filter(b=>!b.paid&&b.due_date&&new Date(b.due_date)<new Date());
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Errands</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Daily Errands</div>
       {overdueBills.length>0&&(<div style={{background:T.rose+"15",border:`1.5px solid ${T.rose}40`,borderRadius:14,padding:"12px 16px",marginBottom:16}}><div style={{fontWeight:700,color:T.rose,fontSize:13}}>⚠️ {overdueBills.length} overdue bill{overdueBills.length>1?"s":""}</div>{overdueBills.map(b=><div key={b.id} style={{fontSize:12,color:T.rose,marginTop:4}}>{b.icon} {b.label} — ₹{Number(b.amount).toLocaleString()}</div>)}</div>)}
       <Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontWeight:700,fontSize:15,color:T.dark}}>🛒 Shopping List</div><div style={{fontSize:12,color:T.muted}}>{groceries.data.filter(i=>i.done).length}/{groceries.data.length} done</div></div>
@@ -702,7 +788,7 @@ function ChoresScreen({ familyId, onPts }) {
   );
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:12}}>Chores</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:12}}>Chores & Services</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Track your dhobi, maid, dairy & more</div>
       <Card style={{background:`linear-gradient(135deg,${T.teal},#3D7A7A)`,color:"#fff",marginBottom:14}}><div style={{fontSize:12,opacity:0.75,marginBottom:4}}>This Month's Service Cost</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700}}>₹{totalMonthSpend.toLocaleString()}</div><div style={{fontSize:12,opacity:0.7,marginTop:4}}>{providers.data.length} providers · {logs.data.filter(l=>new Date(l.log_date).getMonth()===new Date().getMonth()).length} visits logged</div></Card>
       {providers.data.length>0&&<><Sec>Today's Attendance</Sec><div style={{display:"flex",gap:10,marginBottom:16,overflowX:"auto",paddingBottom:4}}>{providers.data.filter(p=>p.active).map(p=>{const came=loggedIds.includes(p.id);return(<div key={p.id} onClick={()=>!came&&handleLog(p)} style={{flexShrink:0,textAlign:"center",cursor:came?"default":"pointer"}}><div style={{width:56,height:56,borderRadius:"50%",background:came?T.green+"30":T.warm,border:`3px solid ${came?T.green:T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,position:"relative"}}>{p.emoji}{came&&<div style={{position:"absolute",bottom:-2,right:-2,width:18,height:18,borderRadius:"50%",background:T.green,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#fff",fontSize:10}}>✓</span></div>}</div><div style={{fontSize:10,color:came?T.green:T.muted,fontWeight:700,marginTop:4}}>{p.name.split(" ")[0]}</div>{!came&&<div style={{fontSize:9,color:T.muted}}>tap ✓</div>}</div>);})}</div></>}
@@ -753,7 +839,7 @@ function JournalScreen({ familyId, members, userId }) {
   const filtered=filter==="all"?journal.data:journal.data.filter(j=>j.member===filter);
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Journal</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Family Journal</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Thoughts, memories and moments</div>
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:8}}>
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")} color={T.orange}/>
@@ -778,7 +864,7 @@ function PhotoJourneyScreen({ familyId }) {
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Journey</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Photo Journey</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Your family's story, chapter by chapter</div>
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4}}>
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
@@ -797,6 +883,7 @@ function PhotoJourneyScreen({ familyId }) {
 
 function CalendarScreen({ familyId, members }) {
   const events=useTable("events",familyId);
+  const nudges=useTable("nudges",familyId);
   const [showAdd,setShowAdd]=useState(false);
   const [view,setView]=useState("month");
   const [f,setF]=useState({title:"",date:"",emoji:"📅",member:"",repeat:"none"});
@@ -879,7 +966,7 @@ function KidsZoneScreen({ familyId, members, onPts }) {
   const done=homework.data.filter(h=>h.done);
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Kids</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Kids Zone 🎒</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Homework tracker & activities</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
         <Card style={{marginBottom:0,background:`linear-gradient(135deg,${T.blue}22,${T.lav}22)`,borderLeft:`3px solid ${T.blue}`}}><div style={{fontSize:24,marginBottom:4}}>📚</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.blue}}>{pending.length}</div><div style={{fontSize:11,color:T.muted}}>Pending tasks</div></Card>
@@ -1040,66 +1127,9 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
 function SettingsScreen({ onSignOut }) {
   const [activeTab,setActiveTab]=useState("privacy");
-  const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
-  const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
-  const audioRef=React.useRef(null);
-
-  const getAudio=()=>{
-    if(!audioRef.current){
-      audioRef.current=new Audio("https://cdn.pixabay.com/audio/2022/10/16/audio_5cca3f32d0.mp3");
-      audioRef.current.loop=true;
-      audioRef.current.volume=0.18;
-    }
-    return audioRef.current;
-  };
-
-  React.useEffect(()=>{
-    if(bgmPref==="always"){getAudio().play().catch(()=>{});setBgmOn(true);}
-  },[]);
-
-  const toggleBgm=()=>{
-    if(bgmOn){getAudio().pause();setBgmOn(false);}
-    else{getAudio().play().catch(()=>{});setBgmOn(true);}
-  };
-
-  const handlePrefChange=(pref)=>{
-    setBgmPref(pref);
-    localStorage.setItem("fn_bgm_pref",pref);
-    if(pref==="always"){getAudio().play().catch(()=>{});setBgmOn(true);}
-    if(pref==="manual"){getAudio().pause();setBgmOn(false);}
-  };
-
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Settings</div>
-      <Card style={{marginBottom:16}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:bgmOn?14:0}}>
-          <div>
-            <div style={{fontWeight:700,fontSize:14,color:T.dark}}>🎵 Ambient Sound</div>
-            <div style={{fontSize:12,color:T.muted,marginTop:2}}>{bgmOn?"Playing — soft rain ambience":"Silent"}</div>
-          </div>
-          <div onClick={toggleBgm} style={{width:48,height:28,borderRadius:99,background:bgmOn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <div style={{position:"absolute",top:3,left:bgmOn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
-          </div>
-        </div>
-        {bgmOn&&<>
-          <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {[
-              {v:"always",label:"🔁 Always on",sub:"Starts automatically every time I open the app"},
-              {v:"manual",label:"🖐️ I'll turn it on myself",sub:"Starts silent, I decide when to play"},
-            ].map(opt=>(
-              <div key={opt.v} onClick={()=>handlePrefChange(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:T.dark}}>{opt.label}</div>
-                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>{opt.sub}</div>
-                </div>
-                <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.brown:"transparent",flexShrink:0}}/>
-              </div>
-            ))}
-          </div>
-        </>}
-      </Card>
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
         <Pill label="🔒 Privacy" active={activeTab==="privacy"} onClick={()=>setActiveTab("privacy")}/>
         <Pill label="📄 Disclaimer" active={activeTab==="disclaimer"} onClick={()=>setActiveTab("disclaimer")}/>
@@ -1136,13 +1166,6 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   const totalSpent=memberExpenses.reduce((s,e)=>s+Number(e.amount),0);
   const [uploading,setUploading]=useState(false);
   const [avatarUrl,setAvatarUrl]=useState(member.avatar_url||null);
-  const [cropSrc,setCropSrc]=useState(null);
-  const [cropOffset,setCropOffset]=useState({x:0,y:0});
-  const [cropDragging,setCropDragging]=useState(false);
-  const [dragStart,setDragStart]=useState({x:0,y:0});
-  const cropImgRef=React.useRef(null);
-  const cropCanvasRef=React.useRef(null);
-  const CROP_SIZE=240;
   const [showNudge,setShowNudge]=useState(false);
   const [nudgeSent,setNudgeSent]=useState(false);
   const [nf,setNf]=useState({task_type:"bill",note:"",tone:"🙏 Gentle reminder"});
@@ -1167,51 +1190,27 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
     setNudgeSent(true);
     setTimeout(()=>{setNudgeSent(false);setShowNudge(false);setNf({task_type:"bill",note:"",tone:"🙏 Gentle reminder"});},2000);
   };
-  const handleFileSelect=async(e)=>{
+  const handlePicUpload=async(e)=>{
     const file=e.target.files?.[0];
     if(!file)return;
-    const url=URL.createObjectURL(file);
-    setCropSrc(url);
-    setCropOffset({x:0,y:0});
-  };
-
-  const handleCropDragStart=(clientX,clientY)=>{
-    setCropDragging(true);
-    setDragStart({x:clientX-cropOffset.x,y:clientY-cropOffset.y});
-  };
-  const handleCropDragMove=(clientX,clientY)=>{
-    if(!cropDragging)return;
-    const img=cropImgRef.current;
-    if(!img)return;
-    const maxX=img.offsetWidth-CROP_SIZE;
-    const maxY=img.offsetHeight-CROP_SIZE;
-    setCropOffset({
-      x:Math.max(0,Math.min(maxX,clientX-dragStart.x)),
-      y:Math.max(0,Math.min(maxY,clientY-dragStart.y)),
-    });
-  };
-  const handleCropEnd=()=>setCropDragging(false);
-
-  const handleCropAndUpload=async()=>{
     setUploading(true);
     try {
-      const img=cropImgRef.current;
-      const displayed=img.getBoundingClientRect();
-      const scaleX=img.naturalWidth/displayed.width;
-      const scaleY=img.naturalHeight/displayed.height;
+      const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file);});
       const canvas=document.createElement("canvas");
-      canvas.width=400;canvas.height=400;
-      const ctx=canvas.getContext("2d");
-      const srcX=cropOffset.x*scaleX;
-      const srcY=cropOffset.y*scaleY;
-      const srcW=CROP_SIZE*scaleX;
-      const srcH=CROP_SIZE*scaleY;
-      ctx.drawImage(img,srcX,srcY,srcW,srcH,0,0,400,400);
-      let blob;let quality=0.85;
+      const MAX=600;const scale=Math.min(MAX/img.width,MAX/img.height,1);
+      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+      let blob;let quality=0.8;
       while(quality>=0.3){
         blob=await new Promise(res=>canvas.toBlob(res,"image/jpeg",quality));
         if(blob.size<=150*1024)break;
         quality-=0.1;
+      }
+      if(blob.size>150*1024){
+        const c2=document.createElement("canvas");
+        c2.width=300;c2.height=Math.round(300*(canvas.height/canvas.width));
+        c2.getContext("2d").drawImage(canvas,0,0,c2.width,c2.height);
+        blob=await new Promise(res=>c2.toBlob(res,"image/jpeg",0.6));
       }
       const token=sb._token||localStorage.getItem("fn_token");
       if(!token){alert("Not logged in — please sign out and sign back in.");setUploading(false);return;}
@@ -1222,34 +1221,9 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
       await sb.from("members").update({avatar_url:publicUrl}).eq("id",member.id);
       setAvatarUrl(publicUrl);
       if(setMembers)setMembers(prev=>prev.map(m=>m.id===member.id?{...m,avatar_url:publicUrl}:m));
-      setCropSrc(null);
     } catch(err){alert("Upload error: "+err.message);}
     setUploading(false);
   };
-  if(cropSrc)return(
-    <div style={{padding:"16px",fontFamily:"Lato,sans-serif"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark,marginBottom:12}}>Crop Photo</div>
-      <div style={{position:"relative",overflow:"hidden",borderRadius:16,background:"#000",marginBottom:16,userSelect:"none",touchAction:"none"}}
-        onMouseMove={e=>handleCropDragMove(e.clientX,e.clientY)}
-        onMouseUp={handleCropEnd}
-        onMouseLeave={handleCropEnd}
-        onTouchMove={e=>{e.preventDefault();handleCropDragMove(e.touches[0].clientX,e.touches[0].clientY);}}
-        onTouchEnd={handleCropEnd}
-      >
-        <img ref={cropImgRef} src={cropSrc} alt="crop" style={{width:"100%",display:"block",opacity:0.5,pointerEvents:"none"}}/>
-        <div style={{position:"absolute",top:cropOffset.y,left:cropOffset.x,width:CROP_SIZE,height:CROP_SIZE,border:"3px solid #fff",borderRadius:"50%",boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",cursor:"move",boxSizing:"border-box"}}
-          onMouseDown={e=>handleCropDragStart(e.clientX,e.clientY)}
-          onTouchStart={e=>handleCropDragStart(e.touches[0].clientX,e.touches[0].clientY)}
-        />
-      </div>
-      <div style={{fontSize:12,color:T.muted,textAlign:"center",marginBottom:16}}>Drag the circle to position your photo</div>
-      <div style={{display:"flex",gap:10}}>
-        <button onClick={()=>setCropSrc(null)} style={{flex:1,padding:13,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer"}}>Cancel</button>
-        <button onClick={handleCropAndUpload} disabled={uploading} style={{flex:2,padding:13,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{uploading?"Uploading…":"Crop & Upload"}</button>
-      </div>
-    </div>
-  );
-
   return (
     <div style={{padding:"0 16px 16px"}}>
       <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
@@ -1259,7 +1233,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
             {avatarUrl?<img src={avatarUrl} alt={member.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
           </div>
           <div style={{position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{uploading?"⏳":"📷"}</div>
-          <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
+          <input type="file" accept="image/*" onChange={handlePicUpload} style={{display:"none"}} disabled={uploading}/>
         </label>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{member.name}</div>
         {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}{member.dob?" · Born "+new Date(member.dob).getFullYear():""}</div>}
@@ -1584,7 +1558,7 @@ useEffect(()=>{
 
   const screens={
     
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)}/>,
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)}/>,
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
@@ -1602,7 +1576,7 @@ useEffect(()=>{
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
