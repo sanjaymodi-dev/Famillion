@@ -399,7 +399,6 @@ function DayImage() {
 
 
 function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange }) {
-  
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
@@ -423,29 +422,41 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           </div>))}
         </div>)}
         <div style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:20,padding:"20px",marginBottom:16,color:"#fff",boxShadow:"0 6px 24px rgba(92,61,46,0.25)"}}>
-          
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
-  <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
-  <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget →</button>
-    <button onClick={()=>onTabChange("profile")} style={{fontSize:10,background:"rgba(255,255,255,0.15)",border:"1px solid rgba(255,255,255,0.3)",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>✏️ Edit</button>
-  </div>
-</div>
-
-          
+            <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
+            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget →</button>
+          </div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,marginBottom:3}}>₹{spent.toLocaleString()}</div>
           <div style={{fontSize:13,opacity:0.7,marginBottom:10}}>of ₹{(family?.monthly_expenses||0).toLocaleString()} budget</div>
           <Bar value={spent} max={family?.monthly_expenses||1} color={spent>(family?.monthly_expenses||0)?T.rose:T.amber} h={8}/>
           {score&&(<div style={{marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.15)",display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:10,opacity:0.65}}>Freedom Score</div><div style={{fontWeight:800,fontSize:18,color:score.gradeColor}}>{score.score}/100</div></div><div style={{textAlign:"center"}}><div style={{fontSize:10,opacity:0.65}}>Points</div><div style={{fontWeight:800,fontSize:18,color:T.amber}}>🏆 {family?.points||0}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,opacity:0.65}}>Freedom Age</div><div style={{fontWeight:800,fontSize:18}}>{score.freedomAge}</div></div></div>)}
         </div>
-      {upcoming.length>0&&<><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}><Sec style={{marginBottom:0}}>📅 Coming Up</Sec><button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan →</button></div> {upcoming.map(e=>(<div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer"}}><span style={{fontSize:20}}>{e.emoji||"📅"}</span><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div><div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div><span style={{color:T.amber,fontWeight:700}}>›</span></div>))}</>}
-       
-      <Card style={{background:`linear-gradient(135deg,${T.lav}22,${T.blue}11)`,border:`1.5px solid ${T.lav}44`,marginTop:4}}>
+        {upcoming.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <Sec style={{marginBottom:0}}>📅 Coming Up</Sec>
+              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan →</button>
+            </div>
+            {upcoming.map(e=>(
+              <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer"}}>
+                <span style={{fontSize:20}}>{e.emoji||"📅"}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div>
+                  <div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div>
+                </div>
+                <span style={{color:T.amber,fontWeight:700,fontSize:16}}>›</span>
+              </div>
+            ))}
+          </div>
+        )}
+        <Card style={{background:`linear-gradient(135deg,${T.lav}22,${T.blue}11)`,border:`1.5px solid ${T.lav}44`,marginTop:4}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:32}}>🤖</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark,fontSize:14}}>AI Family Concierge</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>Smart nudges & family assistant — coming soon!</div></div><Badge label="SOON" color={T.lav}/></div>
         </Card>
       </div>
     </div>
   );
 }
+
 
 function MoneyScreen({ family, members, familyId, onPts }) {
   const expenses = useTable("expenses", familyId);
