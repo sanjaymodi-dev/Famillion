@@ -293,22 +293,48 @@ function AuthScreen({ onAuth }) {
     setLoading(false);
   };
 
-  const handleJoin = async () => {
-    setLoading(true); setError("");
-    try {
-      const {data:authData, error:authError} = await sb.auth.signUp(email, password);
-      if (authError) throw new Error(authError.message||"Signup failed");
-      const userId = sb._userId || authData?.user?.id;
-      if (!userId) throw new Error("Could not get user ID after signup. Please try again.");
-      const {data:fams} = await sb.from("families").select("*").eq("invite_code", inviteCode.toUpperCase().trim());
-      const fam = Array.isArray(fams) ? fams[0] : fams;
-      if (!fam) throw new Error("Invite code not found. Please check and try again.");
-      // Create user_profiles row — this is critical for the member to see the family
-      const {error:profErr} = await sb.from("user_profiles").insert({id:userId, family_id:fam.id, display_name:email, is_admin:false});
-      if (profErr && !profErr.message?.includes("duplicate")) throw new Error("Could not link you to the family: "+profErr.message);
-      setSuccess(`✅ Joined ${fam.name}! Check your email to verify, then sign in.`);
-      setMode("login"); setJoinMode(false);
-    } catch(e) { setError(e.message); }
+  const [joinStep,setJoinStep]=useState(1);
+  const [joinFamily,setJoinFamily]=useState(null);
+  const [joinMembers,setJoinMembers]=useState([]);
+  const [selectedMemberId,setSelectedMemberId]=useState(null);
+  const [joinName,setJoinName]=useState("");
+  const [joinEmoji,setJoinEmoji]=useState("👤");
+  const [joinNew,setJoinNew]=useState(false);
+
+  const handleInviteLookup=async()=>{
+    if(!inviteCode.trim()){setError("Enter an invite code.");return;}
+    setLoading(true);setError("");
+    try{
+      const {data:fams}=await sb.from("families").select("*").eq("invite_code",inviteCode.toUpperCase().trim());
+      const fam=Array.isArray(fams)?fams[0]:fams;
+      if(!fam)throw new Error("Invite code not found. Please check and try again.");
+      const {data:mems}=await sb.from("members").select("*").eq("family_id",fam.id).order("created_at",{ascending:true});
+      setJoinFamily(fam);
+      setJoinMembers(Array.isArray(mems)?mems:[]);
+      setJoinStep(2);
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  };
+
+  const handleJoin=async()=>{
+    const finalName=joinName.trim();
+    if(!finalName){setError("Please enter your name.");return;}
+    setLoading(true);setError("");
+    try{
+      const {data:authData,error:authError}=await sb.auth.signUp(email,password);
+      if(authError)throw new Error(authError.message||"Signup failed");
+      const userId=sb._userId||authData?.user?.id;
+      if(!userId)throw new Error("Could not get user ID after signup. Please try again.");
+      const {error:profErr}=await sb.from("user_profiles").insert({id:userId,family_id:joinFamily.id,display_name:finalName,is_admin:false});
+      if(profErr&&!profErr.message?.includes("duplicate"))throw new Error("Could not link you to the family: "+profErr.message);
+      if(selectedMemberId){
+        await sb.from("members").update({name:finalName,emoji:joinEmoji}).eq("id",selectedMemberId);
+      } else {
+        await sb.from("members").insert({family_id:joinFamily.id,name:finalName,emoji:joinEmoji,relationship:"",dob:null,occupation:""});
+      }
+      setSuccess(`✅ Joined ${joinFamily.name}! Check your email to verify, then sign in.`);
+      setMode("login");setJoinMode(false);setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);
+    }catch(e){setError(e.message);}
     setLoading(false);
   };
 
@@ -360,15 +386,51 @@ function AuthScreen({ onAuth }) {
         {/* JOIN */}
         {joinMode && <>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:6}}>Join Your Family</div>
-          <div style={{fontSize:13,color:T.muted,marginBottom:20,lineHeight:1.6}}>Enter the invite code shared by your family admin.</div>
-          <div style={{marginBottom:14}}><label style={lbl}>Invite Code</label><input style={{...inp,textTransform:"uppercase",letterSpacing:2,fontWeight:700}} placeholder="INV-XXXXXXXX" value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/></div>
-          <div style={{marginBottom:14}}><label style={lbl}>Your Email</label><input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-          <div style={{marginBottom:20}}>
-            <label style={lbl}>Create Password</label>
-            <PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/>
-          </div>
-          <button onClick={handleJoin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Joining...":"Join Family 🏡"}</button>
-          <button onClick={()=>{setJoinMode(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Back to Sign In</button>
+
+          {/* STEP 1 — Invite code */}
+          {joinStep===1&&<>
+            <div style={{fontSize:13,color:T.muted,marginBottom:20,lineHeight:1.6}}>Enter the invite code shared by your family admin.</div>
+            <div style={{marginBottom:20}}><label style={lbl}>Invite Code</label><input style={{...inp,textTransform:"uppercase",letterSpacing:2,fontWeight:700}} placeholder="INV-XXXXXXXX" value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/></div>
+            <button onClick={handleInviteLookup} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Looking up...":"Find My Family →"}</button>
+            <button onClick={()=>{setJoinMode(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Back to Sign In</button>
+          </>}
+
+          {/* STEP 2 — Pick yourself + credentials */}
+          {joinStep===2&&<>
+            <div style={{fontSize:13,color:T.muted,marginBottom:16,lineHeight:1.6}}>Welcome to <strong>{joinFamily?.name}</strong>! Are you one of these?</div>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
+              {joinMembers.map(m=>(
+                <div key={m.id} onClick={()=>{setSelectedMemberId(m.id);setJoinName(m.name);setJoinEmoji(m.emoji);setJoinNew(false);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:`2px solid ${selectedMemberId===m.id?T.brown:T.border}`,background:selectedMemberId===m.id?T.warm:"#fff",cursor:"pointer",transition:"all 0.15s"}}>
+                  <div style={{fontSize:26}}>{m.emoji}</div>
+                  <div style={{fontWeight:700,color:T.dark,fontSize:14}}>{m.name}</div>
+                  {selectedMemberId===m.id&&<div style={{marginLeft:"auto",color:T.brown,fontWeight:700}}>✓</div>}
+                </div>
+              ))}
+              <div onClick={()=>{setSelectedMemberId(null);setJoinName("");setJoinEmoji("👤");setJoinNew(true);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:`2px dashed ${joinNew?T.brown:T.border}`,background:joinNew?T.warm:"#fff",cursor:"pointer",transition:"all 0.15s"}}>
+                <div style={{fontSize:26}}>➕</div>
+                <div style={{fontWeight:700,color:T.muted,fontSize:14}}>I'm not listed — add me</div>
+                {joinNew&&<div style={{marginLeft:"auto",color:T.brown,fontWeight:700}}>✓</div>}
+              </div>
+            </div>
+            {(selectedMemberId||joinNew)&&<>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>{selectedMemberId?"Confirm or correct your name":"Your Name"}</label>
+                <input style={inp} value={joinName} onChange={e=>setJoinName(e.target.value)} placeholder="Your full name"/>
+              </div>
+              {joinNew&&<div style={{marginBottom:14}}>
+                <label style={lbl}>Your Emoji</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {["👧","👦","👩","👨","👴","👵","🧒","👶"].map(e=>(
+                    <button key={e} onClick={()=>setJoinEmoji(e)} style={{width:42,height:42,borderRadius:10,border:`2px solid ${joinEmoji===e?T.brown:T.border}`,background:joinEmoji===e?T.warm:"#fff",fontSize:22,cursor:"pointer"}}>{e}</button>
+                  ))}
+                </div>
+              </div>}
+              <div style={{marginBottom:14}}><label style={lbl}>Your Email</label><input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+              <div style={{marginBottom:20}}><label style={lbl}>Create Password</label><PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/></div>
+              <button onClick={handleJoin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Joining...":"Join Family 🏡"}</button>
+            </>}
+            <button onClick={()=>{setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>← Back</button>
+          </>}
         </>}
 
         {/* SIGNUP */}
@@ -445,149 +507,63 @@ function DayImage() {
 }
 
 
-const COLLAGES=[
-  {panels:["👨‍👩‍👦","🎂","🌅"],bg:["linear-gradient(145deg,#8B5E14,#C4923A)","linear-gradient(145deg,#1A4A6B,#2A6FA0)","linear-gradient(145deg,#4A1A5E,#8B3AAE)"]},
-  {panels:["🏖️","🎊","🌿"],bg:["linear-gradient(145deg,#1A5E4A,#2A9A7A)","linear-gradient(145deg,#6B3A1A,#B06A30)","linear-gradient(145deg,#1A3A6B,#3A6AAE)"]},
-  {panels:["🎭","🌸","🏔️"],bg:["linear-gradient(145deg,#5E1A4A,#AE3A8B)","linear-gradient(145deg,#5E4A1A,#AE8B3A)","linear-gradient(145deg,#1A4A3A,#3A8B7A)"]},
-];
-
-function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges }) {
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
-  const unseenNudges=(nudges||[]).filter(n=>!n.seen).slice(0,1);
-  const [slide,setSlide]=useState(0);
-  const totalSlides=COLLAGES.length;
-  const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
-  const hr=new Date().getHours();
-  const greeting=hr<12?"Good morning ☀️":hr<17?"Good afternoon 🌤️":"Good evening 🌙";
-  const HL="#0F1F3D";
-  const SAF="#F4A724";
-
-  useEffect(()=>{
-    const t=setInterval(()=>setSlide(s=>(s+1)%totalSlides),3500);
-    return()=>clearInterval(t);
-  },[]);
-
+  const {url,label}=DayImage();
+  const [imgLoaded,setImgLoaded]=useState(false);
   return (
-    <div style={{padding:"0 0 86px",background:"#EDE8DF",minHeight:"100vh"}}>
-      <div style={{padding:"8px 8px 0",display:"flex",flexDirection:"column",gap:6}}>
-
-        {/* ROW 1 — Greeting + Members */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-          <div style={{background:HL,borderRadius:12,padding:"14px 12px",minHeight:90,display:"flex",flexDirection:"column",justifyContent:"center"}}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginBottom:4}}>{dateStr}</div>
-            <div style={{fontSize:15,fontWeight:700,color:SAF,lineHeight:1.35}}>{greeting}</div>
-            <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginTop:5}}>{family?.name||"My Family"}</div>
+    <div style={{padding:"0 0 86px"}}>
+      <div style={{position:"relative",marginBottom:16,overflow:"hidden",height:140,background:"linear-gradient(135deg,#5C3D2E,#A0522D)"}}>
+        <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block",opacity:imgLoaded?1:0,transition:"opacity 0.4s ease"}} onLoad={()=>setImgLoaded(true)} onError={()=>setImgLoaded(false)}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
+        </div>
+      </div>
+      <div style={{padding:"0 16px"}}>
+        {members?.length>0&&(<div style={{display:"flex",gap:12,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
+          {members.map(m=>(<div key={m.id} onClick={()=>onMemberClick(m)} style={{textAlign:"center",flexShrink:0,cursor:"pointer"}}>
+            <div style={{width:52,height:52,borderRadius:"50%",background:T.warm,border:`2.5px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,overflow:"hidden"}}>
+              {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+            </div>
+            <div style={{fontSize:10,color:T.muted,marginTop:3}}>{m.name.split(" ")[0]}</div>
+          </div>))}
+        </div>)}
+        <div style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:20,padding:"20px",marginBottom:16,color:"#fff",boxShadow:"0 6px 24px rgba(92,61,46,0.25)"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
+            <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
+            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget</button>
           </div>
-          <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",alignItems:"center",justifyContent:"center"}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
-              {(members||[]).slice(0,3).map(m=>(
-                <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                  <div style={{width:30,height:30,borderRadius:"50%",background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,overflow:"hidden"}}>
-                    {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
-                  </div>
-                  <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,marginBottom:3}}>₹{spent.toLocaleString()}</div>
+          <div style={{fontSize:13,opacity:0.7,marginBottom:10}}>of ₹{(family?.monthly_expenses||0).toLocaleString()} budget</div>
+          <Bar value={spent} max={family?.monthly_expenses||1} color={spent>(family?.monthly_expenses||0)?T.rose:T.amber} h={8}/>
+          {score&&(<div style={{marginTop:14,paddingTop:14,borderTop:"1px solid rgba(255,255,255,0.15)",display:"flex",justifyContent:"space-between"}}><div><div style={{fontSize:10,opacity:0.65}}>Freedom Score</div><div style={{fontWeight:800,fontSize:18,color:score.gradeColor}}>{score.score}/100</div></div><div style={{textAlign:"center"}}><div style={{fontSize:10,opacity:0.65}}>Points</div><div style={{fontWeight:800,fontSize:18,color:T.amber}}>🏆 {family?.points||0}</div></div><div style={{textAlign:"right"}}><div style={{fontSize:10,opacity:0.65}}>Freedom Age</div><div style={{fontWeight:800,fontSize:18}}>{score.freedomAge}</div></div></div>)}
+        </div>
+        {upcoming.length>0&&(
+          <div style={{marginBottom:16}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <Sec style={{marginBottom:0}}>📅 Coming Up</Sec>
+              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan</button>
+            </div>
+            {upcoming.map(e=>(
+              <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer",WebkitTapHighlightColor:"rgba(232,168,56,0.2)",transition:"opacity 0.15s"}} onTouchStart={e=>e.currentTarget.style.opacity="0.7"} onTouchEnd={e=>e.currentTarget.style.opacity="1"}>
+                <span style={{fontSize:20}}>{e.emoji||"📅"}</span>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div>
+                  <div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div>
                 </div>
-              ))}
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <div style={{width:30,height:30,borderRadius:"50%",background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>➕</div>
-                <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ROW 2 — Collage slider */}
-        <div style={{borderRadius:12,overflow:"hidden",height:240,position:"relative"}}>
-          <div style={{display:"flex",height:"100%",transition:"transform 0.4s ease",transform:`translateX(-${slide*100}%)`}}>
-            {COLLAGES.map((c,ci)=>(
-              <div key={ci} style={{minWidth:"100%",height:"100%",display:"grid",gridTemplateColumns:"2fr 1fr",gridTemplateRows:"1fr 1fr",gap:2,flexShrink:0}}>
-                <div style={{gridRow:"1/3",background:c.bg[0],display:"flex",alignItems:"center",justifyContent:"center",fontSize:52}}>{c.panels[0]}</div>
-                <div style={{background:c.bg[1],display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{c.panels[1]}</div>
-                <div style={{background:c.bg[2],display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{c.panels[2]}</div>
               </div>
             ))}
-          </div>
-          <div style={{position:"absolute",top:10,left:10,background:"rgba(0,0,0,0.38)",borderRadius:99,padding:"3px 10px",fontSize:9,color:"rgba(255,255,255,0.85)"}}>📸 Our moments</div>
-          <div style={{position:"absolute",bottom:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:5}}>
-            {COLLAGES.map((_,i)=>(
-              <div key={i} onClick={()=>setSlide(i)} style={{width:6,height:6,borderRadius:"50%",background:i===slide?SAF:"rgba(255,255,255,0.3)",cursor:"pointer",transition:"background 0.3s"}}/>
-            ))}
-          </div>
-          <div onClick={()=>setSlide(s=>(s-1+totalSlides)%totalSlides)} style={{position:"absolute",left:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.35)",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:14,userSelect:"none"}}>‹</div>
-          <div onClick={()=>setSlide(s=>(s+1)%totalSlides)} style={{position:"absolute",right:8,top:"50%",transform:"translateY(-50%)",background:"rgba(0,0,0,0.35)",borderRadius:"50%",width:26,height:26,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:14,userSelect:"none"}}>›</div>
-        </div>
-
-        {/* ROW 3 — Budget + Coming Up */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-          <div onClick={()=>onTabChange("budget")} style={{background:HL,borderRadius:12,padding:12,cursor:"pointer"}}>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.42)",marginBottom:4}}>This month</div>
-            <div style={{fontSize:20,fontWeight:700,color:SAF}}>₹{spent>=1000?Math.round(spent/1000)+"k":spent.toLocaleString()}</div>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.35)",marginBottom:7}}>of ₹{(family?.monthly_expenses||0)>=1000?Math.round((family?.monthly_expenses||0)/1000)+"k":(family?.monthly_expenses||0)} budget</div>
-            <div style={{height:4,background:"rgba(255,255,255,0.12)",borderRadius:99}}>
-              <div style={{height:"100%",background:spent>(family?.monthly_expenses||0)?"#EF4444":SAF,borderRadius:99,width:`${Math.min(100,family?.monthly_expenses?Math.round(spent/family.monthly_expenses*100):0)}%`}}/>
-            </div>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.28)",marginTop:6}}>💸 Budget →</div>
-          </div>
-          <div onClick={()=>onTabChange("plan")} style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12,cursor:"pointer"}}>
-            <div style={{fontSize:9,color:"#888",marginBottom:6}}>📅 Coming up</div>
-            {upcoming.length===0&&<div style={{fontSize:10,color:"#AAA"}}>No upcoming events</div>}
-            {upcoming.slice(0,3).map((e,i)=>(
-              <div key={e.id} style={{fontSize:10,color:"#1A1A1A",paddingBottom:i<Math.min(upcoming.length,3)-1?4:0,marginBottom:i<Math.min(upcoming.length,3)-1?4:0,borderBottom:i<Math.min(upcoming.length,3)-1?"0.5px solid #E8E0D5":"none"}}>
-                {e.emoji||"📅"} {e.title} · {new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}
-              </div>
-            ))}
-            <div style={{fontSize:9,color:SAF,marginTop:6,fontWeight:700}}>See all →</div>
-          </div>
-        </div>
-
-        {/* ROW 4 — Nudges (only if unseen) */}
-        {unseenNudges.length>0&&(
-          <div style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12}}>
-            <div style={{fontSize:9,color:"#888",marginBottom:8}}>👋 Nudges</div>
-            <div style={{display:"flex",alignItems:"center",gap:10}}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,flexShrink:0}}>👤</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:12,color:"#1A1A1A",fontWeight:700}}>{unseenNudges[0].from_member} nudged you</div>
-                <div style={{fontSize:10,color:"#888",marginTop:1}}>{unseenNudges[0].note}</div>
-              </div>
-              <div style={{fontSize:9,background:HL,color:SAF,borderRadius:99,padding:"4px 10px",whiteSpace:"nowrap",flexShrink:0,cursor:"pointer"}}>View</div>
-            </div>
           </div>
         )}
-
-        {/* ROW 5 — AI Concierge + Freedom Score */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-          <div onClick={()=>onTabChange("concierge")} style={{background:"#1A2F52",borderRadius:12,padding:12,cursor:"pointer"}}>
-            <div style={{fontSize:22,marginBottom:6}}>🤖</div>
-            <div style={{fontSize:11,color:"#fff",fontWeight:700}}>AI Concierge</div>
-            <div style={{fontSize:9,color:"rgba(255,255,255,0.4)",marginTop:2}}>Family assistant</div>
-            <div style={{marginTop:8,fontSize:9,background:"rgba(244,167,36,0.15)",color:SAF,borderRadius:99,padding:"3px 8px",display:"inline-block"}}>SOON</div>
-          </div>
-          {score?(
-            <div onClick={()=>onTabChange("budget")} style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12,cursor:"pointer"}}>
-              <div style={{fontSize:9,color:"#888",marginBottom:4}}>Freedom score</div>
-              <div style={{fontSize:28,fontWeight:700,color:HL}}>{score.score}</div>
-              <div style={{fontSize:9,color:"#888"}}>/100 · {score.grade}</div>
-              <div style={{height:4,background:"#EDE8DF",borderRadius:99,marginTop:8}}>
-                <div style={{height:"100%",background:SAF,borderRadius:99,width:`${score.score}%`}}/>
-              </div>
-            </div>
-          ):(
-            <div onClick={()=>onTabChange("profile")} style={{background:"#fff",border:"0.5px solid #D0C9BC",borderRadius:12,padding:12,cursor:"pointer"}}>
-              <div style={{fontSize:9,color:"#888",marginBottom:4}}>Freedom score</div>
-              <div style={{fontSize:11,color:"#1A1A1A",fontWeight:700,marginTop:4}}>Set up finances</div>
-              <div style={{fontSize:9,color:"#AAA",marginTop:2}}>Add income in Profile</div>
-              <div style={{fontSize:9,color:SAF,marginTop:6,fontWeight:700}}>Go →</div>
-            </div>
-          )}
-        </div>
-
-        {/* Walkthrough */}
-        <div onClick={onShowWalkthrough} style={{textAlign:"center",padding:"10px 0 4px",fontSize:12,color:"#AAA",cursor:"pointer"}}>👋 How does Famillion work?</div>
-
+        <Card style={{background:`linear-gradient(135deg,${T.lav}22,${T.blue}11)`,border:`1.5px solid ${T.lav}44`,marginTop:4}}>
+          <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:32}}>🤖</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark,fontSize:14}}>AI Family Concierge</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>Smart nudges & family assistant — coming soon!</div></div><Badge label="SOON" color={T.lav}/></div>
+        </Card>
+        <button onClick={onShowWalkthrough} style={{width:"100%",marginTop:12,padding:"10px 16px",borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontSize:12,fontWeight:700,cursor:"pointer"}}>👋 How does Famillion work?</button>
       </div>
     </div>
   );
@@ -1420,7 +1396,6 @@ const [showHeader,setShowHeader]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
-  const nudges=useTable("nudges",family?.id);
   const currentTheme=THEMES.find(t=>t.id===theme)||THEMES[0];
 
   useEffect(()=>{
@@ -1558,7 +1533,7 @@ useEffect(()=>{
 
   const screens={
     
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)}/>,
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)}/>,
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
