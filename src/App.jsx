@@ -658,7 +658,7 @@ function ErrandsScreen({ familyId, onPts }) {
   const overdueBills=bills.data.filter(b=>!b.paid&&b.due_date&&new Date(b.due_date)<new Date());
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Daily Errands</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Errands</div>
       {overdueBills.length>0&&(<div style={{background:T.rose+"15",border:`1.5px solid ${T.rose}40`,borderRadius:14,padding:"12px 16px",marginBottom:16}}><div style={{fontWeight:700,color:T.rose,fontSize:13}}>⚠️ {overdueBills.length} overdue bill{overdueBills.length>1?"s":""}</div>{overdueBills.map(b=><div key={b.id} style={{fontSize:12,color:T.rose,marginTop:4}}>{b.icon} {b.label} — ₹{Number(b.amount).toLocaleString()}</div>)}</div>)}
       <Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}><div style={{fontWeight:700,fontSize:15,color:T.dark}}>🛒 Shopping List</div><div style={{fontSize:12,color:T.muted}}>{groceries.data.filter(i=>i.done).length}/{groceries.data.length} done</div></div>
@@ -702,7 +702,7 @@ function ChoresScreen({ familyId, onPts }) {
   );
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:12}}>Chores & Services</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:12}}>Chores</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Track your dhobi, maid, dairy & more</div>
       <Card style={{background:`linear-gradient(135deg,${T.teal},#3D7A7A)`,color:"#fff",marginBottom:14}}><div style={{fontSize:12,opacity:0.75,marginBottom:4}}>This Month's Service Cost</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700}}>₹{totalMonthSpend.toLocaleString()}</div><div style={{fontSize:12,opacity:0.7,marginTop:4}}>{providers.data.length} providers · {logs.data.filter(l=>new Date(l.log_date).getMonth()===new Date().getMonth()).length} visits logged</div></Card>
       {providers.data.length>0&&<><Sec>Today's Attendance</Sec><div style={{display:"flex",gap:10,marginBottom:16,overflowX:"auto",paddingBottom:4}}>{providers.data.filter(p=>p.active).map(p=>{const came=loggedIds.includes(p.id);return(<div key={p.id} onClick={()=>!came&&handleLog(p)} style={{flexShrink:0,textAlign:"center",cursor:came?"default":"pointer"}}><div style={{width:56,height:56,borderRadius:"50%",background:came?T.green+"30":T.warm,border:`3px solid ${came?T.green:T.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,position:"relative"}}>{p.emoji}{came&&<div style={{position:"absolute",bottom:-2,right:-2,width:18,height:18,borderRadius:"50%",background:T.green,display:"flex",alignItems:"center",justifyContent:"center"}}><span style={{color:"#fff",fontSize:10}}>✓</span></div>}</div><div style={{fontSize:10,color:came?T.green:T.muted,fontWeight:700,marginTop:4}}>{p.name.split(" ")[0]}</div>{!came&&<div style={{fontSize:9,color:T.muted}}>tap ✓</div>}</div>);})}</div></>}
@@ -753,7 +753,7 @@ function JournalScreen({ familyId, members, userId }) {
   const filtered=filter==="all"?journal.data:journal.data.filter(j=>j.member===filter);
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Family Journal</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Journal</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Thoughts, memories and moments</div>
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:8}}>
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")} color={T.orange}/>
@@ -778,7 +778,7 @@ function PhotoJourneyScreen({ familyId }) {
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Photo Journey</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Journey</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Your family's story, chapter by chapter</div>
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4}}>
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
@@ -879,7 +879,7 @@ function KidsZoneScreen({ familyId, members, onPts }) {
   const done=homework.data.filter(h=>h.done);
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Kids Zone 🎒</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Kids</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Homework tracker & activities</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
         <Card style={{marginBottom:0,background:`linear-gradient(135deg,${T.blue}22,${T.lav}22)`,borderLeft:`3px solid ${T.blue}`}}><div style={{fontSize:24,marginBottom:4}}>📚</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.blue}}>{pending.length}</div><div style={{fontSize:11,color:T.muted}}>Pending tasks</div></Card>
@@ -1040,9 +1040,66 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
 function SettingsScreen({ onSignOut }) {
   const [activeTab,setActiveTab]=useState("privacy");
+  const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
+  const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
+  const audioRef=React.useRef(null);
+
+  const getAudio=()=>{
+    if(!audioRef.current){
+      audioRef.current=new Audio("https://cdn.pixabay.com/audio/2022/10/16/audio_5cca3f32d0.mp3");
+      audioRef.current.loop=true;
+      audioRef.current.volume=0.18;
+    }
+    return audioRef.current;
+  };
+
+  React.useEffect(()=>{
+    if(bgmPref==="always"){getAudio().play().catch(()=>{});setBgmOn(true);}
+  },[]);
+
+  const toggleBgm=()=>{
+    if(bgmOn){getAudio().pause();setBgmOn(false);}
+    else{getAudio().play().catch(()=>{});setBgmOn(true);}
+  };
+
+  const handlePrefChange=(pref)=>{
+    setBgmPref(pref);
+    localStorage.setItem("fn_bgm_pref",pref);
+    if(pref==="always"){getAudio().play().catch(()=>{});setBgmOn(true);}
+    if(pref==="manual"){getAudio().pause();setBgmOn(false);}
+  };
+
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Settings</div>
+      <Card style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:bgmOn?14:0}}>
+          <div>
+            <div style={{fontWeight:700,fontSize:14,color:T.dark}}>🎵 Ambient Sound</div>
+            <div style={{fontSize:12,color:T.muted,marginTop:2}}>{bgmOn?"Playing — soft rain ambience":"Silent"}</div>
+          </div>
+          <div onClick={toggleBgm} style={{width:48,height:28,borderRadius:99,background:bgmOn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:3,left:bgmOn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
+          </div>
+        </div>
+        {bgmOn&&<>
+          <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {[
+              {v:"always",label:"🔁 Always on",sub:"Starts automatically every time I open the app"},
+              {v:"manual",label:"🖐️ I'll turn it on myself",sub:"Starts silent, I decide when to play"},
+            ].map(opt=>(
+              <div key={opt.v} onClick={()=>handlePrefChange(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
+                <div style={{flex:1}}>
+                  <div style={{fontSize:13,fontWeight:700,color:T.dark}}>{opt.label}</div>
+                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>{opt.sub}</div>
+                </div>
+                <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.brown:"transparent",flexShrink:0}}/>
+              </div>
+            ))}
+          </div>
+        </>}
+      </Card>
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
         <Pill label="🔒 Privacy" active={activeTab==="privacy"} onClick={()=>setActiveTab("privacy")}/>
         <Pill label="📄 Disclaimer" active={activeTab==="disclaimer"} onClick={()=>setActiveTab("disclaimer")}/>
@@ -1079,6 +1136,13 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   const totalSpent=memberExpenses.reduce((s,e)=>s+Number(e.amount),0);
   const [uploading,setUploading]=useState(false);
   const [avatarUrl,setAvatarUrl]=useState(member.avatar_url||null);
+  const [cropSrc,setCropSrc]=useState(null);
+  const [cropOffset,setCropOffset]=useState({x:0,y:0});
+  const [cropDragging,setCropDragging]=useState(false);
+  const [dragStart,setDragStart]=useState({x:0,y:0});
+  const cropImgRef=React.useRef(null);
+  const cropCanvasRef=React.useRef(null);
+  const CROP_SIZE=240;
   const [showNudge,setShowNudge]=useState(false);
   const [nudgeSent,setNudgeSent]=useState(false);
   const [nf,setNf]=useState({task_type:"bill",note:"",tone:"🙏 Gentle reminder"});
@@ -1103,27 +1167,51 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
     setNudgeSent(true);
     setTimeout(()=>{setNudgeSent(false);setShowNudge(false);setNf({task_type:"bill",note:"",tone:"🙏 Gentle reminder"});},2000);
   };
-  const handlePicUpload=async(e)=>{
+  const handleFileSelect=async(e)=>{
     const file=e.target.files?.[0];
     if(!file)return;
+    const url=URL.createObjectURL(file);
+    setCropSrc(url);
+    setCropOffset({x:0,y:0});
+  };
+
+  const handleCropDragStart=(clientX,clientY)=>{
+    setCropDragging(true);
+    setDragStart({x:clientX-cropOffset.x,y:clientY-cropOffset.y});
+  };
+  const handleCropDragMove=(clientX,clientY)=>{
+    if(!cropDragging)return;
+    const img=cropImgRef.current;
+    if(!img)return;
+    const maxX=img.offsetWidth-CROP_SIZE;
+    const maxY=img.offsetHeight-CROP_SIZE;
+    setCropOffset({
+      x:Math.max(0,Math.min(maxX,clientX-dragStart.x)),
+      y:Math.max(0,Math.min(maxY,clientY-dragStart.y)),
+    });
+  };
+  const handleCropEnd=()=>setCropDragging(false);
+
+  const handleCropAndUpload=async()=>{
     setUploading(true);
     try {
-      const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file);});
+      const img=cropImgRef.current;
+      const displayed=img.getBoundingClientRect();
+      const scaleX=img.naturalWidth/displayed.width;
+      const scaleY=img.naturalHeight/displayed.height;
       const canvas=document.createElement("canvas");
-      const MAX=600;const scale=Math.min(MAX/img.width,MAX/img.height,1);
-      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
-      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-      let blob;let quality=0.8;
+      canvas.width=400;canvas.height=400;
+      const ctx=canvas.getContext("2d");
+      const srcX=cropOffset.x*scaleX;
+      const srcY=cropOffset.y*scaleY;
+      const srcW=CROP_SIZE*scaleX;
+      const srcH=CROP_SIZE*scaleY;
+      ctx.drawImage(img,srcX,srcY,srcW,srcH,0,0,400,400);
+      let blob;let quality=0.85;
       while(quality>=0.3){
         blob=await new Promise(res=>canvas.toBlob(res,"image/jpeg",quality));
         if(blob.size<=150*1024)break;
         quality-=0.1;
-      }
-      if(blob.size>150*1024){
-        const c2=document.createElement("canvas");
-        c2.width=300;c2.height=Math.round(300*(canvas.height/canvas.width));
-        c2.getContext("2d").drawImage(canvas,0,0,c2.width,c2.height);
-        blob=await new Promise(res=>c2.toBlob(res,"image/jpeg",0.6));
       }
       const token=sb._token||localStorage.getItem("fn_token");
       if(!token){alert("Not logged in — please sign out and sign back in.");setUploading(false);return;}
@@ -1134,9 +1222,34 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
       await sb.from("members").update({avatar_url:publicUrl}).eq("id",member.id);
       setAvatarUrl(publicUrl);
       if(setMembers)setMembers(prev=>prev.map(m=>m.id===member.id?{...m,avatar_url:publicUrl}:m));
+      setCropSrc(null);
     } catch(err){alert("Upload error: "+err.message);}
     setUploading(false);
   };
+  if(cropSrc)return(
+    <div style={{padding:"16px",fontFamily:"Lato,sans-serif"}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark,marginBottom:12}}>Crop Photo</div>
+      <div style={{position:"relative",overflow:"hidden",borderRadius:16,background:"#000",marginBottom:16,userSelect:"none",touchAction:"none"}}
+        onMouseMove={e=>handleCropDragMove(e.clientX,e.clientY)}
+        onMouseUp={handleCropEnd}
+        onMouseLeave={handleCropEnd}
+        onTouchMove={e=>{e.preventDefault();handleCropDragMove(e.touches[0].clientX,e.touches[0].clientY);}}
+        onTouchEnd={handleCropEnd}
+      >
+        <img ref={cropImgRef} src={cropSrc} alt="crop" style={{width:"100%",display:"block",opacity:0.5,pointerEvents:"none"}}/>
+        <div style={{position:"absolute",top:cropOffset.y,left:cropOffset.x,width:CROP_SIZE,height:CROP_SIZE,border:"3px solid #fff",borderRadius:"50%",boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",cursor:"move",boxSizing:"border-box"}}
+          onMouseDown={e=>handleCropDragStart(e.clientX,e.clientY)}
+          onTouchStart={e=>handleCropDragStart(e.touches[0].clientX,e.touches[0].clientY)}
+        />
+      </div>
+      <div style={{fontSize:12,color:T.muted,textAlign:"center",marginBottom:16}}>Drag the circle to position your photo</div>
+      <div style={{display:"flex",gap:10}}>
+        <button onClick={()=>setCropSrc(null)} style={{flex:1,padding:13,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+        <button onClick={handleCropAndUpload} disabled={uploading} style={{flex:2,padding:13,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{uploading?"Uploading…":"Crop & Upload"}</button>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{padding:"0 16px 16px"}}>
       <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
@@ -1146,7 +1259,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
             {avatarUrl?<img src={avatarUrl} alt={member.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
           </div>
           <div style={{position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{uploading?"⏳":"📷"}</div>
-          <input type="file" accept="image/*" onChange={handlePicUpload} style={{display:"none"}} disabled={uploading}/>
+          <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
         </label>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{member.name}</div>
         {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}{member.dob?" · Born "+new Date(member.dob).getFullYear():""}</div>}
@@ -1489,7 +1602,7 @@ useEffect(()=>{
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
