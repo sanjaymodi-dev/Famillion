@@ -438,13 +438,12 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
               <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan →</button>
             </div>
             {upcoming.map(e=>(
-              <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer"}}>
+              <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer",WebkitTapHighlightColor:"rgba(232,168,56,0.2)",transition:"opacity 0.15s"}} onTouchStart={e=>e.currentTarget.style.opacity="0.7"} onTouchEnd={e=>e.currentTarget.style.opacity="1"}>
                 <span style={{fontSize:20}}>{e.emoji||"📅"}</span>
                 <div style={{flex:1}}>
                   <div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.title}</div>
                   <div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div>
                 </div>
-                <span style={{color:T.amber,fontWeight:700,fontSize:16}}>›</span>
               </div>
             ))}
           </div>
@@ -456,7 +455,6 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
     </div>
   );
 }
-
 
 function MoneyScreen({ family, members, familyId, onPts }) {
   const expenses = useTable("expenses", familyId);
