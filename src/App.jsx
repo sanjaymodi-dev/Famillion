@@ -883,7 +883,6 @@ function PhotoJourneyScreen({ familyId }) {
 
 function CalendarScreen({ familyId, members }) {
   const events=useTable("events",familyId);
-  const nudges=useTable("nudges",familyId);
   const [showAdd,setShowAdd]=useState(false);
   const [view,setView]=useState("month");
   const [f,setF]=useState({title:"",date:"",emoji:"📅",member:"",repeat:"none"});
@@ -1421,6 +1420,7 @@ const [showHeader,setShowHeader]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
+  const nudges=useTable("nudges",family?.id);
   const currentTheme=THEMES.find(t=>t.id===theme)||THEMES[0];
 
   useEffect(()=>{
