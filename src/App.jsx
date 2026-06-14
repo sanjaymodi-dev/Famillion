@@ -462,11 +462,6 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
         </div>
       </div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
-        </div>
-      </div>
       <div style={{padding:"0 16px"}}>
         {members?.length>0&&(<div style={{display:"flex",gap:12,marginBottom:14,overflowX:"auto",paddingBottom:4}}>
           {members.map(m=>(<div key={m.id} onClick={()=>onMemberClick(m)} style={{textAlign:"center",flexShrink:0,cursor:"pointer"}}>
