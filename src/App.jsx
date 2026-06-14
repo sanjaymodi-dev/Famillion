@@ -1230,27 +1230,44 @@ useEffect(()=>{
           </div>
         </div>
 
-        {/* HEADER DRAWER */}
-        {showHeader&&(
-          <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.99)",backdropFilter:"blur(20px)",zIndex:300,boxShadow:"0 8px 32px rgba(0,0,0,0.15)"}}>
-            <div style={{padding:"16px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-              <div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:22}}>🏡</span><div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:T.dark}}>Famillion</div></div>
-              <button onClick={()=>setShowHeader(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:T.muted}}>×</button>
+       {/* HEADER DRAWER — sliding quarter-pane from left */}
+        <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,height:"100vh",zIndex:300,pointerEvents:showHeader?"all":"none"}}>
+          {/* Backdrop */}
+          <div onClick={()=>setShowHeader(false)} style={{position:"absolute",inset:0,background:"rgba(0,0,0,0.35)",opacity:showHeader?1:0,transition:"opacity 0.25s ease",pointerEvents:showHeader?"all":"none"}}/>
+          {/* Pane */}
+          <div style={{position:"absolute",top:0,left:0,width:"50%",maxWidth:210,height:"100%",background:"#FDF6EC",boxShadow:"4px 0 32px rgba(92,61,46,0.18)",display:"flex",flexDirection:"column",transform:showHeader?"translateX(0)":"translateX(-100%)",transition:"transform 0.28s cubic-bezier(0.4,0,0.2,1)",willChange:"transform"}}>
+            {/* Pane header */}
+            <div style={{padding:"16px 14px 12px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <span style={{fontSize:20}}>🏡</span>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:14,fontWeight:700,color:T.dark}}>Famillion</div>
+              </div>
+              <button onClick={()=>setShowHeader(false)} style={{background:"none",border:"none",fontSize:20,cursor:"pointer",color:T.muted,lineHeight:1,padding:0}}>×</button>
             </div>
-            <div style={{padding:"12px 16px"}}>
-              <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:12}}>
-                {[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"journey",icon:"📸",label:"Journey"},{id:"kids",icon:"🎒",label:"Kids"}].map(n=>(<button key={n.id} onClick={()=>{handleTabChange(n.id);setShowHeader(false);}} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:tab===n.id?T.brown+"18":"transparent",border:`1px solid ${T.border}`,cursor:"pointer",padding:"10px 4px",borderRadius:12}}><span style={{fontSize:22}}>{n.icon}</span><span style={{fontSize:9,fontWeight:800,color:tab===n.id?T.brown:T.muted}}>{n.label}</span></button>))}
-              </div>
-              <div style={{display:"flex",gap:8,borderTop:`1px solid ${T.border}`,paddingTop:12}}>
-                <button onClick={()=>{handleTabChange("settings");setShowHeader(false);}} style={{flex:1,padding:"10px",borderRadius:12,border:`1px solid ${T.border}`,background:"transparent",color:T.dark,fontSize:13,fontWeight:600,cursor:"pointer"}}>⚙️ Settings</button>
-                <button onClick={()=>{handleTabChange("profile");setShowHeader(false);}} style={{flex:1,padding:"10px",borderRadius:12,border:`1px solid ${T.border}`,background:"transparent",color:T.dark,fontSize:13,fontWeight:600,cursor:"pointer"}}>👤 Profile</button>
-                <button onClick={()=>{handleSignOut();setShowHeader(false);}} style={{flex:1,padding:"10px",borderRadius:12,border:`1px solid ${T.rose}40`,background:"transparent",color:T.rose,fontSize:13,fontWeight:600,cursor:"pointer"}}>Sign Out</button>
-              </div>
+            {/* Nav list */}
+            <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
+              {[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"concierge",icon:"🤖",label:"AI"}].map(n=>(
+                <button key={n.id} onClick={()=>{handleTabChange(n.id);setShowHeader(false);}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:tab===n.id?T.brown+"14":"transparent",border:"none",cursor:"pointer",textAlign:"left",borderLeft:tab===n.id?`3px solid ${T.brown}`:"3px solid transparent",transition:"background 0.15s",boxSizing:"border-box"}}>
+                  <span style={{fontSize:17,width:22,textAlign:"center",flexShrink:0}}>{n.icon}</span>
+                  <span style={{fontSize:12,fontWeight:tab===n.id?700:600,color:tab===n.id?T.brown:T.dark,letterSpacing:0.1,whiteSpace:"nowrap"}}>{n.label}</span>
+                </button>
+              ))}
+            </div>
+            {/* Bottom actions */}
+            <div style={{borderTop:`1px solid ${T.border}`,padding:"6px 0 20px"}}>
+              {[{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}].map(n=>(
+                <button key={n.id} onClick={()=>{handleTabChange(n.id);setShowHeader(false);}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",borderLeft:"3px solid transparent",boxSizing:"border-box"}}>
+                  <span style={{fontSize:17,width:22,textAlign:"center",flexShrink:0}}>{n.icon}</span>
+                  <span style={{fontSize:12,fontWeight:600,color:T.dark,whiteSpace:"nowrap"}}>{n.label}</span>
+                </button>
+              ))}
+              <button onClick={()=>{handleSignOut();setShowHeader(false);}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"transparent",border:"none",cursor:"pointer",textAlign:"left",borderLeft:"3px solid transparent",boxSizing:"border-box"}}>
+                <span style={{fontSize:17,width:22,textAlign:"center",flexShrink:0}}>🚪</span>
+                <span style={{fontSize:12,fontWeight:600,color:T.rose,whiteSpace:"nowrap"}}>Sign Out</span>
+              </button>
             </div>
           </div>
-        )}
-        {showHeader&&<div onClick={()=>setShowHeader(false)} style={{position:"fixed",inset:0,zIndex:299,background:"rgba(0,0,0,0.2)"}}/>}
-
+        </div>
         <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:86}}>{screens[tab]||screens["home"]}</div>
 
         {/* MORE DRAWER */}
