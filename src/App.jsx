@@ -413,7 +413,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   const {url,label}=DayImage();
   const [imgLoaded,setImgLoaded]=useState(false);
   return (
-    <div style={{padding:"0 0 16px"}}>
+    <div style={{padding:"0 0 86px"}}>
       <div style={{position:"relative",marginBottom:16,overflow:"hidden",height:140,background:"linear-gradient(135deg,#5C3D2E,#A0522D)"}}>
         <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block",opacity:imgLoaded?1:0,transition:"opacity 0.4s ease"}} onLoad={()=>setImgLoaded(true)} onError={()=>setImgLoaded(false)}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
@@ -422,7 +422,6 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
         </div>
       </div>
-        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
           <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
@@ -1094,12 +1093,12 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
       const token=sb._token;
       const fileName=`${familyId}/${member.id}_${Date.now()}.jpg`;
       const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
-      if(!uploadRes.ok)throw new Error("Upload failed");
+      if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
       const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/avatars/${fileName}`;
       await sb.from("members").update({avatar_url:publicUrl}).eq("id",member.id);
       setAvatarUrl(publicUrl);
       if(setMembers)setMembers(prev=>prev.map(m=>m.id===member.id?{...m,avatar_url:publicUrl}:m));
-    } catch(err){alert("Photo upload failed. Please try again.");}
+    } catch(err){alert("Upload failed: "+err.message);}
     setUploading(false);
   };
   return (
@@ -1420,7 +1419,7 @@ useEffect(()=>{
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
       <div style={{width:"100%",maxWidth:420,margin:"0 auto"}}>
-        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers} currentUserName={members.find(m=>m.id===user?.id)?.name||user?.email||"Someone"}/>
+        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers} currentUserName={members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone"}/>
       </div>
     </div>
   );
