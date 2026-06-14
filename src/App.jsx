@@ -225,12 +225,12 @@ function ResetPasswordScreen({ token }) {
         {done?(<div style={{textAlign:"center",padding:"32px 0"}}>
           <div style={{fontSize:48,marginBottom:12}}>✅</div>
           <div style={{fontWeight:700,color:T.green,fontSize:16}}>Password updated!</div>
-          <div style={{fontSize:13,color:T.muted,marginTop:8}}>Taking you to sign in…</div>
+          <div style={{fontSize:13,color:T.muted,marginTop:8}}>Taking you to sign in...</div>
         </div>):(<>
           {error&&<div style={{background:"#FFF0F0",border:`1px solid ${T.rose}40`,borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.rose}}>{error}</div>}
           <div style={{marginBottom:14}}><label style={lbl}>New Password</label><input style={inp} type="password" placeholder="Min 6 characters" value={password} onChange={e=>setPassword(e.target.value)}/></div>
           <div style={{marginBottom:20}}><label style={lbl}>Confirm Password</label><input style={inp} type="password" placeholder="Repeat password" value={confirm} onChange={e=>setConfirm(e.target.value)}/></div>
-          <button onClick={handleReset} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{loading?"Updating…":"Update Password →"}</button>
+          <button onClick={handleReset} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{loading?"Updating...":"Update Password"}</button>
         </>)}
       </div>
     </div>
