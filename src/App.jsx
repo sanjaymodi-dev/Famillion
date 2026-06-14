@@ -474,7 +474,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
         <div style={{background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:20,padding:"20px",marginBottom:16,color:"#fff",boxShadow:"0 6px 24px rgba(92,61,46,0.25)"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:3}}>
             <div style={{fontSize:12,opacity:0.7}}>This Month's Spending</div>
-            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget /button>
+            <button onClick={()=>onTabChange("budget")} style={{fontSize:10,background:"rgba(255,255,255,0.2)",border:"none",borderRadius:99,padding:"2px 8px",color:"#fff",cursor:"pointer",fontWeight:700}}>Budget</button>
           </div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,marginBottom:3}}>₹{spent.toLocaleString()}</div>
           <div style={{fontSize:13,opacity:0.7,marginBottom:10}}>of ₹{(family?.monthly_expenses||0).toLocaleString()} budget</div>
@@ -485,7 +485,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{marginBottom:16}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
               <Sec style={{marginBottom:0}}>📅 Coming Up</Sec>
-              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan /button>
+              <button onClick={()=>onTabChange("plan")} style={{fontSize:11,background:T.amber+"20",border:"none",borderRadius:99,padding:"3px 10px",color:T.brown,cursor:"pointer",fontWeight:700}}>Plan</button>
             </div>
             {upcoming.map(e=>(
               <div key={e.id} onClick={()=>onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.amber}`,cursor:"pointer",WebkitTapHighlightColor:"rgba(232,168,56,0.2)",transition:"opacity 0.15s"}} onTouchStart={e=>e.currentTarget.style.opacity="0.7"} onTouchEnd={e=>e.currentTarget.style.opacity="1"}>
@@ -954,7 +954,7 @@ function ConciergeScreen({ family, members }) {
       </div>
       <div style={{padding:"12px 16px 0",display:"flex",gap:10}}>
         <input style={{...inp,flex:1}} placeholder="Ask me anything..." value={msg} onChange={e=>setMsg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()}/>
-        <button onClick={send} style={{padding:"12px 18px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.lav},${T.blue})`,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:18}}>/button>
+        <button onClick={send} style={{padding:"12px 18px",borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.lav},${T.blue})`,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:18}}>Send</button>
       </div>
       <style>{`@keyframes dot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-6px)}}`}</style>
     </div>
