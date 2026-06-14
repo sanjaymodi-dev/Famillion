@@ -1409,7 +1409,7 @@ const [showHeader,setShowHeader]=useState(false);
     setFamily(f=>({...f,points:np}));
   },[family]);
 
-  const handleSignOut=()=>{sb.auth.signOut();setUser(null);setFamily(null);setMembers([]);};
+  const handleSignOut=()=>{sb.auth.signOut();setUser(null);setFamily(null);setMembers([]);setTab("home");setShowMore(false);setSelectedMember(null);};
   const handleTabChange=(id)=>{
   setTab(id);setShowMore(false);setSelectedMember(null);
   window.history.pushState({tab:id},"","");
@@ -1417,9 +1417,10 @@ const [showHeader,setShowHeader]=useState(false);
 
 useEffect(()=>{
   const onBack=(e)=>{
-    if(selectedMember){setSelectedMember(null);window.history.pushState({},"","");return;}
-    if(showMore){setShowMore(false);window.history.pushState({},"","");return;}
-    if(tab!=="home"){setTab("home");window.history.pushState({},"","");return;}
+    const state=e.state;
+    if(selectedMember){setSelectedMember(null);return;}
+    if(showMore){setShowMore(false);return;}
+    if(state?.tab){setTab(state.tab);return;}
   };
   window.addEventListener("popstate",onBack);
   return()=>window.removeEventListener("popstate",onBack);
