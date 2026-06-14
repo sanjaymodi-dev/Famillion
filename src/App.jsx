@@ -405,7 +405,7 @@ function DayImage() {
 }
 
 
-function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange }) {
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
@@ -414,7 +414,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   return (
     <div style={{padding:"0 0 16px"}}>
       <div style={{position:"relative",marginBottom:16,overflow:"hidden"}}>
-        <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block"}} onError={e=>{e.target.style.display="none";}}/>
+        <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.background="linear-gradient(135deg,#5C3D2E,#A0522D)";}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
@@ -458,6 +458,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
         <Card style={{background:`linear-gradient(135deg,${T.lav}22,${T.blue}11)`,border:`1.5px solid ${T.lav}44`,marginTop:4}}>
           <div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:32}}>🤖</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark,fontSize:14}}>AI Family Concierge</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>Smart nudges & family assistant — coming soon!</div></div><Badge label="SOON" color={T.lav}/></div>
         </Card>
+        <button onClick={onShowWalkthrough} style={{width:"100%",marginTop:12,padding:"10px 16px",borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontSize:12,fontWeight:700,cursor:"pointer"}}>👋 How does Famillion work?</button>
       </div>
     </div>
   );
@@ -473,7 +474,9 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   const [filterWho,setFilterWho]=useState("all");
   const [ef,setEf]=useState({label:"",amount:"",cat:"🛒",who:""});
   const [gf,setGf]=useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});
-  const cats=["🛒","⚡","🏥","🚗","🍔","🎓","🏠","✈️","☕","🎮"];
+  const allCats=["🛒","⚡","🏥","🚗","🍔","🎓","🏠","✈️","☕","🎮","👗","💊"];
+  const catCounts=allCats.map(c=>({c,n:expenses.data.filter(e=>e.cat===c).length}));
+  const cats=[...catCounts].sort((a,b)=>b.n-a.n).map(x=>x.c);
   const colors=[T.blue,T.rose,T.green,T.lav,T.amber,T.brown];
   const month=new Date().getMonth();
   const spent=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
@@ -529,21 +532,46 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   );
 }
 
-function BudgetScreen({ family, expenses }) {
+function BudgetScreen({ family, expenses, setFamily }) {
   const cats=["🛒 Groceries","⚡ Utilities","📚 Education","🏥 Health","🚗 Transport","🍔 Food/Dining","👗 Clothing","🎮 Entertainment","✈️ Travel","🏠 Home","💊 Medicine","🎓 Fees","☕ Miscellaneous"];
   const month=new Date().getMonth();
   const monthExp=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month);
   const totalSpent=monthExp.reduce((s,e)=>s+Number(e.amount),0);
   const budget=family?.monthly_expenses||0;
   const catTotals=cats.map(c=>{const emoji=c.split(" ")[0];const spent=monthExp.filter(e=>e.cat===emoji).reduce((s,e)=>s+Number(e.amount),0);return{label:c,emoji,spent};}).filter(c=>c.spent>0);
+  const [editing,setEditing]=useState(false);
+  const [bf,setBf]=useState({monthly_income:"",monthly_expenses:""});
+  const [saving,setSaving]=useState(false);
+  const startEdit=()=>{setBf({monthly_income:String(family?.monthly_income||""),monthly_expenses:String(family?.monthly_expenses||"")});setEditing(true);};
+  const saveEdit=async()=>{
+    if(!family?.id)return;
+    setSaving(true);
+    await sb.from("families").update({monthly_income:Number(bf.monthly_income)||0,monthly_expenses:Number(bf.monthly_expenses)||0}).eq("id",family.id);
+    setFamily(f=>({...f,monthly_income:Number(bf.monthly_income)||0,monthly_expenses:Number(bf.monthly_expenses)||0}));
+    setSaving(false);setEditing(false);
+  };
   return (
     <div>
       <Card style={{background:`linear-gradient(135deg,${T.teal},#3A7070)`,color:"#fff"}}>
         <div style={{fontSize:12,opacity:0.75,marginBottom:4}}>Monthly Budget Used</div>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700}}>₹{totalSpent.toLocaleString()} / ₹{budget.toLocaleString()}</div>
         <div style={{marginTop:10}}><Bar value={totalSpent} max={budget||1} color={totalSpent>budget?T.rose:"#fff"} h={10}/></div>
-        <div style={{fontSize:12,opacity:0.75,marginTop:8}}>{budget>0?`${Math.round((totalSpent/budget)*100)}% used`:"Set budget in your profile"}</div>
+        <div style={{fontSize:12,opacity:0.75,marginTop:8}}>{budget>0?`${Math.round((totalSpent/budget)*100)}% used`:"Set your budget below"}</div>
+        <button onClick={startEdit} style={{marginTop:12,padding:"6px 14px",borderRadius:99,background:"rgba(255,255,255,0.2)",border:"1px solid rgba(255,255,255,0.4)",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>✏️ Edit Budget</button>
       </Card>
+      {editing&&(
+        <Card style={{marginTop:8}}>
+          <div style={{fontWeight:700,color:T.dark,marginBottom:14}}>Update Budget</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+            <div><label style={lbl}>Monthly Income (₹)</label><input style={inp} type="number" value={bf.monthly_income} onChange={e=>setBf(p=>({...p,monthly_income:e.target.value}))}/></div>
+            <div><label style={lbl}>Monthly Budget (₹)</label><input style={inp} type="number" value={bf.monthly_expenses} onChange={e=>setBf(p=>({...p,monthly_expenses:e.target.value}))}/></div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setEditing(false)} style={{flex:1,padding:11,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+            <button onClick={saveEdit} disabled={saving} style={{flex:2,padding:11,borderRadius:12,border:"none",background:T.teal,color:"#fff",fontWeight:700,cursor:"pointer"}}>{saving?"Saving…":"Save Changes"}</button>
+          </div>
+        </Card>
+      )}
       <Sec>Spending by Category</Sec>
       {catTotals.length===0&&<Card style={{textAlign:"center",padding:24}}><div style={{color:T.muted}}>Add expenses to see category breakdown</div></Card>}
       {catTotals.sort((a,b)=>b.spent-a.spent).map(c=>(<Card key={c.label} style={{padding:"12px 16px",marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:20}}>{c.emoji}</span><span style={{fontSize:13,fontWeight:600,color:T.dark}}>{c.label.split(" ").slice(1).join(" ")}</span></div><span style={{fontWeight:800,color:T.brown}}>₹{c.spent.toLocaleString()}</span></div><Bar value={c.spent} max={totalSpent||1} color={T.teal} h={6}/><div style={{fontSize:11,color:T.muted,marginTop:4}}>{budget>0?`${Math.round((c.spent/budget)*100)}% of budget`:""}</div></Card>))}
@@ -824,6 +852,50 @@ function KidsZoneScreen({ familyId, members, onPts }) {
   );
 }
 
+function RewardsScreen({ family }) {
+  const rules=[
+    {icon:"✅",action:"Complete a chore",pts:"+5"},
+    {icon:"💸",action:"Log an expense",pts:"+5"},
+    {icon:"💊",action:"Add a medicine",pts:"+5"},
+    {icon:"📅",action:"Add a family event",pts:"+10"},
+    {icon:"💳",action:"Mark a bill as paid",pts:"+15"},
+    {icon:"✔️",action:"Complete homework task",pts:"+15"},
+    {icon:"💎",action:"Add a wealth goal",pts:"+20"},
+    {icon:"👨‍👩‍👧",action:"Invite a family member",pts:"+50"},
+  ];
+  return (
+    <div style={{padding:"0 0 24px"}}>
+      <div style={{padding:"0 16px",marginBottom:16}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>🏆 Rewards</div>
+        <div style={{fontSize:13,color:T.muted}}>Earn points by keeping your family on track</div>
+      </div>
+      <div style={{margin:"0 16px 20px",background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:18,padding:"20px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:700,letterSpacing:0.8}}>FAMILY POINTS</div>
+          <div style={{fontSize:42,fontWeight:800,color:T.amber,lineHeight:1.1,marginTop:4}}>{family?.points||0}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:4}}>Keep going! 🎯</div>
+        </div>
+        <div style={{fontSize:56}}>🏆</div>
+      </div>
+      <div style={{padding:"0 16px"}}>
+        <div style={{fontSize:11,fontWeight:800,color:T.brown,letterSpacing:0.8,marginBottom:12}}>HOW TO EARN</div>
+        <Card>
+          {rules.map((r,i)=>(
+            <div key={r.action} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 0",borderBottom:i<rules.length-1?`1px solid ${T.border}`:"none"}}>
+              <span style={{fontSize:20,width:28,textAlign:"center",flexShrink:0}}>{r.icon}</span>
+              <span style={{flex:1,fontSize:13,color:T.dark}}>{r.action}</span>
+              <span style={{fontSize:13,fontWeight:800,color:T.amber}}>{r.pts} pts</span>
+            </div>
+          ))}
+        </Card>
+        <div style={{marginTop:16,background:T.warm,borderRadius:14,padding:"14px 16px",fontSize:13,color:T.brown,lineHeight:1.7}}>
+          🎁 <strong>Coming soon:</strong> Redeem points for badges, rewards & family milestones!
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ConciergeScreen({ family, members }) {
   const [msg,setMsg]=useState("");
   const [chat,setChat]=useState([{role:"assistant",text:`Hi! I'm your Famillion AI assistant 🤖\n\nI can help with budgeting tips, reminders, family planning and more.\n\n(Full AI integration coming soon!)`,time:new Date()}]);
@@ -958,18 +1030,60 @@ function SettingsScreen({ onSignOut }) {
 }
 
 // ── MEMBER PROFILE SCREEN ────────────────────────────────────────────────────
-function MemberProfileScreen({ member, familyId, expenses, events, onBack }) {
+function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMembers }) {
   const memberExpenses=(expenses||[]).filter(e=>e.who===member.name);
   const memberEvents=(events||[]).filter(e=>e.member===member.name);
   const totalSpent=memberExpenses.reduce((s,e)=>s+Number(e.amount),0);
+  const [uploading,setUploading]=useState(false);
+  const [avatarUrl,setAvatarUrl]=useState(member.avatar_url||null);
+  const handlePicUpload=async(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    setUploading(true);
+    try {
+      const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=URL.createObjectURL(file);});
+      const canvas=document.createElement("canvas");
+      const MAX=600;const scale=Math.min(MAX/img.width,MAX/img.height,1);
+      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
+      canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+      let blob;let quality=0.8;
+      while(quality>=0.3){
+        blob=await new Promise(res=>canvas.toBlob(res,"image/jpeg",quality));
+        if(blob.size<=150*1024)break;
+        quality-=0.1;
+      }
+      if(blob.size>150*1024){
+        const c2=document.createElement("canvas");
+        c2.width=300;c2.height=Math.round(300*(canvas.height/canvas.width));
+        c2.getContext("2d").drawImage(canvas,0,0,c2.width,c2.height);
+        blob=await new Promise(res=>c2.toBlob(res,"image/jpeg",0.6));
+      }
+      const token=(await sb.auth.getSession())?.access_token;
+      const fileName=`${familyId}/${member.id}_${Date.now()}.jpg`;
+      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${fileName}`,{method:"POST",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
+      if(!uploadRes.ok)throw new Error("Upload failed");
+      const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/avatars/${fileName}`;
+      await sb.from("members").update({avatar_url:publicUrl}).eq("id",member.id);
+      setAvatarUrl(publicUrl);
+      if(setMembers)setMembers(prev=>prev.map(m=>m.id===member.id?{...m,avatar_url:publicUrl}:m));
+    } catch(err){alert("Photo upload failed. Please try again.");}
+    setUploading(false);
+  };
   return (
     <div style={{padding:"0 16px 16px"}}>
       <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>← Back</button>
       <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{width:80,height:80,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`}}>{member.emoji}</div>
+        <label style={{cursor:"pointer",display:"inline-block",position:"relative"}}>
+          <div style={{width:80,height:80,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
+            {avatarUrl?<img src={avatarUrl} alt={member.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
+          </div>
+          <div style={{position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{uploading?"⏳":"📷"}</div>
+          <input type="file" accept="image/*" onChange={handlePicUpload} style={{display:"none"}} disabled={uploading}/>
+        </label>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{member.name}</div>
         {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}{member.dob?" · Born "+new Date(member.dob).getFullYear():""}</div>}
         {member.occupation&&<div style={{fontSize:12,color:T.brown,marginTop:4,background:T.warm,borderRadius:99,padding:"4px 12px",display:"inline-block"}}>{member.occupation}</div>}
+        <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap photo to change picture</div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:16}}>
         <Card style={{marginBottom:0,textAlign:"center"}}><div style={{fontSize:22,marginBottom:4}}>💸</div><div style={{fontWeight:800,fontSize:18,color:T.rose}}>₹{totalSpent.toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Total spent</div></Card>
@@ -1083,7 +1197,7 @@ export default function App() {
   const [showMore,setShowMore]=useState(false);
   const [selectedMember,setSelectedMember]=useState(null);
 const [showHeader,setShowHeader]=useState(false);
-  const [showPoints,setShowPoints]=useState(false);
+
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
@@ -1209,18 +1323,18 @@ useEffect(()=>{
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
       <div style={{width:"100%",maxWidth:420,margin:"0 auto"}}>
-        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)}/>
+        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers}/>
       </div>
     </div>
   );
 
   const screens={
     
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange}/>,
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)}/>,
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
-    budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
+    budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts} setFamily={setFamily}/>,
     plan:     <CalendarScreen  familyId={family?.id} members={members}/>,
     chores:   <ChoresScreen    familyId={family?.id} onPts={handlePts}/>,
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
@@ -1228,12 +1342,13 @@ useEffect(()=>{
     journal:  <JournalScreen   familyId={family?.id} members={members} userId={user?.id}/>,
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
+    rewards:  <RewardsScreen   family={family}/>,
     settings: <SettingsScreen  onSignOut={handleSignOut}/>,
     profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
@@ -1249,50 +1364,11 @@ useEffect(()=>{
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <span style={{fontSize:11,color:T.muted,fontWeight:700}}>{family?.city}</span>
-            <span onClick={()=>setShowPoints(true)} style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown,cursor:"pointer"}}>🏆 {family?.points||0}</span>
+            <span onClick={()=>handleTabChange("rewards")} style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown,cursor:"pointer"}}>🏆 {family?.points||0}</span>
           </div>
 
           {/* POINTS MODAL */}
-          {showPoints&&(
-            <>
-              <div onClick={()=>setShowPoints(false)} style={{position:"fixed",inset:0,zIndex:400,background:"rgba(0,0,0,0.4)"}}/>
-              <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"#FDF6EC",borderRadius:"20px 20px 0 0",zIndex:401,boxShadow:"0 -8px 40px rgba(92,61,46,0.18)",paddingBottom:32,maxHeight:"80vh",overflowY:"auto"}}>
-                <div style={{width:40,height:4,background:T.border,borderRadius:99,margin:"12px auto 0"}}/>
-                <div style={{padding:"16px 20px 12px",borderBottom:`1px solid ${T.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                  <div>
-                    <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:T.dark}}>🏆 Family Points</div>
-                    <div style={{fontSize:12,color:T.muted,marginTop:2}}>Earn by staying on top of family life</div>
-                  </div>
-                  <div style={{textAlign:"center",background:T.amber+"20",borderRadius:14,padding:"8px 16px"}}>
-                    <div style={{fontSize:24,fontWeight:800,color:T.brown}}>{family?.points||0}</div>
-                    <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5}}>TOTAL PTS</div>
-                  </div>
-                </div>
-                <div style={{padding:"14px 20px"}}>
-                  <div style={{fontSize:11,fontWeight:800,color:T.brown,letterSpacing:0.8,marginBottom:10}}>HOW TO EARN</div>
-                  {[
-                    {icon:"✅",action:"Complete a chore",pts:"+5"},
-                    {icon:"💸",action:"Log an expense",pts:"+5"},
-                    {icon:"💊",action:"Add a medicine",pts:"+5"},
-                    {icon:"📅",action:"Add a family event",pts:"+10"},
-                    {icon:"💳",action:"Mark a bill as paid",pts:"+15"},
-                    {icon:"✔️",action:"Complete homework task",pts:"+15"},
-                    {icon:"💎",action:"Add a wealth goal",pts:"+20"},
-                    {icon:"👨‍👩‍👧",action:"Invite a family member",pts:"+50"},
-                  ].map(r=>(
-                    <div key={r.action} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:`1px solid ${T.border}`}}>
-                      <span style={{fontSize:18,width:26,textAlign:"center",flexShrink:0}}>{r.icon}</span>
-                      <span style={{flex:1,fontSize:13,color:T.dark}}>{r.action}</span>
-                      <span style={{fontSize:13,fontWeight:800,color:T.amber}}>{r.pts} pts</span>
-                    </div>
-                  ))}
-                  <div style={{marginTop:14,background:T.warm,borderRadius:12,padding:"12px 14px",fontSize:12,color:T.brown,lineHeight:1.6}}>
-                    🎯 <strong>Coming soon:</strong> Redeem points for badges, rewards & family milestones!
-                  </div>
-                </div>
-              </div>
-            </>
-          )}
+
         </div>
 
        {/* HEADER DRAWER — sliding quarter-pane from left */}
@@ -1311,7 +1387,7 @@ useEffect(()=>{
             </div>
             {/* Nav list */}
             <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
-              {[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"concierge",icon:"🤖",label:"AI"}].map(n=>(
+              {[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"}].map(n=>(
                 <button key={n.id} onClick={()=>{handleTabChange(n.id);setShowHeader(false);}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:tab===n.id?T.brown+"14":"transparent",border:"none",cursor:"pointer",textAlign:"left",borderLeft:tab===n.id?`3px solid ${T.brown}`:"3px solid transparent",transition:"background 0.15s",boxSizing:"border-box"}}>
                   <span style={{fontSize:17,width:22,textAlign:"center",flexShrink:0}}>{n.icon}</span>
                   <span style={{fontSize:12,fontWeight:tab===n.id?700:600,color:tab===n.id?T.brown:T.dark,letterSpacing:0.1,whiteSpace:"nowrap"}}>{n.label}</span>
@@ -1334,6 +1410,11 @@ useEffect(()=>{
           </div>
         </div>
         <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:86}}>{screens[tab]||screens["home"]}</div>
+
+        {/* FLOATING AI BUTTON */}
+        {tab!=="concierge"&&(
+          <button onClick={()=>handleTabChange("concierge")} style={{position:"fixed",bottom:82,right:"calc(50% - 195px)",zIndex:150,width:46,height:46,borderRadius:"50%",background:`linear-gradient(135deg,${T.lav},${T.blue})`,border:"none",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>🤖</button>
+        )}
 
         {/* MORE DRAWER */}
         {showMore&&(
