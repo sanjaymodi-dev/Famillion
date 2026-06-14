@@ -411,10 +411,17 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
   const {url,label}=DayImage();
+  const [imgLoaded,setImgLoaded]=useState(false);
   return (
     <div style={{padding:"0 0 16px"}}>
-      <div style={{position:"relative",marginBottom:16,overflow:"hidden"}}>
-        <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block"}} onError={e=>{e.target.style.display="none";e.target.nextSibling.style.background="linear-gradient(135deg,#5C3D2E,#A0522D)";}}/>
+      <div style={{position:"relative",marginBottom:16,overflow:"hidden",height:140,background:"linear-gradient(135deg,#5C3D2E,#A0522D)"}}>
+        <img src={url} alt="time of day" style={{width:"100%",height:140,objectFit:"cover",display:"block",opacity:imgLoaded?1:0,transition:"opacity 0.4s ease"}} onLoad={()=>setImgLoaded(true)} onError={()=>setImgLoaded(false)}/>
+        <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
+          <div style={{fontSize:12,color:"rgba(255,255,255,0.8)",marginTop:2}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</div>
+        </div>
+      </div>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.55))",display:"flex",flexDirection:"column",justifyContent:"flex-end",padding:"16px"}}>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{label}</div>
           <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:"#fff",fontWeight:700,textShadow:"0 1px 4px rgba(0,0,0,0.4)"}}>{family?.name}</div>
@@ -1041,8 +1048,21 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   const [showNudge,setShowNudge]=useState(false);
   const [nudgeSent,setNudgeSent]=useState(false);
   const [nf,setNf]=useState({task_type:"bill",note:"",tone:"🙏 Gentle reminder"});
+  const isSelf=currentUserName===member.name;
+  const nudgeExpenses=useTable("expenses",familyId);
+  const nudgeChores=useTable("providers",familyId);
+  const nudgeBills=useTable("bills",familyId);
+  const nudgeEvents=useTable("events",familyId);
+
+  const getItems=()=>{
+    if(nf.task_type==="expense") return nudgeExpenses.data.slice(0,6).map(e=>({id:e.id,label:`${e.cat} ${e.label} ₹${e.amount}`}));
+    if(nf.task_type==="chore") return nudgeChores.data.slice(0,6).map(e=>({id:e.id,label:`${e.emoji||"🧹"} ${e.name}`}));
+    if(nf.task_type==="bill") return nudgeBills.data.filter(b=>!b.paid).slice(0,6).map(e=>({id:e.id,label:`${e.icon} ${e.label} ₹${e.amount}`}));
+    if(nf.task_type==="event") return nudgeEvents.data.slice(0,6).map(e=>({id:e.id,label:`${e.emoji||"📅"} ${e.title}`}));
+    return [];
+  };
   const tones=["🙏 Gentle reminder","⚡ Urgent","💕 With love","😄 Just checking in"];
-  const taskTypes=[{id:"bill",label:"Pay a bill",icon:"💳"},{id:"expense",label:"Log an expense",icon:"💸"},{id:"chore",label:"Complete a chore",icon:"🧹"},{id:"errand",label:"Run an errand",icon:"🛒"},{id:"homework",label:"Finish homework",icon:"📚"},{id:"event",label:"Family event",icon:"📅"},{id:"custom",label:"Custom message",icon:"💬"}];
+  const taskTypes=[{id:"bill",label:"Pay a bill",icon:"💳"},{id:"expense",label:"Log an expense",icon:"💸"},{id:"chore",label:"Complete a chore",icon:"🧹"},{id:"event",label:"Family event",icon:"📅"},{id:"homework",label:"Finish homework",icon:"📚"},{id:"custom",label:"Custom message",icon:"💬"}];
   const sendNudge=async()=>{
     if(!nf.note.trim())return;
     await sb.from("nudges").insert({family_id:familyId,from_member:currentUserName,to_member:member.name,task_type:nf.task_type,note:nf.note,tone:nf.tone,seen:false});
@@ -1071,9 +1091,9 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
         c2.getContext("2d").drawImage(canvas,0,0,c2.width,c2.height);
         blob=await new Promise(res=>c2.toBlob(res,"image/jpeg",0.6));
       }
-      const token=(await sb.auth.getSession())?.access_token;
+      const token=sb._token;
       const fileName=`${familyId}/${member.id}_${Date.now()}.jpg`;
-      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${fileName}`,{method:"POST",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
+      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/avatars/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
       if(!uploadRes.ok)throw new Error("Upload failed");
       const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/avatars/${fileName}`;
       await sb.from("members").update({avatar_url:publicUrl}).eq("id",member.id);
@@ -1099,13 +1119,13 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
         <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap photo to change picture</div>
       </div>
 
-      {/* NUDGE BUTTON */}
-      <button onClick={()=>setShowNudge(s=>!s)} style={{width:"100%",padding:"12px 16px",borderRadius:14,border:`2px solid ${T.amber}`,background:showNudge?T.amber+"20":"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:12}}>
+      {/* NUDGE BUTTON — hide if viewing own profile */}
+      {!isSelf&&<button onClick={()=>setShowNudge(s=>!s)} style={{width:"100%",padding:"12px 16px",borderRadius:14,border:`2px solid ${T.amber}`,background:showNudge?T.amber+"20":"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:12}}>
         👋 Nudge {member.name.split(" ")[0]}
-      </button>
+      </button>}
 
       {/* NUDGE FORM */}
-      {showNudge&&(
+      {!isSelf&&showNudge&&(
         <Card style={{marginBottom:16,border:`1.5px solid ${T.amber}40`}}>
           {nudgeSent?(
             <div style={{textAlign:"center",padding:"20px 0"}}>
@@ -1119,12 +1139,27 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
                 <label style={lbl}>What's it about?</label>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
                   {taskTypes.map(t=>(
-                    <button key={t.id} onClick={()=>setNf(f=>({...f,task_type:t.id}))} style={{padding:"6px 10px",borderRadius:99,border:`1.5px solid ${nf.task_type===t.id?T.brown:T.border}`,background:nf.task_type===t.id?T.warm:"#fff",fontSize:12,fontWeight:600,color:T.dark,cursor:"pointer"}}>
+                    <button key={t.id} onClick={()=>setNf(f=>({...f,task_type:t.id,note:""}))} style={{padding:"6px 10px",borderRadius:99,border:`1.5px solid ${nf.task_type===t.id?T.brown:T.border}`,background:nf.task_type===t.id?T.warm:"#fff",fontSize:12,fontWeight:600,color:T.dark,cursor:"pointer"}}>
                       {t.icon} {t.label}
                     </button>
                   ))}
                 </div>
               </div>
+
+              {/* ITEM PICKER — for bill, expense, chore, event */}
+              {nf.task_type!=="custom"&&nf.task_type!=="homework"&&getItems().length>0&&(
+                <div style={{marginBottom:12}}>
+                  <label style={lbl}>Pick one (or write your own below)</label>
+                  <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                    {getItems().map(item=>(
+                      <button key={item.id} onClick={()=>setNf(f=>({...f,note:item.label}))} style={{textAlign:"left",padding:"8px 12px",borderRadius:10,border:`1.5px solid ${nf.note===item.label?T.brown:T.border}`,background:nf.note===item.label?T.warm:"#fff",fontSize:12,color:T.dark,cursor:"pointer",fontWeight:nf.note===item.label?700:400}}>
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               <div style={{marginBottom:12}}>
                 <label style={lbl}>Tone</label>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
