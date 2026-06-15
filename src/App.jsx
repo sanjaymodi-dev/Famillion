@@ -1256,11 +1256,11 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                 {MEMBER_EMOJIS.map(({e,label})=>(
                   <button key={e} title={label} onClick={()=>setNewMember(p=>({...p,emoji:e}))}
-                    style={{width:44,height:48,borderRadius:10,border:`2px solid ${newMember.emoji===e?T.brown:T.border}`,
+                    style={{width:58,height:62,borderRadius:10,border:`2px solid ${newMember.emoji===e?T.brown:T.border}`,
                       background:newMember.emoji===e?T.warm:"#fff",cursor:"pointer",
                       display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,padding:2}}>
-                    <span style={{fontSize:20,lineHeight:1}}>{e}</span>
-                    <span style={{fontSize:7,color:newMember.emoji===e?T.brown:T.muted,lineHeight:1.2,textAlign:"center"}}>{label}</span>
+                    <span style={{fontSize:28,lineHeight:1}}>{e}</span>
+                    <span style={{fontSize:9,color:newMember.emoji===e?T.brown:T.muted,lineHeight:1.2,textAlign:"center"}}>{label}</span>
                   </button>
                 ))}
               </div>
