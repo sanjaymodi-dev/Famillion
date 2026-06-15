@@ -1111,6 +1111,9 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
   const [activeTab,setActiveTab]=useState("profile");
   const [editing,setEditing]=useState(false);
   const [saving,setSaving]=useState(false);
+  const [showAddMember,setShowAddMember]=useState(false);
+  const [savingMember,setSavingMember]=useState(false);
+  const [newMember,setNewMember]=useState({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});
   const [pf,setPf]=useState({name:"",city:"",monthly_income:"",monthly_expenses:"",savings:"",debts:"",insurance:"",age:""});
   const cities=["Gurgaon","Mumbai","Delhi","Bangalore","Chennai","Hyderabad","Pune","Kolkata","Ahmedabad","Jaipur","Noida","Chandigarh"];
   const copyCode=()=>{if(family?.invite_code){navigator.clipboard?.writeText(family.invite_code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000);}};
@@ -1161,7 +1164,39 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
           </div>
         </Card>)}
         <Sec>Members</Sec>
-        {(members||[]).map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22}}>{m.emoji}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div><div style={{fontSize:11,color:T.muted}}>{m.relationship||""}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div></div>))}
+        {(members||[]).map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>{m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div><div style={{fontSize:11,color:T.muted}}>{m.relationship||""}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div></div>))}
+        {showAddMember?(
+          <Card style={{marginBottom:8}}>
+            <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Family Member</div>
+            <div style={{marginBottom:10}}><label style={lbl}>Name</label><input style={inp} value={newMember.name} onChange={e=>setNewMember(p=>({...p,name:e.target.value}))} placeholder="e.g. Ashi Modi"/></div>
+            <div style={{marginBottom:10}}>
+              <label style={lbl}>Emoji</label>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {["👧","👦","👩","👨","👴","👵","🧒","👶"].map(e=>(
+                  <button key={e} onClick={()=>setNewMember(p=>({...p,emoji:e}))} style={{width:42,height:42,borderRadius:10,border:`2px solid ${newMember.emoji===e?T.brown:T.border}`,background:newMember.emoji===e?T.warm:"#fff",fontSize:22,cursor:"pointer"}}>{e}</button>
+                ))}
+              </div>
+            </div>
+            <div style={{marginBottom:10}}><label style={lbl}>Relationship</label><input style={inp} value={newMember.relationship} onChange={e=>setNewMember(p=>({...p,relationship:e.target.value}))} placeholder="e.g. Daughter, Parent"/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+              <div><label style={lbl}>Date of Birth</label><input style={inp} type="date" value={newMember.dob} onChange={e=>setNewMember(p=>({...p,dob:e.target.value}))}/></div>
+              <div><label style={lbl}>Occupation</label><input style={inp} value={newMember.occupation} onChange={e=>setNewMember(p=>({...p,occupation:e.target.value}))} placeholder="Optional"/></div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setShowAddMember(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+              <button onClick={async()=>{
+                if(!newMember.name.trim()){alert("Please enter a name.");return;}
+                setSavingMember(true);
+                await sb.from("members").insert({family_id:family.id,name:newMember.name.trim(),emoji:newMember.emoji,relationship:newMember.relationship,dob:newMember.dob||null,occupation:newMember.occupation});
+                setNewMember({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});
+                setShowAddMember(false);setSavingMember(false);
+                window.location.reload();
+              }} disabled={savingMember} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{savingMember?"Saving...":"Add Member ✓"}</button>
+            </div>
+          </Card>
+        ):(
+          <button onClick={()=>setShowAddMember(true)} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed ${T.amber}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:8}}>+ Add Family Member</button>
+        )}
         <Sec style={{marginTop:16}}>Invite Family Members</Sec>
         <Card style={{background:"#FFFBF0",border:`1.5px solid ${T.amber}40`}}>
           {family?.invite_code?<><div style={{fontSize:13,color:T.brown,marginBottom:10,lineHeight:1.6}}>Share this code with family members to join.</div><div style={{display:"flex",gap:10,alignItems:"center"}}><div style={{flex:1,background:T.warm,borderRadius:10,padding:"12px 16px",fontFamily:"monospace",fontSize:18,fontWeight:800,color:T.dark,letterSpacing:2,textAlign:"center"}}>{family.invite_code}</div><button onClick={copyCode} style={{padding:"12px 16px",borderRadius:10,border:"none",background:copied?T.green:T.brown,color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",transition:"background 0.2s",flexShrink:0}}>{copied?"✓ Copied!":"Copy"}</button></div></>:<div style={{fontSize:13,color:T.muted}}>Invite code will appear here after signup.</div>}
@@ -1182,22 +1217,8 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
 }
 
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onSignOut }) {
+function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref }) {
   const [activeTab,setActiveTab]=useState("privacy");
-  const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
-  const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
-  const audioRef=React.useRef(null);
-  const getAudio=()=>{
-    if(!audioRef.current){audioRef.current=new Audio("https://cdn.pixabay.com/audio/2022/10/16/audio_5cca3f32d0.mp3");audioRef.current.loop=true;audioRef.current.volume=0.18;}
-    return audioRef.current;
-  };
-  React.useEffect(()=>{if(bgmPref==="always"){getAudio().play().catch(()=>{});setBgmOn(true);}},[]);
-  const toggleBgm=()=>{if(bgmOn){getAudio().pause();setBgmOn(false);}else{getAudio().play().catch(()=>{});setBgmOn(true);}};
-  const handlePrefChange=(pref)=>{
-    setBgmPref(pref);localStorage.setItem("fn_bgm_pref",pref);
-    if(pref==="always"){getAudio().play().catch(()=>{});setBgmOn(true);}
-    if(pref==="manual"){getAudio().pause();setBgmOn(false);}
-  };
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Settings</div>
@@ -1208,14 +1229,12 @@ function SettingsScreen({ onSignOut }) {
             <div style={{fontSize:12,color:T.muted,marginTop:2}}>{bgmOn?"Playing — soft rain ambience":"Silent"}</div>
           </div>
           <div onClick={toggleBgm} style={{width:48,height:28,borderRadius:99,background:bgmOn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <div style={{position:"absolute",top:3,left:bgmOn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
-          </div>
         </div>
         {bgmOn&&<>
           <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             {[{v:"always",label:"🔁 Always on",sub:"Starts automatically every time I open the app"},{v:"manual",label:"🖐️ I'll turn it on myself",sub:"Starts silent, I decide when to play"}].map(opt=>(
-              <div key={opt.v} onClick={()=>handlePrefChange(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
+              <div key={opt.v} onClick={()=>handleBgmPref(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
                 <div style={{flex:1}}>
                   <div style={{fontSize:13,fontWeight:700,color:T.dark}}>{opt.label}</div>
                   <div style={{fontSize:11,color:T.muted,marginTop:2}}>{opt.sub}</div>
@@ -1547,6 +1566,16 @@ export default function App() {
 const [showHeader,setShowHeader]=useState(false);
 
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
+  const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
+  const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
+  const bgmRef=React.useRef(null);
+  const getBgm=()=>{
+    if(!bgmRef.current){bgmRef.current=new Audio("https://cdn.pixabay.com/audio/2022/10/16/audio_5cca3f32d0.mp3");bgmRef.current.loop=true;bgmRef.current.volume=0.18;}
+    return bgmRef.current;
+  };
+  const toggleBgm=()=>{if(bgmOn){getBgm().pause();setBgmOn(false);}else{getBgm().play().catch(()=>{});setBgmOn(true);}};
+  const handleBgmPref=(pref)=>{setBgmPref(pref);localStorage.setItem("fn_bgm_pref",pref);if(pref==="always"){getBgm().play().catch(()=>{});setBgmOn(true);}if(pref==="manual"){getBgm().pause();setBgmOn(false);}};
+  useEffect(()=>{if(bgmPref==="always"){getBgm().play().catch(()=>{});setBgmOn(true);}},[]);
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
   const nudges=useTable("nudges",family?.id);
@@ -1630,6 +1659,7 @@ const [showHeader,setShowHeader]=useState(false);
   setTab(id);setShowMore(false);setSelectedMember(null);
   window.history.pushState({tab:id},"","");
 };
+  const handleMemberClick=(m)=>setSelectedMember(m);
 
 useEffect(()=>{
   const onBack=(e)=>{
@@ -1674,8 +1704,6 @@ useEffect(()=>{
     </div>
   );
 
-    const handleMemberClick=(m)=>setSelectedMember(m);
-
   if(selectedMember)return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
@@ -1700,12 +1728,12 @@ useEffect(()=>{
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
-    settings: <SettingsScreen  onSignOut={handleSignOut}/>,
+    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref}/>,
     profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
@@ -1724,6 +1752,7 @@ useEffect(()=>{
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {family?.city&&<span style={{fontSize:10,color:T.muted,fontWeight:700,background:T.warm,borderRadius:99,padding:"2px 8px"}}>📍{family.city}</span>}
+            <span onClick={toggleBgm} style={{background:bgmOn?T.amber+"30":T.warm,borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:bgmOn?T.brown:T.muted,cursor:"pointer",border:`1px solid ${bgmOn?T.amber:T.border}`}}>{bgmOn?"🎵":"🔇"}</span>
             <span onClick={()=>handleTabChange("rewards")} style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown,cursor:"pointer"}}>🏆 {family?.points||0}</span>
           </div>
 
@@ -1780,7 +1809,7 @@ useEffect(()=>{
         {showMore&&(
           <div style={{position:"fixed",bottom:72,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.98)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,padding:"12px 16px",boxShadow:"0 -8px 32px rgba(0,0,0,0.1)",zIndex:100}}>
             <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
-              {MORE_NAV.map(n=>(<button key={n.id} onClick={()=>handleTabChange(n.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:tab===n.id?T.brown+"18":"transparent",border:"none",cursor:"pointer",padding:"10px 4px",borderRadius:12}}><span style={{fontSize:22}}>{n.icon}</span><span style={{fontSize:9,fontWeight:800,color:tab===n.id?T.brown:T.muted,letterSpacing:0.3}}>{n.label}</span></button>))}
+              {MORE_NAV.map(n=>(<button key={n.id} onClick={()=>n.id==="bgm"?toggleBgm():handleTabChange(n.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:n.id==="bgm"?bgmOn?T.amber+"25":"transparent":tab===n.id?T.brown+"18":"transparent",border:"none",cursor:"pointer",padding:"10px 4px",borderRadius:12}}><span style={{fontSize:22}}>{n.icon}</span><span style={{fontSize:9,fontWeight:800,color:n.id==="bgm"?bgmOn?T.brown:T.muted:tab===n.id?T.brown:T.muted,letterSpacing:0.3}}>{n.label}</span></button>))}
             </div>
           </div>
         )}
