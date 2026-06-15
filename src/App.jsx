@@ -176,8 +176,27 @@ const SLIDES = [
   { emoji:"🤖", title:"AI Concierge Coming Soon", sub:"Your AI family assistant — set reminders, get advice, and let family members send you nudges.", color:T.amber },
 ];
 
+function SplashScreen() {
+  const NAV="#0F1F3D", SAF="#F4A724";
+  return(
+    <div style={{minHeight:"100vh",background:NAV,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
+      <svg width="72" height="72" viewBox="0 0 52 52" style={{marginBottom:16,animation:"splashBounce 1.2s ease infinite alternate"}}>
+        <circle cx="26" cy="26" r="24" fill="none" stroke={SAF} strokeWidth="1.5"/>
+        <text x="26" y="36" textAnchor="middle" fontFamily="Georgia,serif" fontSize="36" fontWeight="700" fill={SAF}>F</text>
+      </svg>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:SAF,marginBottom:6,letterSpacing:0.5}}>Famillion</div>
+      <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",marginBottom:40}}>Your family's everything app</div>
+      <div style={{display:"flex",gap:8}}>
+        {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.3)",animation:`splashDot 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}
+      </div>
+      <style>{`@keyframes splashBounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-10px) scale(1.05)}}@keyframes splashDot{0%,60%,100%{opacity:0.3;transform:scale(1)}30%{opacity:1;transform:scale(1.3)}}`}</style>
+    </div>
+  );
+}
+
 const FLogo = (
-  <svg width="52" height="52" viewBox="0 0 52 52" style={{display:"block",margin:"0 auto 8px"}}>
+  <svg width="36" height="36" viewBox="0 0 52 52" style={{display:"block",flexShrink:0}}>
     <circle cx="26" cy="26" r="24" fill="none" stroke="#F4A724" strokeWidth="1.5"/>
     <text x="26" y="36" textAnchor="middle" fontFamily="Georgia,serif" fontSize="36" fontWeight="700" fill="#F4A724">F</text>
   </svg>
@@ -191,10 +210,12 @@ function OnboardingSlides({ onDone }) {
   return (
     <div style={{minHeight:"100vh",background:CRM,display:"flex",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{background:NAV,padding:"24px 24px 20px",textAlign:"center",flexShrink:0}}>
+      <div style={{background:NAV,padding:"16px 24px",flexShrink:0,display:"flex",alignItems:"center",gap:12}}>
         {FLogo}
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:SAF,letterSpacing:0.5}}>Famillion</div>
-        <div style={{fontSize:12,color:"rgba(255,255,255,0.45)",marginTop:3}}>Your family's everything app</div>
+        <div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:SAF,letterSpacing:0.5,lineHeight:1.2}}>Famillion</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:2}}>Your family's everything app</div>
+        </div>
       </div>
       <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:"40px 32px 0"}}>
         <div style={{fontSize:80,marginBottom:28,animation:"bounce 1.2s ease infinite alternate"}}>{slide.emoji}</div>
@@ -243,10 +264,12 @@ function ResetPasswordScreen({ token }) {
   return(
     <div style={{minHeight:"100vh",background:CRM,display:"flex",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{background:NAV,padding:"24px 24px 20px",textAlign:"center",flexShrink:0}}>
+      <div style={{background:NAV,padding:"16px 24px",flexShrink:0,display:"flex",alignItems:"center",gap:12}}>
         {FLogo}
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:SAF,letterSpacing:0.5}}>Famillion</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",marginTop:4}}>Your family's everything app</div>
+        <div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:SAF,letterSpacing:0.5,lineHeight:1.2}}>Famillion</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:2}}>Your family's everything app</div>
+        </div>
       </div>
       <div style={{flex:1,display:"flex",justifyContent:"center"}}>
         <div style={{width:"100%",maxWidth:420,padding:"40px 24px 24px"}}>
@@ -390,10 +413,12 @@ function AuthScreen({ onAuth }) {
   return (
     <div style={{minHeight:"100vh",background:CRM,display:"flex",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{background:NAV,padding:"24px 24px 20px",textAlign:"center",flexShrink:0}}>
+      <div style={{background:NAV,padding:"16px 24px",flexShrink:0,display:"flex",alignItems:"center",gap:12}}>
         {FLogo}
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:SAF,letterSpacing:0.5}}>Famillion</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",marginTop:4}}>Your family's everything app</div>
+        <div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:SAF,letterSpacing:0.5,lineHeight:1.2}}>Famillion</div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)",marginTop:2}}>Your family's everything app</div>
+        </div>
       </div>
       {/* Cream form area */}
       <div style={{flex:1,overflowY:"auto",padding:"28px 24px 40px",maxWidth:420,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
@@ -1157,42 +1182,80 @@ function KidsZoneScreen({ familyId, members, onPts }) {
 }
 
 function RewardsScreen({ family }) {
-  const rules=[
-    {icon:"✅",action:"Complete a chore",pts:"+5"},
-    {icon:"💸",action:"Log an expense",pts:"+5"},
-    {icon:"💊",action:"Add a medicine",pts:"+5"},
-    {icon:"📅",action:"Add a family event",pts:"+10"},
-    {icon:"💳",action:"Mark a bill as paid",pts:"+15"},
-    {icon:"✔️",action:"Complete homework task",pts:"+15"},
-    {icon:"💎",action:"Add a wealth goal",pts:"+20"},
-    {icon:"👨‍👩‍👧",action:"Invite a family member",pts:"+50"},
+  const NAV="#0F1F3D", SAF="#F4A724", CRM="#FDF6EC";
+  const pts=family?.points||0;
+  const tiers=[
+    {label:"Bronze",  min:0,    max:199,  icon:"🥉"},
+    {label:"Silver",  min:200,  max:499,  icon:"🥈"},
+    {label:"Gold",    min:500,  max:999,  icon:"🥇"},
+    {label:"Diamond", min:1000, max:2499, icon:"💎"},
+    {label:"Legend",  min:2500, max:9999, icon:"👑"},
   ];
-  return (
-    <div style={{padding:"0 0 24px"}}>
-      <div style={{padding:"0 16px",marginBottom:16}}>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>🏆 Rewards</div>
-        <div style={{fontSize:13,color:T.muted}}>Earn points by keeping your family on track</div>
-      </div>
-      <div style={{margin:"0 16px 20px",background:`linear-gradient(135deg,${T.brown},${T.dark})`,borderRadius:18,padding:"20px 24px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.7)",fontWeight:700,letterSpacing:0.8}}>FAMILY POINTS</div>
-          <div style={{fontSize:42,fontWeight:800,color:T.amber,lineHeight:1.1,marginTop:4}}>{family?.points||0}</div>
-          <div style={{fontSize:12,color:"rgba(255,255,255,0.6)",marginTop:4}}>Keep going! 🎯</div>
+  const tier=tiers.findLast(t=>pts>=t.min)||tiers[0];
+  const nextTier=tiers[tiers.indexOf(tier)+1];
+  const progress=nextTier?Math.round(((pts-tier.min)/(nextTier.min-tier.min))*100):100;
+  const rules=[
+    {icon:"✅",action:"Complete a chore",pts:5},
+    {icon:"💸",action:"Log an expense",pts:5},
+    {icon:"💊",action:"Add a medicine",pts:5},
+    {icon:"📅",action:"Add a family event",pts:10},
+    {icon:"💳",action:"Mark a bill paid",pts:15},
+    {icon:"✔️",action:"Complete homework",pts:15},
+    {icon:"💎",action:"Add a wealth goal",pts:20},
+    {icon:"👨‍👩‍👧",action:"Invite a member",pts:50},
+  ];
+  const badges=[
+    {icon:"🏠",label:"First Login",earned:true},
+    {icon:"💸",label:"First Expense",earned:pts>0},
+    {icon:"🎯",label:"500 Points",earned:pts>=500},
+    {icon:"💎",label:"Diamond Club",earned:pts>=1000},
+    {icon:"🔥",label:"30-day streak",earned:false},
+    {icon:"✅",label:"All bills paid",earned:false},
+  ];
+  return(
+    <div style={{minHeight:"100%",background:CRM,paddingBottom:32}}>
+      {/* Navy hero */}
+      <div style={{background:NAV,padding:"24px 20px 28px"}}>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",fontWeight:700,letterSpacing:1,marginBottom:4}}>FAMILY POINTS</div>
+        <div style={{fontSize:52,fontWeight:800,color:SAF,lineHeight:1}}>{pts}</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.6)",marginTop:4,marginBottom:16}}>{tier.icon} {tier.label} tier{nextTier?` · ${nextTier.min-pts} pts to ${nextTier.label}`:` · Max tier!`}</div>
+        {/* Progress bar */}
+        <div style={{background:"rgba(255,255,255,0.15)",borderRadius:99,height:6}}>
+          <div style={{width:`${progress}%`,background:SAF,height:"100%",borderRadius:99,transition:"width 0.8s ease"}}/>
         </div>
-        <div style={{fontSize:56}}>🏆</div>
-      </div>
-      <div style={{padding:"0 16px"}}>
-        <div style={{fontSize:11,fontWeight:800,color:T.brown,letterSpacing:0.8,marginBottom:12}}>HOW TO EARN</div>
-        <Card>
-          {rules.map((r,i)=>(
-            <div key={r.action} style={{display:"flex",alignItems:"center",gap:12,padding:"11px 0",borderBottom:i<rules.length-1?`1px solid ${T.border}`:"none"}}>
-              <span style={{fontSize:20,width:28,textAlign:"center",flexShrink:0}}>{r.icon}</span>
-              <span style={{flex:1,fontSize:13,color:T.dark}}>{r.action}</span>
-              <span style={{fontSize:13,fontWeight:800,color:T.amber}}>{r.pts} pts</span>
+        {/* Tier row */}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:12}}>
+          {tiers.map(t=>(
+            <div key={t.label} style={{textAlign:"center",opacity:pts>=t.min?1:0.35}}>
+              <div style={{fontSize:18}}>{t.icon}</div>
+              <div style={{fontSize:9,color:"rgba(255,255,255,0.6)",marginTop:2}}>{t.label}</div>
             </div>
           ))}
-        </Card>
-        <div style={{marginTop:16,background:T.warm,borderRadius:14,padding:"14px 16px",fontSize:13,color:T.brown,lineHeight:1.7}}>
+        </div>
+      </div>
+      <div style={{padding:"20px 16px 0"}}>
+        {/* Badges */}
+        <div style={{fontSize:11,fontWeight:800,color:"#8B5E3C",letterSpacing:0.8,marginBottom:10}}>BADGES</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:24}}>
+          {badges.map(b=>(
+            <div key={b.label} style={{background:b.earned?"#FFF8E8":"#F5F0EA",borderRadius:14,padding:"14px 8px",textAlign:"center",border:`1.5px solid ${b.earned?SAF:"#E8DDD0"}`,opacity:b.earned?1:0.5}}>
+              <div style={{fontSize:26,marginBottom:4}}>{b.icon}</div>
+              <div style={{fontSize:10,fontWeight:700,color:b.earned?"#8B5E3C":"#A08070",lineHeight:1.3}}>{b.label}</div>
+            </div>
+          ))}
+        </div>
+        {/* How to earn */}
+        <div style={{fontSize:11,fontWeight:800,color:"#8B5E3C",letterSpacing:0.8,marginBottom:10}}>HOW TO EARN</div>
+        <div style={{background:"#fff",borderRadius:16,border:"1px solid #E8DDD0",overflow:"hidden",marginBottom:16}}>
+          {rules.map((r,i)=>(
+            <div key={r.action} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 16px",borderBottom:i<rules.length-1?"1px solid #F0EAE0":"none"}}>
+              <span style={{fontSize:18,width:24,textAlign:"center",flexShrink:0}}>{r.icon}</span>
+              <span style={{flex:1,fontSize:13,color:NAV}}>{r.action}</span>
+              <span style={{fontSize:13,fontWeight:800,color:SAF}}>+{r.pts} pts</span>
+            </div>
+          ))}
+        </div>
+        <div style={{background:"#FFF8E8",borderRadius:14,padding:"14px 16px",fontSize:13,color:"#8B5E3C",lineHeight:1.7,border:`1px solid ${SAF}40`}}>
           🎁 <strong>Coming soon:</strong> Redeem points for badges, rewards & family milestones!
         </div>
       </div>
@@ -1920,36 +1983,13 @@ useEffect(()=>{
 },[tab,showMore,selectedMember]);
 
   if(recoveryToken)return <ResetPasswordScreen token={recoveryToken}/>;
-  if(authLoading)return(
-    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${T.brown},${T.dark})`,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,fontFamily:"Lato,sans-serif"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{fontSize:72,marginBottom:16,animation:"splashBounce 1.2s ease infinite alternate"}}>🏡</div>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#fff",marginBottom:6,letterSpacing:0.5}}>Famillion</div>
-      <div style={{fontSize:14,color:"rgba(255,255,255,0.6)",marginBottom:40,letterSpacing:1}}>Your family's everything app</div>
-      <div style={{display:"flex",gap:8}}>
-        {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.4)",animation:`splashDot 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}
-      </div>
-      <style>{`@keyframes splashBounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-10px) scale(1.05)}}@keyframes splashDot{0%,60%,100%{opacity:0.3;transform:scale(1)}30%{opacity:1;transform:scale(1.3)}}`}</style>
-    </div>
-  );
+  if(authLoading)return <SplashScreen/>;
 
   if(showOnboarding)return(<OnboardingSlides onDone={()=>{localStorage.setItem("fn_onboarding_seen","1");setShowOnboarding(false);}}/>);
 
   if(!user)return <AuthScreen onAuth={u=>{setUser(u);localStorage.setItem("fn_email",u.email||"");}}/>;
 
-  // Show splash while family data is loading (not email verification screen)
-  if(!family)return(
-    <div style={{minHeight:"100vh",background:`linear-gradient(160deg,${T.brown},${T.dark})`,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:0,fontFamily:"Lato,sans-serif"}}>
-      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{fontSize:72,marginBottom:16,animation:"splashBounce 1.2s ease infinite alternate"}}>🏡</div>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:"#fff",marginBottom:6,letterSpacing:0.5}}>Famillion</div>
-      <div style={{fontSize:14,color:"rgba(255,255,255,0.6)",marginBottom:40,letterSpacing:1}}>Your family's everything app</div>
-      <div style={{display:"flex",gap:8}}>
-        {[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:"rgba(255,255,255,0.4)",animation:`splashDot 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}
-      </div>
-      <style>{`@keyframes splashBounce{from{transform:translateY(0) scale(1)}to{transform:translateY(-10px) scale(1.05)}}@keyframes splashDot{0%,60%,100%{opacity:0.3;transform:scale(1)}30%{opacity:1;transform:scale(1.3)}}`}</style>
-    </div>
-  );
+  if(!family)return <SplashScreen/>;
 
   if(selectedMember)return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
@@ -1980,7 +2020,7 @@ useEffect(()=>{
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
