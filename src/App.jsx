@@ -1229,6 +1229,8 @@ function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref })
             <div style={{fontSize:12,color:T.muted,marginTop:2}}>{bgmOn?"Playing — soft rain ambience":"Silent"}</div>
           </div>
           <div onClick={toggleBgm} style={{width:48,height:28,borderRadius:99,background:bgmOn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:3,left:bgmOn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
+          </div>
         </div>
         {bgmOn&&<>
           <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
