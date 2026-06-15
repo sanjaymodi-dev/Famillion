@@ -527,36 +527,39 @@ const BGM_TRACKS=[
   {id:"sitar", label:"🎵 Indian Meditation", url:"https://archive.org/download/IndianSitarInstrumentalMusic10Hours/Indian%20Background%20Flute%20Music%20Instrumental%20Meditation%20Music%20%20Yoga%20Music%20%20Spa%20Music%20for%20Relaxation.mp3"},
   {id:"rain",  label:"🌧️ Gentle Rain",      url:"https://archive.org/download/rain-sounds-gentle-rain-thunderstorms/ambience-crickets-chirping-light-rain-tending-to-heavier-rain-10576.mp3"},
 ];
+// Collage photos — picsum.photos (CORS-friendly, reliable, beautiful lifestyle shots)
+// Each URL is a fixed seed so same photo always loads for that index
 const COLLAGE_PHOTOS=[
-  // Bollywood
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Shah_Rukh_Khan_graces_the_launch_of_Dulux_Colour_Next_2014.jpg/320px-Shah_Rukh_Khan_graces_the_launch_of_Dulux_Colour_Next_2014.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Amitabh_Bachchan.jpg/320px-Amitabh_Bachchan.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Deepika_Padukone_at_Cannes_2022_%28cropped%29.jpg/320px-Deepika_Padukone_at_Cannes_2022_%28cropped%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Priyanka_Chopra_2018.jpg/320px-Priyanka_Chopra_2018.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Ranveer_Singh_promoting_Bajirao_Mastani_%282015%29.jpg/320px-Ranveer_Singh_promoting_Bajirao_Mastani_%282015%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Alia_Bhatt_at_the_screening_of_Dear_Zindagi.jpg/320px-Alia_Bhatt_at_the_screening_of_Dear_Zindagi.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Salman_Khan_at_the_Bigg_Boss_press_conference_2011.jpg/320px-Salman_Khan_at_the_Bigg_Boss_press_conference_2011.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Ranbir_Kapoor_at_Rockstar_press_meet.jpg/320px-Ranbir_Kapoor_at_Rockstar_press_meet.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Kareena_Kapoor_at_the_Filmfare_Awards_2013.jpg/320px-Kareena_Kapoor_at_the_Filmfare_Awards_2013.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Hrithik_Roshan_at_the_Filmfare_Awards_2013.jpg/320px-Hrithik_Roshan_at_the_Filmfare_Awards_2013.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Aishwarya_Rai_Bachchan_at_Cannes_2014_%28cropped%29.jpg/320px-Aishwarya_Rai_Bachchan_at_Cannes_2014_%28cropped%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Shahid_Kapoor_at_the_Filmfare_Awards_2013.jpg/320px-Shahid_Kapoor_at_the_Filmfare_Awards_2013.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Madhuri_Dixit_at_Jhalak_Dikhhla_Jaa.jpg/320px-Madhuri_Dixit_at_Jhalak_Dikhhla_Jaa.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Akshay_Kumar_at_the_screening_of_film_Rustom.jpg/320px-Akshay_Kumar_at_the_screening_of_film_Rustom.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Vidya_Balan_at_the_screening_of_Kahaani.jpg/320px-Vidya_Balan_at_the_screening_of_Kahaani.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Katrina_Kaif_at_Jio_World_Plaza_launch_%28cropped%29.jpg/320px-Katrina_Kaif_at_Jio_World_Plaza_launch_%28cropped%29.jpg",
-  // Hollywood
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Tom_Hanks_2016.jpg/320px-Tom_Hanks_2016.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Angelina_Jolie_2_June_2014_%28cropped%29.jpg/320px-Angelina_Jolie_2_June_2014_%28cropped%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Robert_Downey_Jr_2014_Comic_Con_%28cropped%29.jpg/320px-Robert_Downey_Jr_2014_Comic_Con_%28cropped%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Scarlett_Johansson_by_Gage_Skidmore_2_%28cropped%29.jpg/320px-Scarlett_Johansson_by_Gage_Skidmore_2_%28cropped%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Leonardo_DiCaprio_2014.jpg/320px-Leonardo_DiCaprio_2014.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Jennifer_Lawrence_2014_TIFF_%28cropped%29.jpg/320px-Jennifer_Lawrence_2014_TIFF_%28cropped%29.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Brad_Pitt_2019_by_Glenn_Francis.jpg/320px-Brad_Pitt_2019_by_Glenn_Francis.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Will_Smith_2011.jpg/320px-Will_Smith_2011.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Chris_Hemsworth_by_Gage_Skidmore.jpg/320px-Chris_Hemsworth_by_Gage_Skidmore.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Meryl_Streep_2018.jpg/320px-Meryl_Streep_2018.jpg",
-  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Dwayne_Johnson_2014_%28cropped%29.jpg/320px-Dwayne_Johnson_2014_%28cropped%29.jpg",
+  // Portraits / people
+  "https://picsum.photos/seed/fam1/400/500",
+  "https://picsum.photos/seed/fam2/400/500",
+  "https://picsum.photos/seed/fam3/400/500",
+  "https://picsum.photos/seed/fam4/400/500",
+  "https://picsum.photos/seed/fam5/400/500",
+  "https://picsum.photos/seed/fam6/400/500",
+  "https://picsum.photos/seed/fam7/400/500",
+  "https://picsum.photos/seed/fam8/400/500",
+  "https://picsum.photos/seed/fam9/400/500",
+  // Lifestyle / family moments
+  "https://picsum.photos/seed/life1/400/500",
+  "https://picsum.photos/seed/life2/400/500",
+  "https://picsum.photos/seed/life3/400/500",
+  "https://picsum.photos/seed/life4/400/500",
+  "https://picsum.photos/seed/life5/400/500",
+  "https://picsum.photos/seed/life6/400/500",
+  "https://picsum.photos/seed/life7/400/500",
+  "https://picsum.photos/seed/life8/400/500",
+  "https://picsum.photos/seed/life9/400/500",
+  // Glam / cinematic
+  "https://picsum.photos/seed/glam1/400/500",
+  "https://picsum.photos/seed/glam2/400/500",
+  "https://picsum.photos/seed/glam3/400/500",
+  "https://picsum.photos/seed/glam4/400/500",
+  "https://picsum.photos/seed/glam5/400/500",
+  "https://picsum.photos/seed/glam6/400/500",
+  "https://picsum.photos/seed/glam7/400/500",
+  "https://picsum.photos/seed/glam8/400/500",
+  "https://picsum.photos/seed/glam9/400/500",
 ];
 const COLLAGES=[
   {photos:[0,1,2]},{photos:[3,4,5]},{photos:[6,7,8]},
@@ -564,49 +567,6 @@ const COLLAGES=[
   {photos:[18,19,20]},{photos:[21,22,23]},{photos:[24,25,26]},
   {photos:[0,6,18]},
 ];
-
-// ── COLLAGE IMAGE CACHE ──────────────────────────────────────────────────────
-// Fetches remote photos once, compresses to small JPEG via canvas, stores in
-// localStorage keyed by index. Refreshes weekly.
-function useCollageCache() {
-  const CACHE_KEY="fn_collage_v2";
-  const CACHE_TS ="fn_collage_ts";
-  const WEEK=7*24*60*60*1000;
-  const [cached,setCached]=useState(()=>{
-    try{const s=localStorage.getItem(CACHE_KEY);return s?JSON.parse(s):{};}catch{return {};}
-  });
-  useEffect(()=>{
-    const ts=parseInt(localStorage.getItem(CACHE_TS)||"0");
-    const stale=Date.now()-ts>WEEK;
-    const missing=COLLAGE_PHOTOS.some((_,i)=>!cached[i]);
-    if(!stale&&!missing)return;
-    const used=new Set(COLLAGES.flatMap(c=>c.photos));
-    [...used].forEach(idx=>{
-      if(cached[idx]&&!stale)return;
-      const img=new Image();
-      img.crossOrigin="anonymous";
-      img.onload=()=>{
-        try{
-          const canvas=document.createElement("canvas");
-          const max=200;
-          const ratio=Math.min(max/img.width,max/img.height);
-          canvas.width=Math.round(img.width*ratio);
-          canvas.height=Math.round(img.height*ratio);
-          canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
-          const b64=canvas.toDataURL("image/jpeg",0.7);
-          setCached(p=>{
-            const next={...p,[idx]:b64};
-            try{localStorage.setItem(CACHE_KEY,JSON.stringify(next));localStorage.setItem(CACHE_TS,Date.now().toString());}catch{}
-            return next;
-          });
-        }catch{}
-      };
-      img.onerror=()=>{};
-      img.src=COLLAGE_PHOTOS[idx];
-    });
-  },[]);
-  return cached;
-}
 
 function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges }) {
   const score=computeScore(family);
@@ -616,7 +576,6 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   const unseenNudges=(nudges||[]).filter(n=>!n.seen).slice(0,1);
   const [slide,setSlide]=useState(0);
   const totalSlides=COLLAGES.length;
-  const collageCache=useCollageCache();
   const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
   const hr=new Date().getHours();
   const greeting=hr<12?"Good morning ☀️":hr<17?"Good afternoon 🌤️":"Good evening 🌙";
@@ -664,10 +623,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
               <div key={ci} style={{minWidth:"100%",height:"100%",display:"grid",gridTemplateColumns:"2fr 1fr",gridTemplateRows:"1fr 1fr",gap:2,flexShrink:0}}>
                 {c.photos.map((pidx,pi)=>(
                   <div key={pi} style={{...(pi===0?{gridRow:"1/3"}:{}),overflow:"hidden",background:"#1A2F52"}}>
-                    {collageCache[pidx]
-                      ?<img src={collageCache[pidx]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                      :<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,opacity:0.3}}>📸</div>
-                    }
+                    <img src={COLLAGE_PHOTOS[pidx]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}} loading="lazy"/>
                   </div>
                 ))}
               </div>
@@ -1211,11 +1167,11 @@ function ConciergeScreen({ family, members }) {
 }
 
 function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
-  const [linkedIds,setLinkedIds]=useState(new Set());
+  const [linkedIds,setLinkedIds]=useState(null); // null = loading, Set = loaded
   useEffect(()=>{
     if(!family?.id)return;
     sb.from("user_profiles").select("member_id").eq("family_id",family.id).then(({data})=>{
-      if(data)setLinkedIds(new Set(data.map(p=>p.member_id).filter(Boolean)));
+      setLinkedIds(new Set((data||[]).map(p=>p.member_id).filter(Boolean)));
     });
   },[family?.id]);
   const score=computeScore(family);
@@ -1277,7 +1233,7 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
         </Card>)}
         <Sec>Members</Sec>
         {(members||[]).map(m=>{
-          const hasJoined=linkedIds.size===0||linkedIds.has(m.id);
+          const hasJoined=linkedIds===null||linkedIds.has(m.id);
           return(
           <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
             <div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
