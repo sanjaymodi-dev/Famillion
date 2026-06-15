@@ -176,27 +176,44 @@ const SLIDES = [
   { emoji:"🤖", title:"AI Concierge Coming Soon", sub:"Your AI family assistant — set reminders, get advice, and let family members send you nudges.", color:T.amber },
 ];
 
+const FLogo = (
+  <svg width="52" height="52" viewBox="0 0 52 52" style={{display:"block",margin:"0 auto 8px"}}>
+    <circle cx="26" cy="26" r="24" fill="none" stroke="#F4A724" strokeWidth="1.5"/>
+    <text x="26" y="36" textAnchor="middle" fontFamily="Georgia,serif" fontSize="36" fontWeight="700" fill="#F4A724">F</text>
+  </svg>
+);
+
 function OnboardingSlides({ onDone }) {
   const [idx, setIdx] = useState(0);
   const slide = SLIDES[idx];
   const isLast = idx === SLIDES.length - 1;
+  const NAV="#0F1F3D", SAF="#F4A724", CRM="#FDF6EC";
   return (
-    <div style={{minHeight:"100vh", background:`linear-gradient(160deg,${slide.color}22,${T.cream})`, display:"flex", flexDirection:"column", justifyContent:"space-between", padding:"60px 32px 48px", fontFamily:"Lato,sans-serif"}}>
+    <div style={{minHeight:"100vh",background:CRM,display:"flex",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", textAlign:"center"}}>
-        <div style={{fontSize:80, marginBottom:28, animation:"bounce 1.2s ease infinite alternate"}}>{slide.emoji}</div>
-        <div style={{fontFamily:"'Playfair Display',serif", fontSize:28, fontWeight:700, color:T.dark, marginBottom:16, lineHeight:1.3}}>{slide.title}</div>
-        <div style={{fontSize:15, color:T.muted, lineHeight:1.75, maxWidth:300}}>{slide.sub}</div>
+      <div style={{background:NAV,padding:"24px 24px 20px",textAlign:"center",flexShrink:0}}>
+        {FLogo}
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:28,fontWeight:700,color:SAF,letterSpacing:0.5}}>Famillion</div>
+        <div style={{fontSize:12,color:"rgba(255,255,255,0.45)",marginTop:3}}>Your family's everything app</div>
       </div>
-      <div>
-        <div style={{display:"flex", justifyContent:"center", gap:8, marginBottom:32}}>
-          {SLIDES.map((_,i) => (<div key={i} onClick={()=>setIdx(i)} style={{width:i===idx?24:8, height:8, borderRadius:99, background:i===idx?slide.color:T.border, transition:"all 0.3s", cursor:"pointer"}}/>))}
+      <div style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",textAlign:"center",padding:"40px 32px 0"}}>
+        <div style={{fontSize:80,marginBottom:28,animation:"bounce 1.2s ease infinite alternate"}}>{slide.emoji}</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:NAV,marginBottom:14,lineHeight:1.3}}>{slide.title}</div>
+        <div style={{fontSize:15,color:"#A08070",lineHeight:1.75,maxWidth:300}}>{slide.sub}</div>
+      </div>
+      <div style={{padding:"32px 32px 48px"}}>
+        <div style={{display:"flex",justifyContent:"center",gap:8,marginBottom:28}}>
+          {SLIDES.map((_,i)=>(
+            <div key={i} onClick={()=>setIdx(i)} style={{width:i===idx?24:8,height:8,borderRadius:99,background:i===idx?SAF:"#E8DDD0",transition:"all 0.3s",cursor:"pointer"}}/>
+          ))}
         </div>
-        <div style={{display:"flex", gap:12}}>
-          {idx > 0 && (<button onClick={()=>setIdx(i=>i-1)} style={{flex:1, padding:16, borderRadius:16, border:`2px solid ${T.border}`, background:"transparent", color:T.brown, fontWeight:700, fontSize:15, cursor:"pointer"}}>&larr; Back</button>)}
-          <button onClick={()=>isLast?onDone():setIdx(i=>i+1)} style={{flex:2, padding:16, borderRadius:16, border:"none", background:`linear-gradient(135deg,${slide.color},${T.dark})`, color:"#fff", fontWeight:700, fontSize:15, cursor:"pointer", boxShadow:`0 4px 20px ${slide.color}44`}}>{isLast?"Let's Begin":"Next &rarr;"}</button>
+        <div style={{display:"flex",gap:12}}>
+          {idx > 0 && (
+            <button onClick={()=>setIdx(i=>i-1)} style={{flex:1,padding:14,borderRadius:14,border:"2px solid #E8DDD0",background:"transparent",color:NAV,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Lato,sans-serif"}}>← Back</button>
+          )}
+          <button onClick={()=>isLast?onDone():setIdx(i=>i+1)} style={{flex:2,padding:14,borderRadius:14,border:"none",background:SAF,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Lato,sans-serif"}}>{isLast?"Let's Begin →":"Next →"}</button>
         </div>
-        <button onClick={onDone} style={{width:"100%", marginTop:12, padding:8, background:"transparent", border:"none", color:T.muted, fontSize:13, cursor:"pointer"}}>Skip intro</button>
+        <button onClick={onDone} style={{width:"100%",marginTop:12,padding:8,background:"transparent",border:"none",color:"#A08070",fontSize:13,cursor:"pointer",fontFamily:"Lato,sans-serif"}}>Skip intro</button>
       </div>
       <style>{`@keyframes bounce{from{transform:translateY(0)}to{transform:translateY(-12px)}}`}</style>
     </div>
@@ -220,24 +237,39 @@ function ResetPasswordScreen({ token }) {
     setDone(true);
     setTimeout(()=>{window.location.hash="";window.location.reload();},2500);
   };
+  const NAV="#0F1F3D", SAF="#F4A724", CRM="#FDF6EC";
+  const aInp={width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #E8DDD0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none",fontFamily:"Lato,sans-serif"};
+  const aLbl={display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3};
   return(
-    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#FDF6EC,#F5ECD7)",display:"flex",justifyContent:"center",fontFamily:"Lato,sans-serif"}}>
-      <div style={{width:"100%",maxWidth:420,padding:"48px 24px 24px"}}>
-        <div style={{textAlign:"center",marginBottom:32}}>
-          <div style={{fontSize:48,marginBottom:12}}>🔑</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:T.dark}}>Set New Password</div>
-          <div style={{fontSize:13,color:T.muted,marginTop:6}}>Choose a strong password for your account</div>
+    <div style={{minHeight:"100vh",background:CRM,display:"flex",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
+      <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
+      <div style={{background:NAV,padding:"24px 24px 20px",textAlign:"center",flexShrink:0}}>
+        {FLogo}
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:SAF,letterSpacing:0.5}}>Famillion</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",marginTop:4}}>Your family's everything app</div>
+      </div>
+      <div style={{flex:1,display:"flex",justifyContent:"center"}}>
+        <div style={{width:"100%",maxWidth:420,padding:"40px 24px 24px"}}>
+          {done?(
+            <div style={{textAlign:"center",padding:"32px 0"}}>
+              <div style={{fontSize:48,marginBottom:12}}>✅</div>
+              <div style={{fontWeight:700,color:"#6B8F71",fontSize:16}}>Password updated!</div>
+              <div style={{fontSize:13,color:"#A08070",marginTop:8}}>Taking you to sign in...</div>
+            </div>
+          ):(
+            <>
+              <div style={{textAlign:"center",marginBottom:32}}>
+                <div style={{fontSize:48,marginBottom:12}}>🔑</div>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,fontWeight:700,color:NAV}}>Set New Password</div>
+                <div style={{fontSize:13,color:"#A08070",marginTop:6}}>Choose a strong password for your account</div>
+              </div>
+              {error&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#C97B84"}}>{error}</div>}
+              <div style={{marginBottom:14}}><label style={aLbl}>New Password</label><PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/></div>
+              <div style={{marginBottom:20}}><label style={aLbl}>Confirm Password</label><PwdInput value={confirm} onChange={e=>setConfirm(e.target.value)} placeholder="Repeat password"/></div>
+              <button onClick={handleReset} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:SAF,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Lato,sans-serif"}}>{loading?"Updating...":"Update Password"}</button>
+            </>
+          )}
         </div>
-        {done?(<div style={{textAlign:"center",padding:"32px 0"}}>
-          <div style={{fontSize:48,marginBottom:12}}>✅</div>
-          <div style={{fontWeight:700,color:T.green,fontSize:16}}>Password updated!</div>
-          <div style={{fontSize:13,color:T.muted,marginTop:8}}>Taking you to sign in...</div>
-        </div>):(<>
-          {error&&<div style={{background:"#FFF0F0",border:`1px solid ${T.rose}40`,borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.rose}}>{error}</div>}
-          <div style={{marginBottom:14}}><label style={lbl}>New Password</label><input style={inp} type="password" placeholder="Min 6 characters" value={password} onChange={e=>setPassword(e.target.value)}/></div>
-          <div style={{marginBottom:20}}><label style={lbl}>Confirm Password</label><input style={inp} type="password" placeholder="Repeat password" value={confirm} onChange={e=>setConfirm(e.target.value)}/></div>
-          <button onClick={handleReset} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer"}}>{loading?"Updating...":"Update Password"}</button>
-        </>)}
       </div>
     </div>
   );
@@ -293,7 +325,6 @@ function AuthScreen({ onAuth }) {
       if (userId) await sb.from("user_profiles").insert({id:userId, family_id:fid, display_name:email, is_admin:true});
       if (members.length > 0) {
         const {data:insertedMembers}=await sb.from("members").insert(members.map(m=>({family_id:fid, name:m.name, emoji:m.emoji, relationship:m.relationship||"", dob:m.dob||null, occupation:m.occupation||""}))).select();
-        // Link the first member (admin themselves) to their user_profile
         const adminMember=Array.isArray(insertedMembers)?insertedMembers[0]:null;
         if(adminMember?.id&&userId)await sb.from("user_profiles").update({member_id:adminMember.id}).eq("id",userId);
       }
@@ -339,7 +370,6 @@ function AuthScreen({ onAuth }) {
         await sb.from("members").update({name:finalName,emoji:joinEmoji}).eq("id",selectedMemberId);
       } else {
         const {data:newMem}=await sb.from("members").insert({family_id:joinFamily.id,name:finalName,emoji:joinEmoji,relationship:"",dob:null,occupation:""});
-        // link newly created member back to user_profile
         const newId=Array.isArray(newMem)?newMem[0]?.id:newMem?.id;
         if(newId)await sb.from("user_profiles").update({member_id:newId}).eq("id",userId);
       }
@@ -351,160 +381,186 @@ function AuthScreen({ onAuth }) {
 
   const reset = () => { setError(""); setSuccess(""); };
 
+  const NAV="#0F1F3D", SAF="#F4A724", CRM="#FDF6EC";
+  const aInp={width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #E8DDD0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none",fontFamily:"Lato,sans-serif"};
+  const aLbl={display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3};
+  const aCta={width:"100%",padding:14,borderRadius:14,border:"none",background:SAF,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Lato,sans-serif"};
+  const aCtaOut={width:"100%",padding:14,borderRadius:14,border:"2px solid #E8DDD0",background:"transparent",color:NAV,fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"Lato,sans-serif"};
+
   return (
-    <div style={{minHeight:"100vh",background:"linear-gradient(160deg,#FDF6EC,#F5ECD7)",display:"flex",justifyContent:"center"}}>
+    <div style={{minHeight:"100vh",background:CRM,display:"flex",flexDirection:"column",fontFamily:"Lato,sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
-      <div style={{width:"100%",maxWidth:420,padding:"48px 24px 40px"}}>
-        <div style={{textAlign:"center",marginBottom:36}}>
-          <div style={{fontSize:56,marginBottom:8}}>🏡</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:30,fontWeight:700,color:T.dark}}>Famillion</div>
-          <div style={{fontSize:14,color:T.muted,marginTop:4}}>Your family's everything app</div>
-        </div>
+      <div style={{background:NAV,padding:"24px 24px 20px",textAlign:"center",flexShrink:0}}>
+        {FLogo}
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:32,fontWeight:700,color:SAF,letterSpacing:0.5}}>Famillion</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.45)",marginTop:4}}>Your family's everything app</div>
+      </div>
+      {/* Cream form area */}
+      <div style={{flex:1,overflowY:"auto",padding:"28px 24px 40px",maxWidth:420,width:"100%",margin:"0 auto",boxSizing:"border-box"}}>
 
         {!joinMode && mode!=="forgot" && (
-          <div style={{display:"flex",background:T.border,borderRadius:14,padding:4,marginBottom:28}}>
+          <div style={{display:"flex",background:"#E8DDD0",borderRadius:14,padding:4,marginBottom:24}}>
             {[["login","Sign In"],["signup","Create Family"]].map(([m,l])=>(
-              <button key={m} onClick={()=>{setMode(m);setStep(1);reset();}} style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:700,fontSize:14,background:mode===m?T.brown:T.border,color:mode===m?"#fff":T.muted,transition:"all 0.2s"}}>{l}</button>
+              <button key={m} onClick={()=>{setMode(m);setStep(1);reset();}}
+                style={{flex:1,padding:"10px",borderRadius:10,border:"none",cursor:"pointer",fontWeight:700,fontSize:14,
+                  background:mode===m?NAV:"transparent",color:mode===m?"#fff":"#8B5E3C",transition:"all 0.2s",fontFamily:"Lato,sans-serif"}}>
+                {l}
+              </button>
             ))}
           </div>
         )}
 
-        {error   && <div style={{background:"#FFF0F0",border:`1px solid ${T.rose}40`,borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.rose,lineHeight:1.5}}>{error}</div>}
-        {success && <div style={{background:"#F0FFF4",border:`1px solid ${T.green}40`,borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:T.green,lineHeight:1.6}}>{success}</div>}
+        {error   && <div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#C97B84",lineHeight:1.5}}>{error}</div>}
+        {success && <div style={{background:"#F0FFF4",border:"1px solid #6B8F7140",borderRadius:12,padding:"10px 14px",marginBottom:16,fontSize:13,color:"#6B8F71",lineHeight:1.6}}>{success}</div>}
 
         {/* LOGIN */}
         {!joinMode && mode==="login" && <>
-          <div style={{marginBottom:14}}><label style={lbl}>Email</label><input style={inp} type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-          <div style={{marginBottom:20}}>
-            <label style={lbl}>Password</label>
+          <div style={{marginBottom:14}}><label style={aLbl}>Email</label><input style={aInp} type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+          <div style={{marginBottom:6}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <label style={aLbl}>Password</label>
+              <button onClick={()=>{setMode("forgot");reset();}} style={{background:"none",border:"none",color:SAF,fontSize:12,fontWeight:700,cursor:"pointer",padding:0}}>Forgot?</button>
+            </div>
             <PwdInput value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleLogin()}/>
           </div>
-          <button onClick={handleLogin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Signing in...":"Sign In"}</button>
-          <button onClick={()=>{setMode("forgot");reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Forgot password?</button>
-          <div style={{textAlign:"center",marginTop:16}}>
-            <button onClick={()=>{setJoinMode(true);reset();}} style={{background:"transparent",border:`1.5px solid ${T.amber}`,borderRadius:12,padding:"10px 20px",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer"}}>🔗 Join a Family with Invite Code</button>
+          <div style={{marginBottom:20}}/>
+          <button onClick={handleLogin} disabled={loading} style={aCta}>{loading?"Signing in...":"Sign In"}</button>
+          <div style={{display:"flex",alignItems:"center",gap:10,margin:"20px 0"}}>
+            <div style={{flex:1,height:1,background:"#E8DDD0"}}/>
+            <div style={{fontSize:12,color:"#A08070"}}>or</div>
+            <div style={{flex:1,height:1,background:"#E8DDD0"}}/>
           </div>
+          <button onClick={()=>{setJoinMode(true);reset();}} style={{...aCtaOut,borderColor:SAF}}>🔗 Join a Family with Invite Code</button>
         </>}
 
         {/* FORGOT */}
         {!joinMode && mode==="forgot" && <>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:20}}>Reset Password</div>
-          <div style={{marginBottom:16}}><label style={lbl}>Email</label><input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-          <button onClick={async()=>{setLoading(true);await sb._req("/auth/v1/recover",{method:"POST",body:JSON.stringify({email})});setSuccess("Reset link sent! Check your email.");setLoading(false);}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer",marginBottom:12}}>{loading?"Sending...":"Send Reset Link"}</button>
-          <button onClick={()=>{setMode("login");reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Back to Sign In</button>
+          <button onClick={()=>{setMode("login");reset();}} style={{background:"none",border:"none",color:"#A08070",fontSize:13,cursor:"pointer",padding:"0 0 16px",display:"flex",alignItems:"center",gap:4}}>← Back to Sign In</button>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:NAV,marginBottom:6}}>Reset Password</div>
+          <div style={{fontSize:13,color:"#A08070",marginBottom:20,lineHeight:1.6}}>Enter your email and we'll send a reset link.</div>
+          <div style={{marginBottom:20}}><label style={aLbl}>Email</label><input style={aInp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+          <button onClick={async()=>{setLoading(true);await sb._req("/auth/v1/recover",{method:"POST",body:JSON.stringify({email})});setSuccess("Reset link sent! Check your email.");setLoading(false);}} style={aCta}>{loading?"Sending...":"Send Reset Link"}</button>
         </>}
 
         {/* JOIN */}
         {joinMode && <>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:6}}>Join Your Family</div>
+          <button onClick={()=>{setJoinMode(false);setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);reset();}} style={{background:"none",border:"none",color:"#A08070",fontSize:13,cursor:"pointer",padding:"0 0 16px",display:"flex",alignItems:"center",gap:4}}>← Back to Sign In</button>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:NAV,marginBottom:6}}>Join Your Family</div>
 
           {joinStep===1&&<>
-            <div style={{fontSize:13,color:T.muted,marginBottom:20,lineHeight:1.6}}>Enter the invite code shared by your family admin.</div>
-            <div style={{marginBottom:20}}><label style={lbl}>Invite Code</label><input style={{...inp,textTransform:"uppercase",letterSpacing:2,fontWeight:700}} placeholder="INV-XXXXXXXX" value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/></div>
-            <button onClick={handleInviteLookup} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Looking up...":"Find My Family →"}</button>
-            <button onClick={()=>{setJoinMode(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>Back to Sign In</button>
+            <div style={{fontSize:13,color:"#A08070",marginBottom:20,lineHeight:1.6}}>Enter the invite code shared by your family admin.</div>
+            <div style={{marginBottom:20}}><label style={aLbl}>Invite Code</label><input style={{...aInp,textTransform:"uppercase",letterSpacing:2,fontWeight:700}} placeholder="INV-XXXXXXXX" value={inviteCode} onChange={e=>setInviteCode(e.target.value)}/></div>
+            <button onClick={handleInviteLookup} disabled={loading} style={aCta}>{loading?"Looking up...":"Find My Family →"}</button>
           </>}
 
           {joinStep===2&&<>
-            <div style={{fontSize:13,color:T.muted,marginBottom:16,lineHeight:1.6}}>Welcome to <strong>{joinFamily?.name}</strong>! Are you one of these?</div>
+            <div style={{fontSize:13,color:"#A08070",marginBottom:16,lineHeight:1.6}}>Welcome to <strong style={{color:NAV}}>{joinFamily?.name}</strong>! Who are you?</div>
             <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
               {joinMembers.map(m=>(
-                <div key={m.id} onClick={()=>{setSelectedMemberId(m.id);setJoinName(m.name);setJoinEmoji(m.emoji);setJoinNew(false);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:`2px solid ${selectedMemberId===m.id?T.brown:T.border}`,background:selectedMemberId===m.id?T.warm:"#fff",cursor:"pointer",transition:"all 0.15s"}}>
+                <div key={m.id} onClick={()=>{setSelectedMemberId(m.id);setJoinName(m.name);setJoinEmoji(m.emoji);setJoinNew(false);}}
+                  style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,
+                    border:`2px solid ${selectedMemberId===m.id?SAF:"#E8DDD0"}`,
+                    background:selectedMemberId===m.id?"#FFF8E8":"#fff",cursor:"pointer",transition:"all 0.15s"}}>
                   <div style={{fontSize:26}}>{m.emoji}</div>
-                  <div style={{fontWeight:700,color:T.dark,fontSize:14}}>{m.name}</div>
-                  {selectedMemberId===m.id&&<div style={{marginLeft:"auto",color:T.brown,fontWeight:700}}>✓</div>}
+                  <div style={{fontWeight:700,color:NAV,fontSize:14}}>{m.name}</div>
+                  {selectedMemberId===m.id&&<div style={{marginLeft:"auto",color:SAF,fontWeight:700}}>✓</div>}
                 </div>
               ))}
-              <div onClick={()=>{setSelectedMemberId(null);setJoinName("");setJoinEmoji("👤");setJoinNew(true);}} style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,border:`2px dashed ${joinNew?T.brown:T.border}`,background:joinNew?T.warm:"#fff",cursor:"pointer",transition:"all 0.15s"}}>
+              <div onClick={()=>{setSelectedMemberId(null);setJoinName("");setJoinEmoji("👤");setJoinNew(true);}}
+                style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,
+                  border:`2px dashed ${joinNew?SAF:"#E8DDD0"}`,background:joinNew?"#FFF8E8":"#fff",cursor:"pointer",transition:"all 0.15s"}}>
                 <div style={{fontSize:26}}>➕</div>
-                <div style={{fontWeight:700,color:T.muted,fontSize:14}}>I'm not listed — add me</div>
-                {joinNew&&<div style={{marginLeft:"auto",color:T.brown,fontWeight:700}}>✓</div>}
+                <div style={{fontWeight:700,color:"#A08070",fontSize:14}}>I'm not listed — add me</div>
+                {joinNew&&<div style={{marginLeft:"auto",color:SAF,fontWeight:700}}>✓</div>}
               </div>
             </div>
             {(selectedMemberId||joinNew)&&<>
               <div style={{marginBottom:10}}>
-                <label style={lbl}>{selectedMemberId?"Confirm or correct your name":"Your Name"}</label>
-                <input style={inp} value={joinName} onChange={e=>setJoinName(e.target.value)} placeholder="Your full name"/>
+                <label style={aLbl}>{selectedMemberId?"Confirm or correct your name":"Your Name"}</label>
+                <input style={aInp} value={joinName} onChange={e=>setJoinName(e.target.value)} placeholder="Your full name"/>
               </div>
               {joinNew&&<div style={{marginBottom:14}}>
-                <label style={lbl}>Your Emoji</label>
+                <label style={aLbl}>Your Emoji</label>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {MEMBER_EMOJIS.map(({e,label})=>(
                     <button key={e} title={label} onClick={()=>setJoinEmoji(e)}
-                      style={{width:44,height:48,borderRadius:10,border:`2px solid ${joinEmoji===e?T.brown:T.border}`,
-                        background:joinEmoji===e?T.warm:"#fff",cursor:"pointer",
+                      style={{width:44,height:48,borderRadius:10,border:`2px solid ${joinEmoji===e?SAF:"#E8DDD0"}`,
+                        background:joinEmoji===e?"#FFF8E8":"#fff",cursor:"pointer",
                         display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,padding:2}}>
                       <span style={{fontSize:20,lineHeight:1}}>{e}</span>
-                      <span style={{fontSize:7,color:joinEmoji===e?T.brown:T.muted,lineHeight:1.2,textAlign:"center"}}>{label}</span>
+                      <span style={{fontSize:7,color:joinEmoji===e?SAF:"#A08070",lineHeight:1.2,textAlign:"center"}}>{label}</span>
                     </button>
                   ))}
                 </div>
               </div>}
-              <div style={{marginBottom:14}}><label style={lbl}>Your Email</label><input style={inp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
-              <div style={{marginBottom:20}}><label style={lbl}>Create Password</label><PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/></div>
-              <button onClick={handleJoin} disabled={loading} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:`linear-gradient(135deg,${T.brown},${T.dark})`,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",marginBottom:12}}>{loading?"Joining...":"Join Family 🏡"}</button>
+              <div style={{marginBottom:14}}><label style={aLbl}>Your Email</label><input style={aInp} type="email" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+              <div style={{marginBottom:20}}><label style={aLbl}>Create Password</label><PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/></div>
+              <button onClick={handleJoin} disabled={loading} style={aCta}>{loading?"Joining...":"Join Family 🏡"}</button>
             </>}
-            <button onClick={()=>{setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);reset();}} style={{width:"100%",padding:10,background:"transparent",border:"none",color:T.muted,fontSize:13,cursor:"pointer"}}>← Back</button>
           </>}
         </>}
 
         {/* SIGNUP */}
         {!joinMode && mode==="signup" && <>
           <div style={{display:"flex",gap:6,marginBottom:24}}>
-            {[1,2,3].map(s=><div key={s} style={{flex:1,height:4,borderRadius:99,background:s<=step?T.brown:T.border,transition:"background 0.3s"}}/>)}
+            {[1,2,3].map(s=><div key={s} style={{flex:1,height:4,borderRadius:99,background:s<=step?SAF:"#E8DDD0",transition:"background 0.3s"}}/>)}
           </div>
           {step===1 && <>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:20}}>Create your account</div>
-            <div style={{marginBottom:14}}><label style={lbl}>Email</label><input style={inp} type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:NAV,marginBottom:20}}>Create your account</div>
+            <div style={{marginBottom:14}}><label style={aLbl}>Email</label><input style={aInp} type="email" placeholder="your@email.com" value={email} onChange={e=>setEmail(e.target.value)}/></div>
             <div style={{marginBottom:20}}>
-              <label style={lbl}>Password (min 6 chars)</label>
+              <label style={aLbl}>Password (min 6 chars)</label>
               <PwdInput value={password} onChange={e=>setPassword(e.target.value)} placeholder="Min 6 characters"/>
             </div>
-            <button onClick={()=>{if(!email||password.length<6){setError("Valid email and min 6-char password required");return;}setError("");setStep(2);}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Continue</button>
+            <button onClick={()=>{if(!email||password.length<6){setError("Valid email and min 6-char password required");return;}setError("");setStep(2);}} style={aCta}>Continue</button>
           </>}
           {step===2 && <>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:20}}>Your family details</div>
-            <div style={{marginBottom:12}}><label style={lbl}>Family Name</label><input style={inp} placeholder="e.g. The Sharma Family" value={familyName} onChange={e=>setFamilyName(e.target.value)}/></div>
-            <div style={{marginBottom:12}}><label style={lbl}>City</label><select style={inp} value={city} onChange={e=>setCity(e.target.value)}>{cities.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:NAV,marginBottom:20}}>Your family details</div>
+            <div style={{marginBottom:12}}><label style={aLbl}>Family Name</label><input style={aInp} placeholder="e.g. The Sharma Family" value={familyName} onChange={e=>setFamilyName(e.target.value)}/></div>
+            <div style={{marginBottom:12}}><label style={aLbl}>City</label><select style={aInp} value={city} onChange={e=>setCity(e.target.value)}>{cities.map(c=><option key={c}>{c}</option>)}</select></div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-              <div><label style={lbl}>Monthly Income (₹)</label><input style={inp} type="number" placeholder="85000" value={income} onChange={e=>setIncome(e.target.value)}/></div>
-              <div><label style={lbl}>Monthly Expenses (₹)</label><input style={inp} type="number" placeholder="55000" value={expenses} onChange={e=>setExpenses(e.target.value)}/></div>
+              <div><label style={aLbl}>Monthly Income (₹)</label><input style={aInp} type="number" placeholder="85000" value={income} onChange={e=>setIncome(e.target.value)}/></div>
+              <div><label style={aLbl}>Monthly Expenses (₹)</label><input style={aInp} type="number" placeholder="55000" value={expenses} onChange={e=>setExpenses(e.target.value)}/></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-              <div><label style={lbl}>Savings (₹)</label><input style={inp} type="number" placeholder="200000" value={savings} onChange={e=>setSavings(e.target.value)}/></div>
-              <div><label style={lbl}>Debts (₹)</label><input style={inp} type="number" placeholder="0" value={debts} onChange={e=>setDebts(e.target.value)}/></div>
+              <div><label style={aLbl}>Savings (₹)</label><input style={aInp} type="number" placeholder="200000" value={savings} onChange={e=>setSavings(e.target.value)}/></div>
+              <div><label style={aLbl}>Debts (₹)</label><input style={aInp} type="number" placeholder="0" value={debts} onChange={e=>setDebts(e.target.value)}/></div>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:20}}>
-              <div><label style={lbl}>Life Insurance (₹)</label><input style={inp} type="number" placeholder="1000000" value={insurance} onChange={e=>setInsurance(e.target.value)}/></div>
-              <div><label style={lbl}>Your Age</label><input style={inp} type="number" placeholder="35" value={age} onChange={e=>setAge(e.target.value)}/></div>
+              <div><label style={aLbl}>Life Insurance (₹)</label><input style={aInp} type="number" placeholder="1000000" value={insurance} onChange={e=>setInsurance(e.target.value)}/></div>
+              <div><label style={aLbl}>Your Age</label><input style={aInp} type="number" placeholder="35" value={age} onChange={e=>setAge(e.target.value)}/></div>
             </div>
             <div style={{display:"flex",gap:10}}>
-              <button onClick={()=>setStep(1)} style={{flex:1,padding:14,borderRadius:14,border:`2px solid ${T.border}`,background:"transparent",color:T.brown,fontWeight:700,cursor:"pointer"}}>Back</button>
-              <button onClick={()=>{if(!familyName.trim()){setError("Please enter family name");return;}setError("");setStep(3);}} style={{flex:2,padding:14,borderRadius:14,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Continue</button>
+              <button onClick={()=>setStep(1)} style={aCtaOut}>Back</button>
+              <button onClick={()=>{if(!familyName.trim()){setError("Please enter family name");return;}setError("");setStep(3);}} style={{...aCta,flex:2}}>Continue</button>
             </div>
           </>}
           {step===3 && <>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.dark,marginBottom:20}}>Who's in your family?</div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:NAV,marginBottom:20}}>Who's in your family?</div>
             <div style={{display:"grid",gridTemplateColumns:"auto 1fr",gap:8,marginBottom:8}}>
-              <select style={{...inp,width:56,padding:"10px 4px",textAlign:"center"}} value={nm.emoji} onChange={e=>setNm(m=>({...m,emoji:e.target.value}))}>{emojis.map(e=><option key={e}>{e}</option>)}</select>
-              <input style={inp} placeholder="Member name" value={nm.name} onChange={e=>setNm(m=>({...m,name:e.target.value}))}/>
+              <select style={{...aInp,width:56,padding:"10px 4px",textAlign:"center"}} value={nm.emoji} onChange={e=>setNm(m=>({...m,emoji:e.target.value}))}>{emojis.map(e=><option key={e}>{e}</option>)}</select>
+              <input style={aInp} placeholder="Member name" value={nm.name} onChange={e=>setNm(m=>({...m,name:e.target.value}))}/>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-              <select style={inp} value={nm.relationship} onChange={e=>setNm(m=>({...m,relationship:e.target.value}))}><option value="">Relationship</option>{relationships.map(r=><option key={r}>{r}</option>)}</select>
-              <input style={inp} type="date" value={nm.dob} onChange={e=>setNm(m=>({...m,dob:e.target.value}))}/>
+              <select style={aInp} value={nm.relationship} onChange={e=>setNm(m=>({...m,relationship:e.target.value}))}><option value="">Relationship</option>{relationships.map(r=><option key={r}>{r}</option>)}</select>
+              <input style={aInp} type="date" value={nm.dob} onChange={e=>setNm(m=>({...m,dob:e.target.value}))}/>
             </div>
             <div style={{display:"flex",gap:8,marginBottom:12}}>
-              <input style={{...inp,flex:1}} placeholder="Occupation (optional)" value={nm.occupation} onChange={e=>setNm(m=>({...m,occupation:e.target.value}))}/>
-              <button onClick={()=>{if(nm.name.trim()){setMembers(p=>[...p,{...nm,id:Date.now()}]);setNm({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});}}} style={{padding:"10px 14px",borderRadius:12,background:T.brown,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>+</button>
+              <input style={{...aInp,flex:1}} placeholder="Occupation (optional)" value={nm.occupation} onChange={e=>setNm(m=>({...m,occupation:e.target.value}))}/>
+              <button onClick={()=>{if(nm.name.trim()){setMembers(p=>[...p,{...nm,id:Date.now()}]);setNm({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});}}} style={{padding:"10px 14px",borderRadius:12,background:SAF,color:"#fff",border:"none",cursor:"pointer",fontWeight:700}}>+</button>
             </div>
-            {members.map((m,i)=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:T.warm,borderRadius:12,marginBottom:8}}><span style={{fontSize:22}}>{m.emoji}</span><div style={{flex:1}}><div style={{fontWeight:600,color:T.dark}}>{m.name}</div><div style={{fontSize:11,color:T.muted}}>{m.relationship}{m.dob?" · "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div><button onClick={()=>setMembers(p=>p.filter((_,j)=>j!==i))} style={{background:"none",border:"none",cursor:"pointer",color:T.rose,fontSize:18}}>×</button></div>))}
-            {members.length===0 && <div style={{color:T.muted,fontSize:13,textAlign:"center",padding:"12px 0"}}>Add at least one member</div>}
+            {members.map((m,i)=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:"#FFF8E8",borderRadius:12,marginBottom:8}}><span style={{fontSize:22}}>{m.emoji}</span><div style={{flex:1}}><div style={{fontWeight:600,color:NAV}}>{m.name}</div><div style={{fontSize:11,color:"#A08070"}}>{m.relationship}{m.dob?" · "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div><button onClick={()=>setMembers(p=>p.filter((_,j)=>j!==i))} style={{background:"none",border:"none",cursor:"pointer",color:"#C97B84",fontSize:18}}>×</button></div>))}
+            {members.length===0 && <div style={{color:"#A08070",fontSize:13,textAlign:"center",padding:"12px 0"}}>Add at least one member</div>}
             <div style={{display:"flex",gap:10,marginTop:8}}>
-              <button onClick={()=>setStep(2)} style={{flex:1,padding:14,borderRadius:14,border:`2px solid ${T.border}`,background:"transparent",color:T.brown,fontWeight:700,cursor:"pointer"}}>Back</button>
-              <button disabled={loading||members.length===0} onClick={handleSignup} style={{flex:2,padding:14,borderRadius:14,border:"none",background:members.length>0?T.brown:T.border,color:"#fff",fontWeight:700,cursor:members.length>0?"pointer":"not-allowed"}}>{loading?"Creating...":"Create My Family 🏡"}</button>
+              <button onClick={()=>setStep(2)} style={aCtaOut}>Back</button>
+              <button disabled={loading||members.length===0} onClick={handleSignup}
+                style={{...aCta,flex:2,background:members.length>0?SAF:"#E8DDD0",cursor:members.length>0?"pointer":"not-allowed"}}>
+                {loading?"Creating...":"Create My Family 🏡"}
+              </button>
             </div>
           </>}
         </>}
+
       </div>
     </div>
   );
