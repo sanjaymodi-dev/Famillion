@@ -1287,8 +1287,8 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   const [cropOffset,setCropOffset]=useState({x:0,y:0});
   const [cropDragging,setCropDragging]=useState(false);
   const [dragStart,setDragStart]=useState({x:0,y:0});
-  const cropImgRef=React.useRef(null);
-  const cropCanvasRef=React.useRef(null);
+  const cropImgRef=useRef(null);
+  const cropCanvasRef=useRef(null);
   const CROP_SIZE=240;
   const [showNudge,setShowNudge]=useState(false);
   const [nudgeSent,setNudgeSent]=useState(false);
@@ -1570,7 +1570,7 @@ const [showHeader,setShowHeader]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
   const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
-  const bgmRef=React.useRef(null);
+  const bgmRef=useRef(null);
   const getBgm=()=>{
     if(!bgmRef.current){bgmRef.current=new Audio("https://cdn.pixabay.com/audio/2022/10/16/audio_5cca3f32d0.mp3");bgmRef.current.loop=true;bgmRef.current.volume=0.18;}
     return bgmRef.current;
