@@ -515,10 +515,47 @@ function DayImage() {
 }
 
 
+const BGM_TRACKS=[
+  {id:"forest",label:"🌿 Forest & Rain",    url:"https://archive.org/download/RainSoundsAndForestSounds/Rain_Sounds_and_Forest_Sounds.mp3"},
+  {id:"sitar", label:"🎵 Indian Meditation", url:"https://archive.org/download/IndianSitarInstrumentalMusic10Hours/Indian%20Background%20Flute%20Music%20Instrumental%20Meditation%20Music%20%20Yoga%20Music%20%20Spa%20Music%20for%20Relaxation.mp3"},
+  {id:"rain",  label:"🌧️ Gentle Rain",      url:"https://archive.org/download/rain-sounds-gentle-rain-thunderstorms/ambience-crickets-chirping-light-rain-tending-to-heavier-rain-10576.mp3"},
+];
+const COLLAGE_PHOTOS=[
+  // Bollywood
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Shah_Rukh_Khan_graces_the_launch_of_Dulux_Colour_Next_2014.jpg/320px-Shah_Rukh_Khan_graces_the_launch_of_Dulux_Colour_Next_2014.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/90/Amitabh_Bachchan.jpg/320px-Amitabh_Bachchan.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Deepika_Padukone_at_Cannes_2022_%28cropped%29.jpg/320px-Deepika_Padukone_at_Cannes_2022_%28cropped%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Priyanka_Chopra_2018.jpg/320px-Priyanka_Chopra_2018.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ec/Ranveer_Singh_promoting_Bajirao_Mastani_%282015%29.jpg/320px-Ranveer_Singh_promoting_Bajirao_Mastani_%282015%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Alia_Bhatt_at_the_screening_of_Dear_Zindagi.jpg/320px-Alia_Bhatt_at_the_screening_of_Dear_Zindagi.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Salman_Khan_at_the_Bigg_Boss_press_conference_2011.jpg/320px-Salman_Khan_at_the_Bigg_Boss_press_conference_2011.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/65/Ranbir_Kapoor_at_Rockstar_press_meet.jpg/320px-Ranbir_Kapoor_at_Rockstar_press_meet.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Kareena_Kapoor_at_the_Filmfare_Awards_2013.jpg/320px-Kareena_Kapoor_at_the_Filmfare_Awards_2013.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e6/Hrithik_Roshan_at_the_Filmfare_Awards_2013.jpg/320px-Hrithik_Roshan_at_the_Filmfare_Awards_2013.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Aishwarya_Rai_Bachchan_at_Cannes_2014_%28cropped%29.jpg/320px-Aishwarya_Rai_Bachchan_at_Cannes_2014_%28cropped%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Shahid_Kapoor_at_the_Filmfare_Awards_2013.jpg/320px-Shahid_Kapoor_at_the_Filmfare_Awards_2013.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/Madhuri_Dixit_at_Jhalak_Dikhhla_Jaa.jpg/320px-Madhuri_Dixit_at_Jhalak_Dikhhla_Jaa.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/37/Akshay_Kumar_at_the_screening_of_film_Rustom.jpg/320px-Akshay_Kumar_at_the_screening_of_film_Rustom.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/9c/Vidya_Balan_at_the_screening_of_Kahaani.jpg/320px-Vidya_Balan_at_the_screening_of_Kahaani.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/Katrina_Kaif_at_Jio_World_Plaza_launch_%28cropped%29.jpg/320px-Katrina_Kaif_at_Jio_World_Plaza_launch_%28cropped%29.jpg",
+  // Hollywood
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0b/Tom_Hanks_2016.jpg/320px-Tom_Hanks_2016.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/46/Angelina_Jolie_2_June_2014_%28cropped%29.jpg/320px-Angelina_Jolie_2_June_2014_%28cropped%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/6/6e/Robert_Downey_Jr_2014_Comic_Con_%28cropped%29.jpg/320px-Robert_Downey_Jr_2014_Comic_Con_%28cropped%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b5/Scarlett_Johansson_by_Gage_Skidmore_2_%28cropped%29.jpg/320px-Scarlett_Johansson_by_Gage_Skidmore_2_%28cropped%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/0/0d/Leonardo_DiCaprio_2014.jpg/320px-Leonardo_DiCaprio_2014.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/9/91/Jennifer_Lawrence_2014_TIFF_%28cropped%29.jpg/320px-Jennifer_Lawrence_2014_TIFF_%28cropped%29.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/Brad_Pitt_2019_by_Glenn_Francis.jpg/320px-Brad_Pitt_2019_by_Glenn_Francis.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Will_Smith_2011.jpg/320px-Will_Smith_2011.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/4/47/Chris_Hemsworth_by_Gage_Skidmore.jpg/320px-Chris_Hemsworth_by_Gage_Skidmore.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/1/1b/Meryl_Streep_2018.jpg/320px-Meryl_Streep_2018.jpg",
+  "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b9/Dwayne_Johnson_2014_%28cropped%29.jpg/320px-Dwayne_Johnson_2014_%28cropped%29.jpg",
+];
 const COLLAGES=[
-  {panels:["👨‍👩‍👦","🎂","🌅"],bg:["linear-gradient(145deg,#8B5E14,#C4923A)","linear-gradient(145deg,#1A4A6B,#2A6FA0)","linear-gradient(145deg,#4A1A5E,#8B3AAE)"]},
-  {panels:["🏖️","🎊","🌿"],bg:["linear-gradient(145deg,#1A5E4A,#2A9A7A)","linear-gradient(145deg,#6B3A1A,#B06A30)","linear-gradient(145deg,#1A3A6B,#3A6AAE)"]},
-  {panels:["🎭","🌸","🏔️"],bg:["linear-gradient(145deg,#5E1A4A,#AE3A8B)","linear-gradient(145deg,#5E4A1A,#AE8B3A)","linear-gradient(145deg,#1A4A3A,#3A8B7A)"]},
+  {photos:[0,1,2]},{photos:[3,4,5]},{photos:[6,7,8]},
+  {photos:[9,10,11]},{photos:[12,13,14]},{photos:[15,16,17]},
+  {photos:[18,19,20]},{photos:[21,22,23]},{photos:[24,25,26]},
+  {photos:[0,6,18]},
 ];
 
 function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges }) {
@@ -574,9 +611,9 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{display:"flex",height:"100%",transition:"transform 0.4s ease",transform:`translateX(-${slide*100}%)`}}>
             {COLLAGES.map((c,ci)=>(
               <div key={ci} style={{minWidth:"100%",height:"100%",display:"grid",gridTemplateColumns:"2fr 1fr",gridTemplateRows:"1fr 1fr",gap:2,flexShrink:0}}>
-                <div style={{gridRow:"1/3",background:c.bg[0],display:"flex",alignItems:"center",justifyContent:"center",fontSize:52}}>{c.panels[0]}</div>
-                <div style={{background:c.bg[1],display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{c.panels[1]}</div>
-                <div style={{background:c.bg[2],display:"flex",alignItems:"center",justifyContent:"center",fontSize:30}}>{c.panels[2]}</div>
+                <div style={{gridRow:"1/3",overflow:"hidden"}}><img src={COLLAGE_PHOTOS[c.photos[0]]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
+                <div style={{overflow:"hidden"}}><img src={COLLAGE_PHOTOS[c.photos[1]]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
+                <div style={{overflow:"hidden"}}><img src={COLLAGE_PHOTOS[c.photos[2]]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
               </div>
             ))}
           </div>
@@ -1249,7 +1286,7 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
 }
 
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref, bgmFile, onBgmFile }) {
+function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile }) {
   const [activeTab,setActiveTab]=useState("privacy");
   return (
     <div style={{padding:"0 16px 16px"}}>
@@ -1264,7 +1301,17 @@ function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref, b
             <div style={{position:"absolute",top:3,left:bgmOn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
           </div>
         </div>
-        <div style={{marginBottom:12,padding:"10px 12px",borderRadius:12,border:`1.5px dashed ${T.amber}`,background:T.warm}}>
+        <div style={{fontSize:12,color:T.muted,marginBottom:8,fontWeight:700}}>Choose a track</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+          {BGM_TRACKS.map(t=>(
+            <div key={t.id} onClick={()=>handleBgmTrack(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmTrack===t.id&&!bgmFile?T.brown:T.border}`,background:bgmTrack===t.id&&!bgmFile?T.warm:"transparent",cursor:"pointer"}}>
+              <span style={{fontSize:18}}>{t.label.split(" ")[0]}</span>
+              <span style={{fontSize:13,fontWeight:bgmTrack===t.id&&!bgmFile?700:400,color:bgmTrack===t.id&&!bgmFile?T.dark:T.muted,flex:1}}>{t.label.slice(t.label.indexOf(" ")+1)}</span>
+              {bgmTrack===t.id&&!bgmFile&&<div style={{width:14,height:14,borderRadius:"50%",background:T.brown}}/>}
+            </div>
+          ))}
+        </div>
+        <div style={{padding:"10px 12px",borderRadius:12,border:`1.5px dashed ${T.amber}`,background:T.warm}}>
           <div style={{fontSize:12,fontWeight:700,color:T.brown,marginBottom:4}}>🎧 Use your own music</div>
           <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Pick any audio file from your phone — bhajans, instrumental, anything you love.</div>
           <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 14px",borderRadius:10,background:T.brown,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>
@@ -1273,7 +1320,7 @@ function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref, b
           </label>
           {bgmFile&&<div style={{fontSize:11,color:T.green,marginTop:8,fontWeight:700}}>✓ Custom track loaded</div>}
         </div>
-        <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
+        <div style={{marginTop:12,fontSize:12,color:T.muted,marginBottom:8}}>When should it play?</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
           {[{v:"always",label:"🔁 Always on",sub:"Starts automatically every time I open the app"},{v:"manual",label:"🖐️ I'll turn it on myself",sub:"Starts silent, I decide when to play"}].map(opt=>(
             <div key={opt.v} onClick={()=>handleBgmPref(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
@@ -1609,14 +1656,17 @@ const [showHeader,setShowHeader]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
   const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
+  const [bgmTrack,setBgmTrack]=useState(()=>localStorage.getItem("fn_bgm_track")||"forest");
   const [bgmFile,setBgmFile]=useState(null);
+  const [showMusicPanel,setShowMusicPanel]=useState(false);
   const bgmRef=useRef(null);
   const getBgm=()=>{
     if(!bgmRef.current){
       bgmRef.current=new Audio();
       bgmRef.current.loop=true;
       bgmRef.current.volume=0.18;
-      bgmRef.current.src=bgmFile||"https://assets.mixkit.co/music/preview/mixkit-rain-and-thunder-ambience-1251.mp3";
+      const track=BGM_TRACKS.find(t=>t.id===bgmTrack)||BGM_TRACKS[0];
+      bgmRef.current.src=bgmFile||track.url;
     }
     return bgmRef.current;
   };
@@ -1626,6 +1676,14 @@ const [showHeader,setShowHeader]=useState(false);
     a.src=src;
     a.load();
     if(wasPlaying)a.play().catch(()=>{});
+  };
+  const handleBgmTrack=(trackId)=>{
+    setBgmTrack(trackId);
+    localStorage.setItem("fn_bgm_track",trackId);
+    setBgmFile(null);
+    const track=BGM_TRACKS.find(t=>t.id===trackId)||BGM_TRACKS[0];
+    loadBgmSrc(track.url);
+    if(!bgmOn){getBgm().play().catch(()=>{});setBgmOn(true);}
   };
   const handleBgmFile=(e)=>{
     const f=e.target.files?.[0];
@@ -1799,7 +1857,7 @@ useEffect(()=>{
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
-    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} bgmFile={bgmFile} onBgmFile={handleBgmFile}/>,
+    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile}/>,
     profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
@@ -1879,8 +1937,37 @@ useEffect(()=>{
         {/* MORE DRAWER */}
         {showMore&&(
           <div style={{position:"fixed",bottom:72,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.98)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,padding:"12px 16px",boxShadow:"0 -8px 32px rgba(0,0,0,0.1)",zIndex:100}}>
+            {showMusicPanel&&(
+              <div style={{marginBottom:12,borderBottom:`1px solid ${T.border}`,paddingBottom:12}}>
+                <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                  <div style={{fontWeight:700,fontSize:13,color:T.dark}}>🎵 Music</div>
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <span style={{fontSize:11,color:T.muted}}>{bgmOn?"Playing":"Off"}</span>
+                    <div onClick={toggleBgm} style={{width:40,height:24,borderRadius:99,background:bgmOn?T.brown:T.border,cursor:"pointer",position:"relative",flexShrink:0}}>
+                      <div style={{position:"absolute",top:2,left:bgmOn?18:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
+                    </div>
+                    <button onClick={()=>setShowMusicPanel(false)} style={{background:"none",border:"none",color:T.muted,fontSize:16,cursor:"pointer",padding:0}}>×</button>
+                  </div>
+                </div>
+                <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10}}>
+                  {BGM_TRACKS.map(t=>(
+                    <div key={t.id} onClick={()=>handleBgmTrack(t.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",borderRadius:10,border:`1.5px solid ${bgmTrack===t.id&&!bgmFile?T.brown:T.border}`,background:bgmTrack===t.id&&!bgmFile?T.warm:"#fff",cursor:"pointer"}}>
+                      <span style={{fontSize:16}}>{t.label.split(" ")[0]}</span>
+                      <span style={{fontSize:12,fontWeight:bgmTrack===t.id&&!bgmFile?700:400,color:bgmTrack===t.id&&!bgmFile?T.dark:T.muted,flex:1}}>{t.label.slice(t.label.indexOf(" ")+1)}</span>
+                      {bgmTrack===t.id&&!bgmFile&&<span style={{fontSize:11,color:T.brown,fontWeight:700}}>✓</span>}
+                    </div>
+                  ))}
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:8,padding:"8px 12px",borderRadius:10,border:`1.5px solid ${bgmFile?T.brown:T.border}`,background:bgmFile?T.warm:"#fff",cursor:"pointer"}}>
+                  <span style={{fontSize:16}}>📁</span>
+                  <span style={{fontSize:12,fontWeight:bgmFile?700:400,color:bgmFile?T.dark:T.muted,flex:1}}>{bgmFile?"Custom track loaded":"Choose from phone"}</span>
+                  {bgmFile&&<span style={{fontSize:11,color:T.brown,fontWeight:700}}>✓</span>}
+                  <input type="file" accept="audio/*" style={{display:"none"}} onChange={handleBgmFile}/>
+                </label>
+              </div>
+            )}
             <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
-              {MORE_NAV.map(n=>(<button key={n.id} onClick={()=>n.id==="bgm"?toggleBgm():handleTabChange(n.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:n.id==="bgm"?bgmOn?T.amber+"25":"transparent":tab===n.id?T.brown+"18":"transparent",border:"none",cursor:"pointer",padding:"10px 4px",borderRadius:12}}><span style={{fontSize:22}}>{n.icon}</span><span style={{fontSize:9,fontWeight:800,color:n.id==="bgm"?bgmOn?T.brown:T.muted:tab===n.id?T.brown:T.muted,letterSpacing:0.3}}>{n.label}</span></button>))}
+              {MORE_NAV.map(n=>(<button key={n.id} onClick={()=>n.id==="bgm"?(setShowMusicPanel(s=>!s)):handleTabChange(n.id)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:4,background:n.id==="bgm"?showMusicPanel?T.amber+"40":bgmOn?T.amber+"25":"transparent":tab===n.id?T.brown+"18":"transparent",border:"none",cursor:"pointer",padding:"10px 4px",borderRadius:12}}><span style={{fontSize:22}}>{n.icon}</span><span style={{fontSize:9,fontWeight:800,color:n.id==="bgm"?bgmOn?T.brown:T.muted:tab===n.id?T.brown:T.muted,letterSpacing:0.3}}>{n.label}</span></button>))}
             </div>
           </div>
         )}
