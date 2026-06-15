@@ -291,8 +291,12 @@ function AuthScreen({ onAuth }) {
       const fid = Array.isArray(famData) ? famData[0]?.id : famData?.id;
       if (!fid) throw new Error("Family ID not returned");
       if (userId) await sb.from("user_profiles").insert({id:userId, family_id:fid, display_name:email, is_admin:true});
-      if (members.length > 0)
-        await sb.from("members").insert(members.map(m=>({family_id:fid, name:m.name, emoji:m.emoji, relationship:m.relationship||"", dob:m.dob||null, occupation:m.occupation||""})));
+      if (members.length > 0) {
+        const {data:insertedMembers}=await sb.from("members").insert(members.map(m=>({family_id:fid, name:m.name, emoji:m.emoji, relationship:m.relationship||"", dob:m.dob||null, occupation:m.occupation||""}))).select();
+        // Link the first member (admin themselves) to their user_profile
+        const adminMember=Array.isArray(insertedMembers)?insertedMembers[0]:null;
+        if(adminMember?.id&&userId)await sb.from("user_profiles").update({member_id:adminMember.id}).eq("id",userId);
+      }
       setSuccess(`✅ Family created! Invite code: ${inviteRef}. Check email to verify, then sign in.`);
       setMode("login"); setStep(1);
     } catch(e) { setError(e.message); }
@@ -329,12 +333,15 @@ function AuthScreen({ onAuth }) {
       if(authError)throw new Error(authError.message||"Signup failed");
       const userId=sb._userId||authData?.user?.id;
       if(!userId)throw new Error("Could not get user ID after signup. Please try again.");
-      const {error:profErr}=await sb.from("user_profiles").insert({id:userId,family_id:joinFamily.id,display_name:finalName,is_admin:false});
+      const {error:profErr}=await sb.from("user_profiles").insert({id:userId,family_id:joinFamily.id,display_name:finalName,is_admin:false,member_id:selectedMemberId||null});
       if(profErr&&!profErr.message?.includes("duplicate"))throw new Error("Could not link you to the family: "+profErr.message);
       if(selectedMemberId){
         await sb.from("members").update({name:finalName,emoji:joinEmoji}).eq("id",selectedMemberId);
       } else {
-        await sb.from("members").insert({family_id:joinFamily.id,name:finalName,emoji:joinEmoji,relationship:"",dob:null,occupation:""});
+        const {data:newMem}=await sb.from("members").insert({family_id:joinFamily.id,name:finalName,emoji:joinEmoji,relationship:"",dob:null,occupation:""});
+        // link newly created member back to user_profile
+        const newId=Array.isArray(newMem)?newMem[0]?.id:newMem?.id;
+        if(newId)await sb.from("user_profiles").update({member_id:newId}).eq("id",userId);
       }
       setSuccess(`✅ Joined ${joinFamily.name}! Check your email to verify, then sign in.`);
       setMode("login");setJoinMode(false);setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);
@@ -558,6 +565,49 @@ const COLLAGES=[
   {photos:[0,6,18]},
 ];
 
+// ── COLLAGE IMAGE CACHE ──────────────────────────────────────────────────────
+// Fetches remote photos once, compresses to small JPEG via canvas, stores in
+// localStorage keyed by index. Refreshes weekly.
+function useCollageCache() {
+  const CACHE_KEY="fn_collage_v2";
+  const CACHE_TS ="fn_collage_ts";
+  const WEEK=7*24*60*60*1000;
+  const [cached,setCached]=useState(()=>{
+    try{const s=localStorage.getItem(CACHE_KEY);return s?JSON.parse(s):{};}catch{return {};}
+  });
+  useEffect(()=>{
+    const ts=parseInt(localStorage.getItem(CACHE_TS)||"0");
+    const stale=Date.now()-ts>WEEK;
+    const missing=COLLAGE_PHOTOS.some((_,i)=>!cached[i]);
+    if(!stale&&!missing)return;
+    const used=new Set(COLLAGES.flatMap(c=>c.photos));
+    [...used].forEach(idx=>{
+      if(cached[idx]&&!stale)return;
+      const img=new Image();
+      img.crossOrigin="anonymous";
+      img.onload=()=>{
+        try{
+          const canvas=document.createElement("canvas");
+          const max=200;
+          const ratio=Math.min(max/img.width,max/img.height);
+          canvas.width=Math.round(img.width*ratio);
+          canvas.height=Math.round(img.height*ratio);
+          canvas.getContext("2d").drawImage(img,0,0,canvas.width,canvas.height);
+          const b64=canvas.toDataURL("image/jpeg",0.7);
+          setCached(p=>{
+            const next={...p,[idx]:b64};
+            try{localStorage.setItem(CACHE_KEY,JSON.stringify(next));localStorage.setItem(CACHE_TS,Date.now().toString());}catch{}
+            return next;
+          });
+        }catch{}
+      };
+      img.onerror=()=>{};
+      img.src=COLLAGE_PHOTOS[idx];
+    });
+  },[]);
+  return cached;
+}
+
 function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
@@ -566,6 +616,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   const unseenNudges=(nudges||[]).filter(n=>!n.seen).slice(0,1);
   const [slide,setSlide]=useState(0);
   const totalSlides=COLLAGES.length;
+  const collageCache=useCollageCache();
   const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
   const hr=new Date().getHours();
   const greeting=hr<12?"Good morning ☀️":hr<17?"Good afternoon 🌤️":"Good evening 🌙";
@@ -611,9 +662,14 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{display:"flex",height:"100%",transition:"transform 0.4s ease",transform:`translateX(-${slide*100}%)`}}>
             {COLLAGES.map((c,ci)=>(
               <div key={ci} style={{minWidth:"100%",height:"100%",display:"grid",gridTemplateColumns:"2fr 1fr",gridTemplateRows:"1fr 1fr",gap:2,flexShrink:0}}>
-                <div style={{gridRow:"1/3",overflow:"hidden"}}><img src={COLLAGE_PHOTOS[c.photos[0]]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
-                <div style={{overflow:"hidden"}}><img src={COLLAGE_PHOTOS[c.photos[1]]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
-                <div style={{overflow:"hidden"}}><img src={COLLAGE_PHOTOS[c.photos[2]]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/></div>
+                {c.photos.map((pidx,pi)=>(
+                  <div key={pi} style={{...(pi===0?{gridRow:"1/3"}:{}),overflow:"hidden",background:"#1A2F52"}}>
+                    {collageCache[pidx]
+                      ?<img src={collageCache[pidx]} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      :<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,opacity:0.3}}>📸</div>
+                    }
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -1155,6 +1211,13 @@ function ConciergeScreen({ family, members }) {
 }
 
 function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
+  const [linkedIds,setLinkedIds]=useState(new Set());
+  useEffect(()=>{
+    if(!family?.id)return;
+    sb.from("user_profiles").select("member_id").eq("family_id",family.id).then(({data})=>{
+      if(data)setLinkedIds(new Set(data.map(p=>p.member_id).filter(Boolean)));
+    });
+  },[family?.id]);
   const score=computeScore(family);
   const [copied,setCopied]=useState(false);
   const [activeTab,setActiveTab]=useState("profile");
@@ -1213,7 +1276,21 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
           </div>
         </Card>)}
         <Sec>Members</Sec>
-        {(members||[]).map(m=>(<div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${T.amber}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>{m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}</div><div style={{flex:1}}><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div><div style={{fontSize:11,color:T.muted}}>{m.relationship||""}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div></div></div>))}
+        {(members||[]).map(m=>{
+          const hasJoined=linkedIds.size===0||linkedIds.has(m.id);
+          return(
+          <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
+            <div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
+              {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+            </div>
+            <div style={{flex:1}}>
+              <div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div>
+              <div style={{fontSize:11,color:T.muted}}>{m.relationship||""}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div>
+              {!hasJoined&&<div style={{fontSize:10,color:T.amber,fontWeight:700,marginTop:3}}>⏳ Waiting to join — share invite code</div>}
+            </div>
+          </div>
+          );
+        })}
         {showAddMember?(
           <Card style={{marginBottom:8}}>
             <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Family Member</div>
@@ -1286,7 +1363,7 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
 }
 
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile }) {
+function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPauseOnHide, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile, onBgmPauseOnHide }) {
   const [activeTab,setActiveTab]=useState("privacy");
   return (
     <div style={{padding:"0 16px 16px"}}>
@@ -1331,6 +1408,15 @@ function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, toggleBg
               <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.brown:"transparent",flexShrink:0}}/>
             </div>
           ))}
+        </div>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:14,padding:"10px 12px",borderRadius:12,background:T.warm}}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700,color:T.dark}}>⏸️ Pause when minimised</div>
+            <div style={{fontSize:11,color:T.muted,marginTop:2}}>Stops when you switch apps, resumes on return</div>
+          </div>
+          <div onClick={()=>onBgmPauseOnHide(!bgmPauseOnHide)} style={{width:40,height:24,borderRadius:99,background:bgmPauseOnHide?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:2,left:bgmPauseOnHide?18:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
+          </div>
         </div>
       </Card>
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
@@ -1658,8 +1744,25 @@ const [showHeader,setShowHeader]=useState(false);
   const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
   const [bgmTrack,setBgmTrack]=useState(()=>localStorage.getItem("fn_bgm_track")||"forest");
   const [bgmFile,setBgmFile]=useState(null);
+  const [bgmPauseOnHide,setBgmPauseOnHide]=useState(()=>localStorage.getItem("fn_bgm_pause_hide")!=="false");
   const [showMusicPanel,setShowMusicPanel]=useState(false);
   const bgmRef=useRef(null);
+  const bgmWasPlayingRef=useRef(false);
+
+  // Pause/resume when app is minimised
+  useEffect(()=>{
+    const onVis=()=>{
+      if(!bgmRef.current)return;
+      if(document.hidden){
+        bgmWasPlayingRef.current=!bgmRef.current.paused;
+        if(bgmPauseOnHide&&!bgmRef.current.paused){bgmRef.current.pause();}
+      } else {
+        if(bgmPauseOnHide&&bgmWasPlayingRef.current){bgmRef.current.play().catch(()=>{});}
+      }
+    };
+    document.addEventListener("visibilitychange",onVis);
+    return()=>document.removeEventListener("visibilitychange",onVis);
+  },[bgmPauseOnHide]);
   const getBgm=()=>{
     if(!bgmRef.current){
       bgmRef.current=new Audio();
@@ -1857,7 +1960,7 @@ useEffect(()=>{
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
-    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile}/>,
+    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
     profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
