@@ -78,6 +78,12 @@ const THEMES = [
 const lbl = { display:"block", fontSize:12, fontWeight:700, color:T.brown, marginBottom:6, letterSpacing:0.3 };
 const inp = { width:"100%", padding:"12px 14px", borderRadius:12, border:`1.5px solid ${T.border}`, background:"#fff", fontSize:14, color:T.text, boxSizing:"border-box", outline:"none", fontFamily:"Lato,sans-serif" };
 
+const MEMBER_EMOJIS=[
+  {e:"👨",label:"Man"},{e:"👩",label:"Woman"},{e:"👴",label:"Grandpa"},
+  {e:"👵",label:"Grandma"},{e:"👦",label:"Son"},{e:"👧",label:"Daughter"},
+  {e:"🧑",label:"Adult"},{e:"👶",label:"Baby"},{e:"👱",label:"Fair-haired"},{e:"🧔",label:"Bearded"},
+];
+
 const Bar = ({value,max,color,h=8}) => (<div style={{background:"#E8DDD0",borderRadius:99,height:h,overflow:"hidden"}}><div style={{width:`${Math.min(100,Math.round((value/(max||1))*100))}%`,background:color,height:"100%",borderRadius:99,transition:"width 0.8s ease"}}/></div>);
 const Card = ({children,style={}}) => <div style={{background:T.card,borderRadius:18,padding:16,boxShadow:"0 2px 14px rgba(0,0,0,0.07)",marginBottom:12,...style}}>{children}</div>;
 const Sec = ({children,style={}}) => <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:10,letterSpacing:1,textTransform:"uppercase",...style}}>{children}</div>;
@@ -258,7 +264,7 @@ function AuthScreen({ onAuth }) {
   const [joinMode,setJoinMode]     = useState(false);
   const [inviteCode,setInviteCode] = useState("");
 
-  const emojis = ["👨","👩","👧","👦","👴","👵","👶","🧑","👱","🧔"];
+  const emojis = MEMBER_EMOJIS.map(x=>x.e);
   const cities = ["Gurgaon","Mumbai","Delhi","Bangalore","Chennai","Hyderabad","Pune","Kolkata","Ahmedabad","Jaipur","Noida","Chandigarh"];
   const relationships = ["Parent","Child","Spouse/Partner","Grandparent","Sibling","Uncle/Aunt","Other"];
 
@@ -415,9 +421,15 @@ function AuthScreen({ onAuth }) {
               </div>
               {joinNew&&<div style={{marginBottom:14}}>
                 <label style={lbl}>Your Emoji</label>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {["👧","👦","👩","👨","👴","👵","🧒","👶"].map(e=>(
-                    <button key={e} onClick={()=>setJoinEmoji(e)} style={{width:42,height:42,borderRadius:10,border:`2px solid ${joinEmoji===e?T.brown:T.border}`,background:joinEmoji===e?T.warm:"#fff",fontSize:22,cursor:"pointer"}}>{e}</button>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {MEMBER_EMOJIS.map(({e,label})=>(
+                    <button key={e} title={label} onClick={()=>setJoinEmoji(e)}
+                      style={{width:44,height:48,borderRadius:10,border:`2px solid ${joinEmoji===e?T.brown:T.border}`,
+                        background:joinEmoji===e?T.warm:"#fff",cursor:"pointer",
+                        display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,padding:2}}>
+                      <span style={{fontSize:20,lineHeight:1}}>{e}</span>
+                      <span style={{fontSize:7,color:joinEmoji===e?T.brown:T.muted,lineHeight:1.2,textAlign:"center"}}>{label}</span>
+                    </button>
                   ))}
                 </div>
               </div>}
@@ -1170,14 +1182,34 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
             <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Family Member</div>
             <div style={{marginBottom:10}}><label style={lbl}>Name</label><input style={inp} value={newMember.name} onChange={e=>setNewMember(p=>({...p,name:e.target.value}))} placeholder="e.g. Ashi Modi"/></div>
             <div style={{marginBottom:10}}>
-              <label style={lbl}>Emoji</label>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                {["👧","👦","👩","👨","👴","👵","🧒","👶"].map(e=>(
-                  <button key={e} onClick={()=>setNewMember(p=>({...p,emoji:e}))} style={{width:42,height:42,borderRadius:10,border:`2px solid ${newMember.emoji===e?T.brown:T.border}`,background:newMember.emoji===e?T.warm:"#fff",fontSize:22,cursor:"pointer"}}>{e}</button>
+              <label style={lbl}>Icon</label>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {MEMBER_EMOJIS.map(({e,label})=>(
+                  <button key={e} title={label} onClick={()=>setNewMember(p=>({...p,emoji:e}))}
+                    style={{width:44,height:48,borderRadius:10,border:`2px solid ${newMember.emoji===e?T.brown:T.border}`,
+                      background:newMember.emoji===e?T.warm:"#fff",cursor:"pointer",
+                      display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:1,padding:2}}>
+                    <span style={{fontSize:20,lineHeight:1}}>{e}</span>
+                    <span style={{fontSize:7,color:newMember.emoji===e?T.brown:T.muted,lineHeight:1.2,textAlign:"center"}}>{label}</span>
+                  </button>
                 ))}
               </div>
             </div>
-            <div style={{marginBottom:10}}><label style={lbl}>Relationship</label><input style={inp} value={newMember.relationship} onChange={e=>setNewMember(p=>({...p,relationship:e.target.value}))} placeholder="e.g. Daughter, Parent"/></div>
+            <div style={{marginBottom:10}}>
+              <label style={lbl}>Relationship</label>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                {["Spouse","Son","Daughter","Father","Mother","Brother","Sister","Grandfather","Grandmother","Uncle","Aunt","Cousin","In-law","Other"].map(r=>(
+                  <button key={r} onClick={()=>setNewMember(p=>({...p,relationship:r}))}
+                    style={{padding:"5px 11px",borderRadius:99,fontSize:11,fontWeight:700,cursor:"pointer",
+                      border:`1.5px solid ${newMember.relationship===r?T.brown:T.border}`,
+                      background:newMember.relationship===r?T.warm:"#fff",
+                      color:newMember.relationship===r?T.dark:T.muted}}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input style={inp} value={newMember.relationship} onChange={e=>setNewMember(p=>({...p,relationship:e.target.value}))} placeholder="Or type: Sister-in-law, Nani, Maasi…"/>
+            </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
               <div><label style={lbl}>Date of Birth</label><input style={inp} type="date" value={newMember.dob} onChange={e=>setNewMember(p=>({...p,dob:e.target.value}))}/></div>
               <div><label style={lbl}>Occupation</label><input style={inp} value={newMember.occupation} onChange={e=>setNewMember(p=>({...p,occupation:e.target.value}))} placeholder="Optional"/></div>
@@ -1217,35 +1249,42 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
 }
 
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref }) {
+function SettingsScreen({ onSignOut, bgmOn, bgmPref, toggleBgm, handleBgmPref, bgmFile, onBgmFile }) {
   const [activeTab,setActiveTab]=useState("privacy");
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Settings</div>
       <Card style={{marginBottom:16}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:bgmOn?14:0}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:14}}>
           <div>
             <div style={{fontWeight:700,fontSize:14,color:T.dark}}>🎵 Ambient Sound</div>
-            <div style={{fontSize:12,color:T.muted,marginTop:2}}>{bgmOn?"Playing — soft rain ambience":"Silent"}</div>
+            <div style={{fontSize:12,color:T.muted,marginTop:2}}>{bgmOn?"Playing":"Silent"}</div>
           </div>
           <div onClick={toggleBgm} style={{width:48,height:28,borderRadius:99,background:bgmOn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
             <div style={{position:"absolute",top:3,left:bgmOn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
           </div>
         </div>
-        {bgmOn&&<>
-          <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {[{v:"always",label:"🔁 Always on",sub:"Starts automatically every time I open the app"},{v:"manual",label:"🖐️ I'll turn it on myself",sub:"Starts silent, I decide when to play"}].map(opt=>(
-              <div key={opt.v} onClick={()=>handleBgmPref(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
-                <div style={{flex:1}}>
-                  <div style={{fontSize:13,fontWeight:700,color:T.dark}}>{opt.label}</div>
-                  <div style={{fontSize:11,color:T.muted,marginTop:2}}>{opt.sub}</div>
-                </div>
-                <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.brown:"transparent",flexShrink:0}}/>
+        <div style={{marginBottom:12,padding:"10px 12px",borderRadius:12,border:`1.5px dashed ${T.amber}`,background:T.warm}}>
+          <div style={{fontSize:12,fontWeight:700,color:T.brown,marginBottom:4}}>🎧 Use your own music</div>
+          <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Pick any audio file from your phone — bhajans, instrumental, anything you love.</div>
+          <label style={{display:"inline-flex",alignItems:"center",gap:8,padding:"8px 14px",borderRadius:10,background:T.brown,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+            📁 Choose Audio File
+            <input type="file" accept="audio/*" style={{display:"none"}} onChange={onBgmFile}/>
+          </label>
+          {bgmFile&&<div style={{fontSize:11,color:T.green,marginTop:8,fontWeight:700}}>✓ Custom track loaded</div>}
+        </div>
+        <div style={{fontSize:12,color:T.muted,marginBottom:8}}>When should ambient sound play?</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[{v:"always",label:"🔁 Always on",sub:"Starts automatically every time I open the app"},{v:"manual",label:"🖐️ I'll turn it on myself",sub:"Starts silent, I decide when to play"}].map(opt=>(
+            <div key={opt.v} onClick={()=>handleBgmPref(opt.v)} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 12px",borderRadius:12,border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.warm:"transparent",cursor:"pointer"}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:13,fontWeight:700,color:T.dark}}>{opt.label}</div>
+                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{opt.sub}</div>
               </div>
-            ))}
-          </div>
-        </>}
+              <div style={{width:18,height:18,borderRadius:"50%",border:`2px solid ${bgmPref===opt.v?T.brown:T.border}`,background:bgmPref===opt.v?T.brown:"transparent",flexShrink:0}}/>
+            </div>
+          ))}
+        </div>
       </Card>
       <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
         <Pill label="🔒 Privacy" active={activeTab==="privacy"} onClick={()=>setActiveTab("privacy")}/>
@@ -1570,13 +1609,43 @@ const [showHeader,setShowHeader]=useState(false);
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
   const [bgmOn,setBgmOn]=useState(()=>localStorage.getItem("fn_bgm_pref")==="always");
   const [bgmPref,setBgmPref]=useState(()=>localStorage.getItem("fn_bgm_pref")||"manual");
+  const [bgmFile,setBgmFile]=useState(null);
   const bgmRef=useRef(null);
   const getBgm=()=>{
-    if(!bgmRef.current){bgmRef.current=new Audio("https://cdn.pixabay.com/audio/2022/10/16/audio_5cca3f32d0.mp3");bgmRef.current.loop=true;bgmRef.current.volume=0.18;}
+    if(!bgmRef.current){
+      bgmRef.current=new Audio();
+      bgmRef.current.loop=true;
+      bgmRef.current.volume=0.18;
+      bgmRef.current.src=bgmFile||"https://assets.mixkit.co/music/preview/mixkit-rain-and-thunder-ambience-1251.mp3";
+    }
     return bgmRef.current;
   };
-  const toggleBgm=()=>{if(bgmOn){getBgm().pause();setBgmOn(false);}else{getBgm().play().catch(()=>{});setBgmOn(true);}};
-  const handleBgmPref=(pref)=>{setBgmPref(pref);localStorage.setItem("fn_bgm_pref",pref);if(pref==="always"){getBgm().play().catch(()=>{});setBgmOn(true);}if(pref==="manual"){getBgm().pause();setBgmOn(false);}};
+  const loadBgmSrc=(src)=>{
+    const a=getBgm();
+    const wasPlaying=!a.paused;
+    a.src=src;
+    a.load();
+    if(wasPlaying)a.play().catch(()=>{});
+  };
+  const handleBgmFile=(e)=>{
+    const f=e.target.files?.[0];
+    if(!f)return;
+    if(bgmFile)URL.revokeObjectURL(bgmFile);
+    const url=URL.createObjectURL(f);
+    setBgmFile(url);
+    loadBgmSrc(url);
+    if(!bgmOn){getBgm().play().catch(()=>{});setBgmOn(true);}
+  };
+  const toggleBgm=()=>{
+    if(bgmOn){getBgm().pause();setBgmOn(false);}
+    else{getBgm().play().catch(()=>{});setBgmOn(true);}
+  };
+  const handleBgmPref=(pref)=>{
+    setBgmPref(pref);
+    localStorage.setItem("fn_bgm_pref",pref);
+    if(pref==="always"){getBgm().play().catch(()=>{});setBgmOn(true);}
+    if(pref==="manual"){getBgm().pause();setBgmOn(false);}
+  };
   useEffect(()=>{if(bgmPref==="always"){getBgm().play().catch(()=>{});setBgmOn(true);}},[]);
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
@@ -1730,7 +1799,7 @@ useEffect(()=>{
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
-    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref}/>,
+    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} bgmFile={bgmFile} onBgmFile={handleBgmFile}/>,
     profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
