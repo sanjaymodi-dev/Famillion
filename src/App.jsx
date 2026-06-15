@@ -1289,9 +1289,11 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
               <button onClick={async()=>{
                 if(!newMember.name.trim()){alert("Please enter a name.");return;}
                 setSavingMember(true);
-                await sb.from("members").insert({family_id:family.id,name:newMember.name.trim(),emoji:newMember.emoji,relationship:newMember.relationship,dob:newMember.dob||null,occupation:newMember.occupation});
+                const {error:memErr}=await sb.from("members").insert({family_id:family.id,name:newMember.name.trim(),emoji:newMember.emoji,relationship:newMember.relationship,dob:newMember.dob||null,occupation:newMember.occupation});
+                setSavingMember(false);
+                if(memErr){alert("Could not save member: "+memErr.message);return;}
                 setNewMember({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});
-                setShowAddMember(false);setSavingMember(false);
+                setShowAddMember(false);
                 window.location.reload();
               }} disabled={savingMember} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{savingMember?"Saving...":"Add Member ✓"}</button>
             </div>
