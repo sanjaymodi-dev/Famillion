@@ -796,13 +796,14 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
 function MoneyScreen({ family, members, familyId, onPts }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
-  const [tab,setTab]=useState("expenses");
-  const [showE,setShowE]=useState(false);
-  const [showG,setShowG]=useState(false);
-  const [editId,setEditId]=useState(null);
-  const [filterWho,setFilterWho]=useState("all");
-  const [ef,setEf]=useState({label:"",amount:"",cat:"🛒",who:""});
-  const [gf,setGf]=useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});
+  const [tab,setTab]       = useState("expenses");
+  const [showE,setShowE]   = useState(false);
+  const [showG,setShowG]   = useState(false);
+  const [editId,setEditId] = useState(null);
+  const [filterWho,setFilterWho] = useState("all");
+  const [nudgedId,setNudgedId]   = useState(null); // nudge handle — wired in Nudge 2.0
+  const [ef,setEf] = useState({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});
+  const [gf,setGf] = useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});
   const allCats=["🛒","⚡","🏥","🚗","🍔","🎓","🏠","✈️","☕","🎮","👗","💊"];
   const catCounts=allCats.map(c=>({c,n:expenses.data.filter(e=>e.cat===c).length}));
   const cats=[...catCounts].sort((a,b)=>b.n-a.n).map(x=>x.c);
@@ -811,19 +812,37 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   const spent=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const filteredExp=filterWho==="all"?expenses.data:expenses.data.filter(e=>e.who===filterWho);
 
-  const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label,amount:String(e.amount),cat:e.cat,who:e.who||""});setShowE(true);};
-  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🛒",who:""});setShowE(false);};
+  // Group expenses by date label
+  const groupedExp=filteredExp.reduce((acc,e)=>{
+    const d=new Date(e.date||e.created_at);
+    const today=new Date(); const yesterday=new Date(); yesterday.setDate(today.getDate()-1);
+    const key=d.toDateString()===today.toDateString()?"Today":d.toDateString()===yesterday.toDateString()?"Yesterday":d.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+    if(!acc[key])acc[key]=[];
+    acc[key].push(e);
+    return acc;
+  },{});
+
+  const handleNudge=(id)=>{
+    setNudgedId(id);
+    setTimeout(()=>setNudgedId(null),2000);
+    // TODO Nudge 2.0: call nudge API here with item context
+  };
+
+  const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label,amount:String(e.amount),cat:e.cat,who:e.who||"",notes:e.notes||"",step:1});setShowE(true);};
+  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});setShowE(false);};
   const saveExpense=async()=>{
-    if(!ef.label||!ef.amount)return;
+    if(!ef.amount)return;
     if(editId){
-      await expenses.update(editId,{label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who});
+      await expenses.update(editId,{label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who,notes:ef.notes});
       setEditId(null);
     } else {
-      await expenses.add({label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who,date:new Date().toISOString()});
+      await expenses.add({label:ef.label||ef.cat,amount:Number(ef.amount),cat:ef.cat,who:ef.who,notes:ef.notes,date:new Date().toISOString()});
       await onPts(10);
     }
-    setEf({label:"",amount:"",cat:"🛒",who:""});setShowE(false);
+    setEf({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});setShowE(false);
   };
+
+  const SAF="#F4A724", NAV="#0F1F3D";
 
   return (
     <div style={{padding:"0 16px 16px"}}>
@@ -834,21 +853,94 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         <Pill label="📊 Score"    active={tab==="score"}    onClick={()=>setTab("score")}/>
         <Pill label="📋 Budget"   active={tab==="budget"}   onClick={()=>setTab("budget")}/>
       </div>
+
       {tab==="expenses" && <>
+        {/* Summary bar */}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-          <Card style={{marginBottom:0}}><div style={{fontSize:22,marginBottom:4}}>💸</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.rose}}>₹{spent.toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Spent this month</div></Card>
-          <Card style={{marginBottom:0}}><div style={{fontSize:22,marginBottom:4}}>🏦</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.green}}>₹{Math.max(0,(family?.monthly_expenses||0)-spent).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Remaining</div></Card>
+          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>💸</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.rose}}>₹{spent.toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Spent this month</div></Card>
+          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>🏦</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.green}}>₹{Math.max(0,(family?.monthly_expenses||0)-spent).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Remaining</div></Card>
         </div>
+        {/* Who filter */}
         <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:4}}>
           <Pill label="All" active={filterWho==="all"} onClick={()=>setFilterWho("all")} color={T.teal}/>
           {members?.map(m=><Pill key={m.id} label={m.name} active={filterWho===m.name} onClick={()=>setFilterWho(m.name)} color={T.teal}/>)}
         </div>
-        <Sec>Recent Expenses {filterWho!=="all"&&`· ${filterWho}`}</Sec>
+        {/* Expense list — compact rows grouped by date */}
         {expenses.loading&&<Spinner/>}
-        {!expenses.loading&&filteredExp.length===0&&<Card style={{textAlign:"center",padding:28}}><div style={{fontSize:36,marginBottom:8}}>💸</div><div style={{fontWeight:700,color:T.dark,marginBottom:4}}>Nothing logged yet</div><div style={{fontSize:12,color:T.muted}}>Add your first expense to start tracking</div></Card>}
-        {filteredExp.map(e=>(<div key={e.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}><div style={{width:44,height:44,borderRadius:12,background:T.warm,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24}}>{e.cat}</div><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{e.label}</div><div style={{fontSize:12,color:T.muted}}>{e.who} · {new Date(e.date||e.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short"})}</div></div><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{fontWeight:700,color:T.dark}}>₹{Number(e.amount).toLocaleString()}</div><button onClick={()=>startEdit(e)} style={{background:T.amber+"20",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer",fontSize:12,color:T.brown,fontWeight:700}}>✏️</button><button onClick={()=>expenses.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:16}}>×</button></div></div>))}
-        {showE?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>{editId?"Edit Expense":"Add Expense"}</div><div style={{marginBottom:10}}><label style={lbl}>Category</label><div style={{display:"flex",flexWrap:"wrap",gap:8}}>{cats.map(c=><button key={c} onClick={()=>setEf(f=>({...f,cat:c}))} style={{width:48,height:48,borderRadius:12,border:`2px solid ${ef.cat===c?T.brown:T.border}`,background:ef.cat===c?T.warm:"#fff",fontSize:24,cursor:"pointer"}}>{c}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Description</label><input style={inp} value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Weekly groceries"/></div><div style={{marginBottom:10}}><label style={lbl}>Amount (₹)</label><input style={inp} type="number" value={ef.amount} onChange={e=>setEf(f=>({...f,amount:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Paid by</label><select style={inp} value={ef.who} onChange={e=>setEf(f=>({...f,who:e.target.value}))}><option value="">Select</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div style={{display:"flex",gap:8}}><button onClick={cancelEdit} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={saveExpense} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{editId?"Update":"Save +10pts"}</button></div></Card>):<button onClick={()=>{setEditId(null);setShowE(true);}} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Expense</button>}
+        {!expenses.loading&&filteredExp.length===0&&<Card style={{textAlign:"center",padding:28}}><div style={{fontSize:36,marginBottom:8}}>💸</div><div style={{fontWeight:700,color:T.dark,marginBottom:4}}>Nothing logged yet</div><div style={{fontSize:12,color:T.muted}}>Add your first expense below</div></Card>}
+        {Object.entries(groupedExp).map(([dateLabel,rows])=>(
+          <div key={dateLabel} style={{marginBottom:12}}>
+            <div style={{fontSize:11,fontWeight:800,color:T.muted,letterSpacing:0.6,marginBottom:6}}>{dateLabel}</div>
+            <div style={{background:T.card,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
+              {rows.map((e,i)=>(
+                <div key={e.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderBottom:i<rows.length-1?`1px solid ${T.border}`:"none",minHeight:44}}>
+                  <span style={{fontSize:20,flexShrink:0}}>{e.cat}</span>
+                  <div style={{flex:1,minWidth:0}}>
+                    <div style={{fontSize:13,fontWeight:600,color:T.dark,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e.label}</div>
+                    {e.who&&<div style={{fontSize:11,color:T.muted}}>{e.who}</div>}
+                  </div>
+                  <div style={{fontWeight:700,color:T.dark,fontSize:13,flexShrink:0}}>₹{Number(e.amount).toLocaleString()}</div>
+                  <button onClick={()=>handleNudge(e.id)} title="Nudge" style={{background:"none",border:"none",cursor:"pointer",fontSize:14,padding:"0 2px",opacity:0.5}}>{nudgedId===e.id?"✓":"👋"}</button>
+                  <button onClick={()=>startEdit(e)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,padding:"0 2px",color:T.brown}}>✏️</button>
+                  <button onClick={()=>expenses.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"0 2px",color:T.muted}}>×</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {/* Add / Edit expense — bottom sheet style */}
+        {showE?(
+          <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+            <div onClick={cancelEdit} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
+            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 20px 36px",maxHeight:"85vh",overflowY:"auto"}}>
+              <div style={{width:36,height:4,borderRadius:99,background:T.border,margin:"0 auto 16px"}}/>
+              <div style={{fontWeight:700,color:NAV,fontSize:16,marginBottom:16}}>{editId?"Edit Expense":"Add Expense"}</div>
+              {/* Step 1: Amount */}
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>Amount (₹)</label>
+                <input style={{...inp,fontSize:28,fontWeight:700,textAlign:"center",padding:"14px"}} type="number" placeholder="0" value={ef.amount} onChange={e=>setEf(f=>({...f,amount:e.target.value}))} autoFocus/>
+              </div>
+              {/* Step 2: Who */}
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>Paid by</label>
+                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                  {members?.map(m=>(
+                    <button key={m.id} onClick={()=>setEf(f=>({...f,who:m.name}))}
+                      style={{padding:"8px 14px",borderRadius:99,border:`2px solid ${ef.who===m.name?SAF:T.border}`,background:ef.who===m.name?"#FFF8E8":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",color:T.dark}}>
+                      {m.emoji} {m.name.split(" ")[0]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Step 3: Category */}
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>Category</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                  {cats.map(c=><button key={c} onClick={()=>setEf(f=>({...f,cat:c}))} style={{width:46,height:46,borderRadius:12,border:`2px solid ${ef.cat===c?SAF:T.border}`,background:ef.cat===c?"#FFF8E8":"#fff",fontSize:22,cursor:"pointer"}}>{c}</button>)}
+                </div>
+              </div>
+              {/* Step 4: Description */}
+              <div style={{marginBottom:14}}>
+                <label style={lbl}>Description</label>
+                <input style={inp} value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Weekly groceries from DMart"/>
+              </div>
+              {/* Step 5: Memory note */}
+              <div style={{marginBottom:20}}>
+                <label style={lbl}>Memory note <span style={{fontWeight:400,color:T.muted}}>(optional)</span></label>
+                <textarea style={{...inp,height:64,resize:"none",lineHeight:1.5}} placeholder="Add a note… (e.g. Pranava's birthday dinner)" value={ef.notes} onChange={e=>setEf(f=>({...f,notes:e.target.value}))}/>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={cancelEdit} style={{flex:1,padding:13,borderRadius:13,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+                <button onClick={saveExpense} style={{flex:2,padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:15}}>{editId?"Update":"Save +10pts"}</button>
+              </div>
+            </div>
+          </div>
+        ):(
+          <button onClick={()=>{setEditId(null);setShowE(true);}} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Expense</button>
+        )}
       </>}
+
       {tab==="goals" && <>
         {goals.loading&&<Spinner/>}
         {goals.data.map(g=>(<Card key={g.id}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><span style={{fontSize:26}}>{g.emoji}</span><div style={{flex:1}}><div style={{fontWeight:700,fontSize:15,color:T.dark}}>{g.title}</div><div style={{fontSize:12,color:T.muted}}>Target: ₹{Number(g.target).toLocaleString()}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:700,color:g.color,fontSize:15}}>₹{Number(g.saved).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>{Math.round(g.saved/g.target*100)}%</div></div></div><Bar value={Number(g.saved)} max={Number(g.target)} color={g.color}/><button onClick={()=>goals.remove(g.id)} style={{marginTop:8,fontSize:11,color:T.muted,background:"none",border:"none",cursor:"pointer"}}>Remove</button></Card>))}
@@ -939,7 +1031,7 @@ function ErrandsScreen({ familyId, onPts }) {
   const bills=useTable("bills",familyId);
   const [newItem,setNewItem]=useState("");
   const [showBill,setShowBill]=useState(false);
-  const [nb,setNb]=useState({label:"",amount:"",due_date:"",icon:"📄",recurring:false});
+  const [nb,setNb]=useState({label:"",amount:"",due_date:"",icon:"📄",recurring:false,frequency:"monthly",custom_freq:"",custom_unit:"weeks"});
   const billIcons=["⚡","📡","💧","🔥","📱","🏠","📺","💊","🚗","🌐"];
   const overdueBills=bills.data.filter(b=>!b.paid&&b.due_date&&new Date(b.due_date)<new Date());
   return (
@@ -956,7 +1048,7 @@ function ErrandsScreen({ familyId, onPts }) {
       <Sec>📄 Bills & Reminders</Sec>
       {bills.loading&&<Spinner/>}
       {bills.data.map(b=>(<div key={b.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",opacity:b.paid?0.65:1,borderLeft:`3px solid ${b.paid?T.green:overdueBills.find(o=>o.id===b.id)?T.rose:T.amber}`}}><div style={{fontSize:22}}>{b.icon}</div><div style={{flex:1}}><div style={{fontSize:14,fontWeight:600,color:T.dark}}>{b.label}</div><div style={{fontSize:12,color:T.muted}}>Due: {b.due_date?new Date(b.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short"}):"—"}{b.recurring?" · 🔄":""}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:700,color:b.paid?T.green:T.rose}}>₹{Number(b.amount).toLocaleString()}</div><button onClick={async()=>{await bills.update(b.id,{paid:!b.paid});if(!b.paid)await onPts(15);}} style={{fontSize:11,color:b.paid?T.green:T.rose,fontWeight:700,background:"none",border:"none",cursor:"pointer"}}>{b.paid?"✓ Paid":"Mark Paid +15pts"}</button></div></div>))}
-      {showBill?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Bill / Reminder</div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{billIcons.map(e=><button key={e} onClick={()=>setNb(b=>({...b,icon:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${nb.icon===e?T.brown:T.border}`,background:nb.icon===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Bill Name</label><input style={inp} value={nb.label} onChange={e=>setNb(b=>({...b,label:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Amount (₹)</label><input style={inp} type="number" value={nb.amount} onChange={e=>setNb(b=>({...b,amount:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Due Date</label><input style={inp} type="date" value={nb.due_date} onChange={e=>setNb(b=>({...b,due_date:e.target.value}))}/></div><div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}><input type="checkbox" id="rec" checked={nb.recurring} onChange={e=>setNb(b=>({...b,recurring:e.target.checked}))} style={{width:18,height:18}}/><label htmlFor="rec" style={{fontSize:13,color:T.dark,cursor:"pointer"}}>🔄 Recurring monthly bill</label></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowBill(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(nb.label&&nb.amount){await bills.add({label:nb.label,amount:Number(nb.amount),due_date:nb.due_date||null,icon:nb.icon,paid:false,recurring:nb.recurring});setNb({label:"",amount:"",due_date:"",icon:"📄",recurring:false});setShowBill(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowBill(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Bill / Reminder</button>}
+      {showBill?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Bill / Reminder</div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{billIcons.map(e=><button key={e} onClick={()=>setNb(b=>({...b,icon:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${nb.icon===e?T.brown:T.border}`,background:nb.icon===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Bill Name</label><input style={inp} value={nb.label} onChange={e=>setNb(b=>({...b,label:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Amount (₹)</label><input style={inp} type="number" value={nb.amount} onChange={e=>setNb(b=>({...b,amount:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Due Date</label><input style={inp} type="date" value={nb.due_date} onChange={e=>setNb(b=>({...b,due_date:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Frequency</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{[{v:"monthly",l:"Monthly"},{v:"quarterly",l:"Quarterly"},{v:"annual",l:"Annual"},{v:"custom",l:"Custom"}].map(f=><button key={f.v} onClick={()=>setNb(b=>({...b,frequency:f.v,custom_freq:""}))} style={{padding:"6px 12px",borderRadius:99,border:`2px solid ${(nb.frequency||"monthly")===f.v?T.brown:T.border}`,background:(nb.frequency||"monthly")===f.v?T.warm:"#fff",fontSize:12,fontWeight:700,cursor:"pointer",color:T.dark}}>{f.l}</button>)}</div>{nb.frequency==="custom"&&<div style={{display:"flex",alignItems:"center",gap:8,marginTop:8}}><span style={{fontSize:13,color:T.muted,whiteSpace:"nowrap"}}>Every</span><input style={{...inp,width:60,padding:"8px 10px",textAlign:"center"}} type="number" min="1" placeholder="2" value={nb.custom_freq||""} onChange={e=>setNb(b=>({...b,custom_freq:e.target.value}))}/><select style={{...inp,flex:1,padding:"8px 10px"}} value={nb.custom_unit||"weeks"} onChange={e=>setNb(b=>({...b,custom_unit:e.target.value}))}><option value="days">days</option><option value="weeks">weeks</option><option value="months">months</option></select></div>}</div><div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}><input type="checkbox" id="rec" checked={nb.recurring} onChange={e=>setNb(b=>({...b,recurring:e.target.checked}))} style={{width:18,height:18}}/><label htmlFor="rec" style={{fontSize:13,color:T.dark,cursor:"pointer"}}>🔄 Recurring bill</label></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowBill(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(nb.label&&nb.amount){const freqVal=nb.frequency==="custom"?`custom:${nb.custom_freq||1}:${nb.custom_unit||"weeks"}`:(nb.frequency||"monthly");await bills.add({label:nb.label,amount:Number(nb.amount),due_date:nb.due_date||null,icon:nb.icon,paid:false,recurring:nb.recurring,frequency:freqVal});setNb({label:"",amount:"",due_date:"",icon:"📄",recurring:false,frequency:"monthly",custom_freq:"",custom_unit:"weeks"});setShowBill(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowBill(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Bill / Reminder</button>}
     </div>
   );
 }
