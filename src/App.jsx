@@ -1166,7 +1166,7 @@ function ConciergeScreen({ family, members }) {
   );
 }
 
-function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
+function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme }) {
   const [linkedIds,setLinkedIds]=useState(null); // null = loading, Set = loaded
   useEffect(()=>{
     if(!family?.id)return;
@@ -1289,12 +1289,13 @@ function ProfileScreen({ family, members, email, onSignOut, theme, setTheme }) {
               <button onClick={async()=>{
                 if(!newMember.name.trim()){alert("Please enter a name.");return;}
                 setSavingMember(true);
-                const {error:memErr}=await sb.from("members").insert({family_id:family.id,name:newMember.name.trim(),emoji:newMember.emoji,relationship:newMember.relationship,dob:newMember.dob||null,occupation:newMember.occupation});
+                const {data:inserted,error:memErr}=await sb.from("members").insert({family_id:family.id,name:newMember.name.trim(),emoji:newMember.emoji,relationship:newMember.relationship,dob:newMember.dob||null,occupation:newMember.occupation||null}).select();
                 setSavingMember(false);
                 if(memErr){alert("Could not save member: "+memErr.message);return;}
+                const newM=Array.isArray(inserted)?inserted[0]:inserted;
+                if(newM&&setMembers)setMembers(p=>[...p,newM]);
                 setNewMember({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});
                 setShowAddMember(false);
-                window.location.reload();
               }} disabled={savingMember} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{savingMember?"Saving...":"Add Member ✓"}</button>
             </div>
           </Card>
@@ -1919,7 +1920,7 @@ useEffect(()=>{
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
     settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
-    profile:  <ProfileScreen   family={family} members={members} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
+    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
@@ -1942,7 +1943,7 @@ useEffect(()=>{
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             {family?.city&&<span style={{fontSize:10,color:T.muted,fontWeight:700,background:T.warm,borderRadius:99,padding:"2px 8px"}}>📍{family.city}</span>}
-            <span onClick={toggleBgm} style={{background:bgmOn?T.amber+"30":T.warm,borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:bgmOn?T.brown:T.muted,cursor:"pointer",border:`1px solid ${bgmOn?T.amber:T.border}`}}>{bgmOn?"🎵":"🔇"}</span>
+            <span onClick={toggleBgm} style={{background:"transparent",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,cursor:"pointer",border:`1.5px solid ${bgmOn?T.amber:T.border}`}}>{bgmOn?"🎵":"🔕"}</span>
             <span onClick={()=>handleTabChange("rewards")} style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown,cursor:"pointer"}}>🏆 {family?.points||0}</span>
           </div>
 
@@ -2025,6 +2026,12 @@ useEffect(()=>{
                   {bgmFile&&<span style={{fontSize:11,color:T.brown,fontWeight:700}}>✓</span>}
                   <input type="file" accept="audio/*" style={{display:"none"}} onChange={handleBgmFile}/>
                 </label>
+                <div onClick={()=>{const v=!bgmPauseOnHide;setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}} style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginTop:8,padding:"8px 12px",borderRadius:10,background:T.warm,cursor:"pointer"}}>
+                  <span style={{fontSize:12,color:T.dark,fontWeight:600}}>⏸️ Pause when minimised</span>
+                  <div style={{width:36,height:20,borderRadius:99,background:bgmPauseOnHide?T.brown:T.border,position:"relative",flexShrink:0}}>
+                    <div style={{position:"absolute",top:2,left:bgmPauseOnHide?16:2,width:16,height:16,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 3px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
+                  </div>
+                </div>
               </div>
             )}
             <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:8}}>
