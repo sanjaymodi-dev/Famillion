@@ -875,7 +875,13 @@ function MoneyScreen({ family, members, familyId, onPts }) {
     {e:"🏖️",l:"Vacation",sub:["Travel","Hotel","Food","Activities"]},
     {e:"🎯",l:"Others",  sub:["Gifts","Charity","Miscellaneous"]},
   ];
-  const selL1=L1_CATS.find(c=>c.e===ef.cat)||L1_CATS[1];
+  const [customCats,setCustomCats] = useState([]); // [{e,l,sub:[]}] user-added L1 cats
+  const [showAddCat,setShowAddCat] = useState(false); // show add category input
+  const [newCatName,setNewCatName] = useState("");
+  const [showAddSubcat,setShowAddSubcat] = useState(false);
+  const [newSubcatName,setNewSubcatName] = useState("");
+  const allL1Cats=[...L1_CATS,...customCats];
+  const selL1=allL1Cats.find(c=>c.e===ef.cat)||L1_CATS[1];
 
   const month=new Date().getMonth();
   const monthExp=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month);
@@ -925,14 +931,16 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   const confirmDelete=(id)=>setDeleteConfirm(id);
   const doDelete=async()=>{if(deleteConfirm){await expenses.remove(deleteConfirm);setDeleteConfirm(null);}};
 
-  // nudge popup + message
+  const [nudgeToast,setNudgeToast] = useState(null); // {msg} shown briefly
   const [nudgeMsg,setNudgeMsg] = useState("");
   const [nudgeMsgMode,setNudgeMsgMode] = useState(false);
   const openNudge=(e)=>{setNudgeTarget({id:e.id,label:e.label||e.cat,who:e.who,amount:Number(e.amount)});setNudgeMsg("");setNudgeMsgMode(false);};
   const sendNudgeNow=()=>{
+    const toastMsg=nudgeMsg.trim()?`👋 Nudge sent to ${nudgeTarget?.who||"family"}!`:"👋 Nudge sent!";
     setNudgedId(nudgeTarget?.id);
-    setTimeout(()=>setNudgedId(null),2500);
     setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);
+    setNudgeToast(toastMsg);
+    setTimeout(()=>{setNudgedId(null);setNudgeToast(null);},3000);
     // TODO Nudge 2.0: wire to nudge API with nudgeMsg
   };
 
@@ -1146,6 +1154,15 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         {/* ── MONTH VIEW ── */}
         {!expenses.loading&&viewBy==="month"&&<MonthView expenses={expenses} NAV={NAV} TEAL={TEAL} TEALTEXT={TEALTEXT} ExpTile={ExpTile}/>}
 
+        {/* ── NUDGE TOAST ── */}
+        {nudgeToast&&(
+          <div style={{position:"fixed",top:80,left:"50%",transform:"translateX(-50%)",zIndex:400,
+            background:NAV,color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:700,
+            boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"nowrap"}}>
+            {nudgeToast}
+          </div>
+        )}
+
         {/* ── FLOATING ADD BUTTON ── */}
         <button onClick={()=>{setEditId(null);setShowE(true);}}
           style={{position:"fixed",bottom:80,right:20,zIndex:100,width:54,height:54,borderRadius:"50%",
@@ -1163,7 +1180,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
                 <div style={{width:36,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 12px"}}/>
                 <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:NAV,fontSize:17,marginBottom:12}}>{editId?"Edit Expense":"New Expense"}</div>
               </div>
-              <div style={{flex:1,overflowY:"auto",padding:"0 20px 28px"}}>
+              <div style={{flex:1,overflowY:"auto",padding:"0 20px 100px"}}>
                 {/* Amount */}
                 <div style={{background:"#F8F4F0",borderRadius:14,padding:"16px",textAlign:"center",marginBottom:16}}>
                   <div style={{fontSize:10,color:T.muted,marginBottom:6,fontWeight:700,letterSpacing:0.5}}>AMOUNT (₹)</div>
@@ -1187,7 +1204,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
                 <div style={{marginBottom:10}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>CATEGORY</div>
                   <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-                    {L1_CATS.map(c=>(
+                    {allL1Cats.map(c=>(
                       <button key={c.e} onClick={()=>setEf(f=>({...f,cat:c.e,subcat:""}))}
                         style={{padding:"7px 4px",borderRadius:10,border:`1.5px solid ${ef.cat===c.e?SAF:"#E8DDD0"}`,
                           background:ef.cat===c.e?"#FFF8E8":"#F8F4F0",cursor:"pointer",textAlign:"center"}}>
@@ -1195,6 +1212,30 @@ function MoneyScreen({ family, members, familyId, onPts }) {
                         <div style={{fontSize:8,fontWeight:800,color:"#8B5E3C"}}>{c.l}</div>
                       </button>
                     ))}
+                    {/* Add custom L1 category */}
+                    {!showAddCat
+                      ?<button onClick={()=>setShowAddCat(true)}
+                          style={{padding:"7px 4px",borderRadius:10,border:`1.5px dashed ${SAF}`,
+                            background:"#FFF8E8",cursor:"pointer",textAlign:"center"}}>
+                          <div style={{fontSize:16,marginBottom:2}}>＋</div>
+                          <div style={{fontSize:8,fontWeight:800,color:"#8B5E3C"}}>New</div>
+                        </button>
+                      :<div style={{gridColumn:"1/-1",display:"flex",gap:6,marginTop:2}}>
+                          <input autoFocus value={newCatName} onChange={e=>setNewCatName(e.target.value)}
+                            placeholder="Category name e.g. Pets"
+                            style={{...inp,flex:1,fontSize:11,padding:"7px 10px",background:"#F8F4F0",border:`1.5px solid ${SAF}`}}/>
+                          <button onClick={()=>{
+                            if(newCatName.trim()){
+                              const emoji=["🐾","🌿","🎨","🏋️","🎵","🛠️","🚀"][customCats.length%7];
+                              setCustomCats(cc=>[...cc,{e:emoji,l:newCatName.trim(),sub:[]}]);
+                              setEf(f=>({...f,cat:emoji,subcat:""}));
+                            }
+                            setNewCatName("");setShowAddCat(false);
+                          }} style={{padding:"7px 12px",borderRadius:8,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>Add</button>
+                          <button onClick={()=>{setShowAddCat(false);setNewCatName("");}}
+                            style={{padding:"7px 10px",borderRadius:8,border:"none",background:"#F0F0F0",color:T.muted,fontWeight:700,cursor:"pointer",fontSize:12}}>✕</button>
+                        </div>
+                    }
                   </div>
                 </div>
                 {/* Level 2 subcategory */}
@@ -1209,11 +1250,50 @@ function MoneyScreen({ family, members, familyId, onPts }) {
                         {s}
                       </button>
                     ))}
+                    {/* Add custom subcategory */}
+                    {!showAddSubcat
+                      ?<button onClick={()=>setShowAddSubcat(true)}
+                          style={{padding:"5px 9px",borderRadius:7,border:`1.5px dashed ${SAF}`,
+                            background:"#FFF8E8",fontSize:10,fontWeight:700,cursor:"pointer",color:"#8B5E3C"}}>＋ New</button>
+                      :<div style={{display:"flex",gap:5,width:"100%",marginTop:4}}>
+                          <input autoFocus value={newSubcatName} onChange={e=>setNewSubcatName(e.target.value)}
+                            placeholder="e.g. Protein shake"
+                            style={{...inp,flex:1,fontSize:10,padding:"5px 9px",background:"#F8F4F0",border:`1.5px solid ${SAF}`}}/>
+                          <button onClick={()=>{
+                            if(newSubcatName.trim()){
+                              setCustomCats(cc=>cc.map(c=>c.e===selL1.e?{...c,sub:[...c.sub,newSubcatName.trim()]}:c));
+                              // also add to L1_CATS in memory for built-in cats
+                              const builtIn=L1_CATS.find(c=>c.e===selL1.e);
+                              if(builtIn&&!builtIn.sub.includes(newSubcatName.trim()))builtIn.sub.push(newSubcatName.trim());
+                              setEf(f=>({...f,subcat:newSubcatName.trim()}));
+                            }
+                            setNewSubcatName("");setShowAddSubcat(false);
+                          }} style={{padding:"5px 10px",borderRadius:7,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:11}}>Add</button>
+                          <button onClick={()=>{setShowAddSubcat(false);setNewSubcatName("");}}
+                            style={{padding:"5px 8px",borderRadius:7,border:"none",background:"#F0F0F0",color:T.muted,cursor:"pointer",fontSize:11}}>✕</button>
+                        </div>
+                    }
                   </div>
                 </div>
                 {/* Level 3 tag */}
                 <div style={{marginBottom:14}}>
-                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>TAG <span style={{fontWeight:400,color:T.muted}}>(optional)</span></div>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>TAG <span style={{fontWeight:400,color:T.muted}}>(optional — your own label)</span></div>
+                  {/* Previously used tags as quick chips */}
+                  {(()=>{
+                    const usedTags=[...new Set(expenses.data.map(e=>e.subcategory).filter(Boolean))].slice(0,6);
+                    return usedTags.length>0?(
+                      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:7}}>
+                        {usedTags.map(t=>(
+                          <button key={t} onClick={()=>setEf(f=>({...f,tag:t}))}
+                            style={{padding:"4px 8px",borderRadius:6,border:`1.5px solid ${ef.tag===t?NAV:"#E8DDD0"}`,
+                              background:ef.tag===t?NAV:"#fff",fontSize:9,fontWeight:700,cursor:"pointer",
+                              color:ef.tag===t?"#fff":T.muted}}>
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    ):null;
+                  })()}
                   <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}} value={ef.tag}
                     onChange={e=>setEf(f=>({...f,tag:e.target.value}))} placeholder="e.g. Pranava's tiffin, work lunch…"/>
                 </div>
@@ -2650,7 +2730,8 @@ useEffect(()=>{
   const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
-    <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif"}}>
+    <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif",overscrollBehavior:"none"}}>
+      <style>{`body{overscroll-behavior-y:none;overflow:hidden;}#root{height:100vh;overflow-y:auto;overscroll-behavior-y:none;}`}</style>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
       <div style={{width:"100%",maxWidth:420,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
 
