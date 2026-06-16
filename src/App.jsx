@@ -796,71 +796,56 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
 function MoneyScreen({ family, members, familyId, onPts }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
-  const [tab,setTab]       = useState("expenses");
-  const [showE,setShowE]   = useState(false);
-  const [showG,setShowG]   = useState(false);
-  const [editId,setEditId] = useState(null);
-  const [filterWho,setFilterWho] = useState("all");
-  const [nudgedId,setNudgedId]   = useState(null); // nudge handle — wired in Nudge 2.0
-  const [ef,setEf] = useState({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});
-  const [gf,setGf] = useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});
-  const allCats=["🛒","⚡","🏥","🚗","🍔","🎓","🏠","✈️","☕","🎮","👗","💊"];
-  const catCounts=allCats.map(c=>({c,n:expenses.data.filter(e=>e.cat===c).length}));
-  const cats=[...catCounts].sort((a,b)=>b.n-a.n).map(x=>x.c);
+  const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC", TEAL="#E0F7F2", TEALTEXT="#0A6B58";
+
+  // sub-tab: spend | breakdown | insights | more
+  const [tab,setTab]           = useState("spend");
+  const [showMore,setShowMore] = useState(false); // Goals · Score popup
+
+  // spend tab state
+  const [viewBy,setViewBy]     = useState("category");
+  const [drillCat,setDrillCat] = useState(null);
+  const [showE,setShowE]       = useState(false);
+  const [editId,setEditId]     = useState(null);
+  const [nudgeTarget,setNudgeTarget] = useState(null); // {id, label, who, amount} for nudge popup
+  const [nudgedId,setNudgedId] = useState(null);
+  const [deleteConfirm,setDeleteConfirm] = useState(null); // id to confirm delete
+  const [ef,setEf]             = useState({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:"",notes:""});
+  const [showG,setShowG]       = useState(false);
+  const [gf,setGf]             = useState({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});
   const colors=[T.blue,T.rose,T.green,T.lav,T.amber,T.brown];
+
+  // 3-level category system
+  const L1_CATS=[
+    {e:"🏠",l:"Home",    sub:["Rent/EMI","Society","Maintenance","Maid/Help"]},
+    {e:"🍱",l:"Food",    sub:["Groceries","Dining Out","Swiggy/Zomato","Snacks","Milk"]},
+    {e:"📚",l:"Education",sub:["School Fees","Tuition","Books","Supplies","Exam Fees"]},
+    {e:"🚗",l:"Transport",sub:["Petrol","Cab/Ola","Auto","Metro","Parking"]},
+    {e:"💊",l:"Health",  sub:["Medicines","Doctor","Lab Tests","Hospital"]},
+    {e:"🎉",l:"Lifestyle",sub:["Shopping","Salon","Entertainment","Gym","Subscriptions"]},
+    {e:"⚡",l:"Utilities",sub:["Electricity","Gas/LPG","Water","Internet","Mobile"]},
+    {e:"🏖️",l:"Vacation",sub:["Travel","Hotel","Food","Activities"]},
+    {e:"🎯",l:"Others",  sub:["Gifts","Charity","Miscellaneous"]},
+  ];
+  const selL1=L1_CATS.find(c=>c.e===ef.cat)||L1_CATS[1];
+
   const month=new Date().getMonth();
-  const spent=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
-  const filteredExp=filterWho==="all"?expenses.data:expenses.data.filter(e=>e.who===filterWho);
-
-  // Group expenses by date label
-  const groupedExp=filteredExp.reduce((acc,e)=>{
-    const d=new Date(e.date||e.created_at);
-    const today=new Date(); const yesterday=new Date(); yesterday.setDate(today.getDate()-1);
-    const key=d.toDateString()===today.toDateString()?"Today":d.toDateString()===yesterday.toDateString()?"Yesterday":d.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
-    if(!acc[key])acc[key]=[];
-    acc[key].push(e);
-    return acc;
-  },{});
-
-  const handleNudge=(id)=>{
-    setNudgedId(id);
-    setTimeout(()=>setNudgedId(null),2000);
-    // TODO Nudge 2.0: call nudge API here with item context
-  };
-
-  const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label,amount:String(e.amount),cat:e.cat,who:e.who||"",notes:e.notes||"",step:1});setShowE(true);};
-  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});setShowE(false);};
-  const saveExpense=async()=>{
-    if(!ef.amount)return;
-    if(editId){
-      await expenses.update(editId,{label:ef.label,amount:Number(ef.amount),cat:ef.cat,who:ef.who,notes:ef.notes});
-      setEditId(null);
-    } else {
-      await expenses.add({label:ef.label||ef.cat,amount:Number(ef.amount),cat:ef.cat,who:ef.who,notes:ef.notes,date:new Date().toISOString()});
-      await onPts(10);
-    }
-    setEf({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});setShowE(false);
-  };
-
-  const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC";
-  const [viewBy,setViewBy] = useState("category"); // category | person | date
-  const [drillCat,setDrillCat] = useState(null); // which category tile was tapped
-
-  // Category totals for this month
   const monthExp=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month);
-  const catTotals=cats.map(c=>{
-    const catSpent=monthExp.filter(e=>e.cat===c).reduce((s,e)=>s+Number(e.amount),0);
-    const catCount=monthExp.filter(e=>e.cat===c).length;
-    return{c,spent:catSpent,count:catCount};
-  }).filter(x=>x.spent>0).sort((a,b)=>b.spent-a.spent);
-  const topCat=catTotals[0];
+  const spent=monthExp.reduce((s,e)=>s+Number(e.amount),0);
   const budget=family?.monthly_expenses||0;
   const pct=budget>0?Math.min(100,Math.round((spent/budget)*100)):0;
-  const pctColor=pct<60?"#6B8F71":pct<85?"#E8A838":"#C97B84";
 
-  // For date/person views — apply filter then group
-  const baseExp=drillCat?expenses.data.filter(e=>e.cat===drillCat):expenses.data;
-  const viewExp=filterWho==="all"?baseExp:baseExp.filter(e=>e.who===filterWho);
+  // category totals
+  const catMap=L1_CATS.map(c=>{
+    const cs=monthExp.filter(e=>e.cat===c.e).reduce((s,e)=>s+Number(e.amount),0);
+    return{...c,spent:cs,count:monthExp.filter(e=>e.cat===c.e).length};
+  }).filter(c=>c.spent>0).sort((a,b)=>b.spent-a.spent);
+  const topCat=catMap[0];
+
+  // views
+  const viewExp=viewBy==="category"&&drillCat
+    ?expenses.data.filter(e=>e.cat===drillCat)
+    :expenses.data;
 
   const groupedByDate=viewExp.reduce((acc,e)=>{
     const d=new Date(e.date||e.created_at);
@@ -874,144 +859,196 @@ function MoneyScreen({ family, members, familyId, onPts }) {
     if(!acc[key])acc[key]=[];acc[key].push(e);return acc;
   },{});
 
-  const ExpRow=({e,showWho=true})=>(
-    <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderBottom:`1px solid ${T.border}`,minHeight:44,background:"#fff"}}>
-      <span style={{fontSize:20,flexShrink:0}}>{e.cat}</span>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{fontSize:13,fontWeight:600,color:NAV,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e.label||e.cat}</div>
-        {showWho&&e.who&&<div style={{fontSize:11,color:T.muted}}>{e.who}</div>}
+  const groupedByMonth=expenses.data.reduce((acc,e)=>{
+    const key=new Date(e.date||e.created_at).toLocaleDateString("en-IN",{month:"short",year:"numeric"});
+    if(!acc[key])acc[key]=[];acc[key].push(e);return acc;
+  },{});
+
+  // handlers
+  const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label||"",amount:String(e.amount),cat:e.cat||"🍱",subcat:e.subcategory||"",tag:"",who:e.who||"",notes:e.notes||""});setShowE(true);};
+  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:"",notes:""});setShowE(false);};
+  const saveExpense=async()=>{
+    if(!ef.amount)return;
+    const payload={label:ef.label||selL1.l,amount:Number(ef.amount),cat:ef.cat,subcategory:ef.subcat,who:ef.who,notes:ef.notes,date:new Date().toISOString()};
+    if(editId){await expenses.update(editId,payload);setEditId(null);}
+    else{await expenses.add(payload);await onPts(10);}
+    setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:"",notes:""});setShowE(false);
+  };
+  const confirmDelete=(id)=>setDeleteConfirm(id);
+  const doDelete=async()=>{if(deleteConfirm){await expenses.remove(deleteConfirm);setDeleteConfirm(null);}};
+
+  // nudge popup
+  const openNudge=(e)=>setNudgeTarget({id:e.id,label:e.label||e.cat,who:e.who,amount:Number(e.amount)});
+  const sendNudgeNow=()=>{
+    setNudgedId(nudgeTarget?.id);
+    setTimeout(()=>setNudgedId(null),2500);
+    setNudgeTarget(null);
+    // TODO Nudge 2.0: wire to nudge API
+  };
+
+  // full-width expense tile for drill-in
+  const ExpTile=({e})=>(
+    <div style={{background:"#fff",borderRadius:14,border:`0.5px solid #EDE0D0`,padding:"12px 14px",marginBottom:8,boxShadow:"0 1px 4px rgba(0,0,0,0.05)"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+        <span style={{fontSize:22,flexShrink:0}}>{e.cat}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,fontWeight:700,color:NAV,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e.label||e.cat}</div>
+          {e.subcategory&&<div style={{fontSize:10,color:TEALTEXT,fontWeight:700,marginTop:1}}>{e.subcategory}</div>}
+        </div>
+        <div style={{fontWeight:800,color:NAV,fontSize:14,flexShrink:0}}>₹{Number(e.amount).toLocaleString()}</div>
       </div>
-      <div style={{fontWeight:700,color:NAV,fontSize:13,flexShrink:0,marginRight:4}}>₹{Number(e.amount).toLocaleString()}</div>
-      {/* Nudge button — visible, saffron on tap */}
-      <button onClick={()=>handleNudge(e.id)} title="Nudge family member"
-        style={{flexShrink:0,width:30,height:30,borderRadius:"50%",border:`1.5px solid ${nudgedId===e.id?SAF:T.border}`,background:nudgedId===e.id?"#FFF8E8":"transparent",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>
-        {nudgedId===e.id?"✓":"👋"}
-      </button>
-      <button onClick={()=>startEdit(e)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",fontSize:15,padding:"0 2px",color:T.brown}}>✏️</button>
-      <button onClick={()=>expenses.remove(e.id)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",fontSize:18,padding:"0 2px",color:T.muted}}>×</button>
+      <div style={{display:"flex",justifyContent:"space-between",marginBottom:e.notes?6:8}}>
+        <div style={{fontSize:10,color:T.muted}}>{e.who||""}</div>
+        <div style={{fontSize:10,color:T.muted}}>{new Date(e.date||e.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}</div>
+      </div>
+      {e.notes&&<div style={{background:"#FFF8E8",borderRadius:8,padding:"4px 8px",fontSize:10,color:"#8B5E3C",marginBottom:8}}>📝 {e.notes}</div>}
+      <div style={{display:"flex",gap:6,paddingTop:8,borderTop:`0.5px solid #F0EAE0`}}>
+        <button onClick={()=>openNudge(e)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:nudgedId===e.id?"#C5EFE8":TEAL,color:TEALTEXT,fontSize:11,fontWeight:800,cursor:"pointer"}}>
+          {nudgedId===e.id?"✓ Nudged":"👋 Nudge"}
+        </button>
+        <button onClick={()=>startEdit(e)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:"#EEF0FF",color:"#3730A3",fontSize:11,fontWeight:800,cursor:"pointer"}}>✏️ Edit</button>
+        <button onClick={()=>confirmDelete(e.id)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:"#FFF0EC",color:"#9B3A22",fontSize:11,fontWeight:800,cursor:"pointer"}}>🗑 Delete</button>
+      </div>
     </div>
   );
-
-  const catLabels={"🛒":"Groceries","⚡":"Utilities","🏥":"Health","🚗":"Transport","🍔":"Food","🎓":"Education","🏠":"Home","✈️":"Travel","☕":"Misc","🎮":"Entertainment","👗":"Clothing","💊":"Medicine"};
 
   return (
     <div style={{background:CRM,minHeight:"100%",paddingBottom:90}}>
 
-      {/* ── NAVY HERO ── */}
-      <div style={{background:NAV,padding:"20px 20px 24px"}}>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:2}}>{new Date().toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</div>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:700,color:SAF,lineHeight:1}}>₹{spent.toLocaleString()}</div>
-        <div style={{fontSize:13,color:"rgba(255,255,255,0.55)",marginTop:4,marginBottom:14}}>spent{budget>0?` of ₹${budget.toLocaleString()} budget`:""}</div>
-        {/* Budget bar */}
-        {budget>0&&<>
-          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:99,height:6,marginBottom:6}}>
-            <div style={{width:`${pct}%`,background:pctColor,height:"100%",borderRadius:99,transition:"width 0.8s ease"}}/>
-          </div>
-          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{pct}% of budget used</div>
-        </>}
-        {/* 4 stat tiles */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginTop:16}}>
-          {[
-            {label:"Spent",   value:`₹${spent>=1000?Math.round(spent/1000)+"k":spent.toLocaleString()}`, color:SAF},
-            {label:"Left",    value:`₹${Math.max(0,budget-spent)>=1000?Math.round(Math.max(0,budget-spent)/1000)+"k":Math.max(0,budget-spent).toLocaleString()}`, color:"#6B8F71"},
-            {label:"Txns",    value:String(monthExp.length), color:"rgba(255,255,255,0.9)"},
-            {label:"Top",     value:topCat?topCat.c:"—", color:"rgba(255,255,255,0.9)"},
-          ].map(s=>(
-            <div key={s.label} style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"10px 8px",textAlign:"center"}}>
-              <div style={{fontSize:16,fontWeight:800,color:s.color,lineHeight:1}}>{s.value}</div>
-              <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4}}>{s.label}</div>
+      {/* ── SLIM NAVY BAR ── */}
+      <div style={{background:NAV,padding:"12px 16px 14px"}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",fontWeight:700,letterSpacing:0.5,marginBottom:2}}>
+              {new Date().toLocaleDateString("en-IN",{month:"long",year:"numeric"}).toUpperCase()}
             </div>
-          ))}
-        </div>
-      </div>
-
-      {/* ── SUB-TAB PILLS ── */}
-      <div style={{background:"#fff",padding:"12px 16px 0",borderBottom:`1px solid ${T.border}`}}>
-        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12}}>
-          <Pill label="💸 Expenses" active={tab==="expenses"} onClick={()=>setTab("expenses")}/>
-          <Pill label="🎯 Goals"    active={tab==="goals"}    onClick={()=>setTab("goals")}/>
-          <Pill label="📊 Score"    active={tab==="score"}    onClick={()=>setTab("score")}/>
-          <Pill label="📋 Budget"   active={tab==="budget"}   onClick={()=>setTab("budget")}/>
-        </div>
-      </div>
-
-      {tab==="expenses" && <>
-        {/* ── VIEW TOGGLE ── */}
-        <div style={{padding:"14px 16px 10px",background:"#fff",borderBottom:`1px solid ${T.border}`}}>
-          <div style={{display:"flex",background:"#F0EAE0",borderRadius:10,padding:3,gap:2}}>
-            {[["category","By Category"],["date","By Date"],["person","By Person"]].map(([v,l])=>(
-              <button key={v} onClick={()=>{setViewBy(v);setDrillCat(null);setFilterWho("all");}}
-                style={{flex:1,padding:"7px 4px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
-                  background:viewBy===v?NAV:"transparent",color:viewBy===v?"#fff":"#8B5E3C",transition:"all 0.2s"}}>
-                {l}
-              </button>
-            ))}
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:SAF,lineHeight:1}}>
+              ₹{spent.toLocaleString()}
+            </div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:2}}>spent{budget>0?` of ₹${budget.toLocaleString()} budget`:""}</div>
           </div>
+          <div style={{width:3,height:40,background:"rgba(255,255,255,0.1)",borderRadius:99,flexShrink:0}}/>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:"#6B8F71"}}>
+              ₹{Math.max(0,budget-spent).toLocaleString()}
+            </div>
+            <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:2}}>remaining</div>
+          </div>
+        </div>
+        {budget>0&&<div style={{marginTop:10,background:"rgba(255,255,255,0.12)",borderRadius:99,height:3}}>
+          <div style={{width:`${pct}%`,background:pct<60?"#6B8F71":pct<85?SAF:"#C97B84",height:"100%",borderRadius:99,transition:"width 0.8s"}}/>
+        </div>}
+      </div>
+
+      {/* ── SUB-TABS ── */}
+      <div style={{background:"#fff",display:"flex",gap:6,padding:"8px 12px",borderBottom:`0.5px solid #E8E8E8`,overflowX:"auto"}}>
+        {[["spend","💸 Spend"],["breakdown","📊 Breakdown"],["insights","💡 Insights"]].map(([v,l])=>(
+          <button key={v} onClick={()=>setTab(v)}
+            style={{padding:"6px 12px",borderRadius:8,border:"none",fontSize:11,fontWeight:800,cursor:"pointer",whiteSpace:"nowrap",
+              background:tab===v?NAV:"#F0F0F0",color:tab===v?"#fff":"#888"}}>
+            {l}
+          </button>
+        ))}
+        <button onClick={()=>setShowMore(true)}
+          style={{padding:"6px 12px",borderRadius:8,border:`1.5px dashed ${SAF}`,fontSize:11,fontWeight:800,cursor:"pointer",
+            background:"#FFF8E8",color:"#8B5E3C",whiteSpace:"nowrap",marginLeft:"auto"}}>
+          ＋ More
+        </button>
+      </div>
+
+      {/* ── SPEND TAB ── */}
+      {tab==="spend"&&<>
+        {/* 4 filter tiles */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:5,padding:"8px 12px",background:"#fff",borderBottom:`0.5px solid #E8E8E8`}}>
+          {[
+            {v:"category",icon:"🏷️",l:"Category",navy:true},
+            {v:"date",    icon:"📅",l:"Date",     navy:false},
+            {v:"person",  icon:"👤",l:"Person",   navy:true},
+            {v:"month",   icon:"🗓️",l:"Month",    navy:false},
+          ].map(f=>(
+            <button key={f.v} onClick={()=>{setViewBy(f.v);setDrillCat(null);}}
+              style={{padding:"7px 2px",borderRadius:8,border:"none",fontSize:9,fontWeight:800,textAlign:"center",cursor:"pointer",lineHeight:1.3,
+                background:viewBy===f.v?(f.navy?NAV:TEALTEXT):(f.navy?NAV:TEAL),
+                color:viewBy===f.v?"#fff":(f.navy?"#fff":TEALTEXT),
+                opacity:viewBy===f.v?1:0.65}}>
+              <div style={{fontSize:13,marginBottom:2}}>{f.icon}</div>
+              {f.l}
+            </button>
+          ))}
         </div>
 
         {expenses.loading&&<div style={{padding:32}}><Spinner/></div>}
 
-        {/* ── CATEGORY VIEW ── */}
+        {/* ── CATEGORY HOME VIEW ── */}
         {!expenses.loading&&viewBy==="category"&&!drillCat&&(
-          <div style={{padding:"16px 16px 0"}}>
-            {catTotals.length===0&&(
-              <div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}>
-                <div style={{fontSize:40,marginBottom:12}}>💸</div>
-                <div style={{fontWeight:700,color:NAV,marginBottom:4}}>No expenses yet</div>
-                <div style={{fontSize:13}}>Tap + below to log your first one</div>
+          <div style={{padding:"12px 12px 0"}}>
+            {/* ring + stats tile */}
+            {catMap.length>0&&<div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10,display:"flex",alignItems:"center",gap:12}}>
+              <svg width="56" height="56" viewBox="0 0 56 56" style={{flexShrink:0}}>
+                <circle cx="28" cy="28" r="22" fill="none" stroke="#F0EAE0" strokeWidth="7"/>
+                <circle cx="28" cy="28" r="22" fill="none" stroke={SAF} strokeWidth="7"
+                  strokeDasharray={`${138.2*pct/100} 138.2`} strokeDashoffset="0"
+                  strokeLinecap="round" transform="rotate(-90 28 28)"/>
+                <text x="28" y="32" textAnchor="middle" fontFamily="Georgia,serif" fontSize="10" fontWeight="700" fill={NAV}>{pct}%</text>
+              </svg>
+              <div style={{flex:1}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:10,color:T.muted}}>Spent</span><span style={{fontSize:12,fontWeight:800,color:"#C97B84"}}>₹{spent.toLocaleString()}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}><span style={{fontSize:10,color:T.muted}}>Remaining</span><span style={{fontSize:12,fontWeight:800,color:"#6B8F71"}}>₹{Math.max(0,budget-spent).toLocaleString()}</span></div>
+                <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontSize:10,color:T.muted}}>Transactions</span><span style={{fontSize:12,fontWeight:800,color:NAV}}>{monthExp.length}</span></div>
               </div>
-            )}
-            {catTotals.map(({c,spent:cs,count})=>(
-              <div key={c} onClick={()=>setDrillCat(c)}
-                style={{background:"#fff",borderRadius:14,padding:"14px 16px",marginBottom:10,cursor:"pointer",
-                  boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
-                  <span style={{fontSize:28,flexShrink:0}}>{c}</span>
-                  <div style={{flex:1}}>
-                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                      <div style={{fontWeight:700,color:NAV,fontSize:14}}>{catLabels[c]||c}</div>
-                      <div style={{fontWeight:800,color:NAV,fontSize:15}}>₹{cs.toLocaleString()}</div>
-                    </div>
-                    <div style={{fontSize:11,color:T.muted,marginTop:2}}>{count} transaction{count!==1?"s":""}{budget>0?` · ${Math.round((cs/budget)*100)}% of budget`:""}</div>
+            </div>}
+            {catMap.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}>
+              <div style={{fontSize:40,marginBottom:10}}>💸</div>
+              <div style={{fontWeight:700,color:NAV,marginBottom:4}}>No expenses yet</div>
+              <div style={{fontSize:12}}>Tap + to log your first one</div>
+            </div>}
+            {/* 2-col category tiles */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+              {catMap.map(({e,l,spent:cs,count},i)=>(
+                <div key={e} onClick={()=>setDrillCat(e)}
+                  style={{background:i===0?"#FFF8E8":"#fff",borderRadius:12,border:`0.5px solid ${i===0?SAF:"#EDE0D0"}`,padding:"10px",cursor:"pointer"}}>
+                  <div style={{fontSize:22,marginBottom:4}}>{e}</div>
+                  <div style={{fontSize:13,fontWeight:800,color:NAV,lineHeight:1.1}}>₹{cs.toLocaleString()}</div>
+                  <div style={{fontSize:9,color:T.muted,marginTop:3}}>{l} · {count} txn{count!==1?"s":""}</div>
+                  <div style={{height:3,borderRadius:99,background:"#F0EAE0",marginTop:7}}>
+                    <div style={{width:`${Math.min(100,Math.round((cs/spent)*100))}%`,height:"100%",borderRadius:99,
+                      background:budget>0&&cs/budget>0.85?"#C97B84":budget>0&&cs/budget>0.6?"#E8A838":"#6B8F71"}}/>
                   </div>
                 </div>
-                <div style={{background:"#F0EAE0",borderRadius:99,height:5}}>
-                  <div style={{width:`${Math.min(100,Math.round((cs/spent)*100))}%`,
-                    background:cs/budget>0.85?"#C97B84":cs/budget>0.6?"#E8A838":"#6B8F71",
-                    height:"100%",borderRadius:99}}/>
-                </div>
+              ))}
+              {/* Add expense tile */}
+              <div onClick={()=>{setEditId(null);setShowE(true);}}
+                style={{background:"#FFF8E8",borderRadius:12,border:`1.5px dashed ${SAF}`,padding:"10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:80}}>
+                <div style={{width:28,height:28,borderRadius:"50%",background:SAF,color:"#fff",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:5}}>+</div>
+                <div style={{fontSize:10,fontWeight:800,color:"#8B5E3C",textAlign:"center"}}>Add Expense</div>
               </div>
-            ))}
+            </div>
           </div>
         )}
 
-        {/* ── DRILLED CATEGORY VIEW ── */}
+        {/* ── DRILL-IN VIEW ── */}
         {!expenses.loading&&viewBy==="category"&&drillCat&&(
-          <div style={{padding:"12px 16px 0"}}>
-            <button onClick={()=>setDrillCat(null)}
-              style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:4}}>
-              ← All Categories
-            </button>
-            <div style={{fontWeight:700,color:NAV,fontSize:16,marginBottom:12}}>{drillCat} {catLabels[drillCat]||""}</div>
-            <div style={{borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-              {expenses.data.filter(e=>e.cat===drillCat).length===0
-                ?<div style={{padding:24,textAlign:"center",color:T.muted,background:"#fff"}}>No expenses in this category</div>
-                :expenses.data.filter(e=>e.cat===drillCat).map(e=><ExpRow key={e.id} e={e}/>)
-              }
+          <div style={{padding:"10px 12px 0"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:12,padding:"6px 0"}}>
+              <button onClick={()=>setDrillCat(null)} style={{background:"none",border:"none",fontWeight:700,fontSize:12,color:NAV,cursor:"pointer",padding:0}}>← Back</button>
+              <div style={{flex:1,fontWeight:800,color:NAV,fontSize:14}}>{drillCat} {L1_CATS.find(c=>c.e===drillCat)?.l||""}</div>
+              <div style={{fontSize:12,fontWeight:800,color:"#C97B84"}}>₹{catMap.find(c=>c.e===drillCat)?.spent.toLocaleString()||"0"}</div>
             </div>
+            {expenses.data.filter(e=>e.cat===drillCat).length===0
+              ?<div style={{textAlign:"center",padding:32,color:T.muted}}>No expenses in this category</div>
+              :expenses.data.filter(e=>e.cat===drillCat).map(e=><ExpTile key={e.id} e={e}/>)
+            }
           </div>
         )}
 
         {/* ── DATE VIEW ── */}
         {!expenses.loading&&viewBy==="date"&&(
-          <div style={{padding:"16px 16px 0"}}>
-            {viewExp.length===0&&<div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:12}}>📅</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
+          <div style={{padding:"12px 12px 0"}}>
+            {viewExp.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:10}}>📅</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
             {Object.entries(groupedByDate).map(([label,rows])=>(
-              <div key={label} style={{marginBottom:14}}>
-                <div style={{fontSize:11,fontWeight:800,color:T.muted,letterSpacing:0.6,marginBottom:6}}>{label}</div>
-                <div style={{borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-                  {rows.map(e=><ExpRow key={e.id} e={e}/>)}
-                </div>
+              <div key={label} style={{marginBottom:12}}>
+                <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.6,marginBottom:6}}>{label.toUpperCase()}</div>
+                {rows.map(e=><ExpTile key={e.id} e={e}/>)}
               </div>
             ))}
           </div>
@@ -1019,127 +1056,352 @@ function MoneyScreen({ family, members, familyId, onPts }) {
 
         {/* ── PERSON VIEW ── */}
         {!expenses.loading&&viewBy==="person"&&(
-          <div style={{padding:"16px 16px 0"}}>
-            {viewExp.length===0&&<div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:12}}>👤</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
-            {Object.entries(groupedByPerson).map(([person,rows])=>{
-              const personTotal=rows.reduce((s,e)=>s+Number(e.amount),0);
-              return(
-                <div key={person} style={{marginBottom:14}}>
-                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-                    <div style={{fontSize:11,fontWeight:800,color:T.muted,letterSpacing:0.6}}>{person}</div>
-                    <div style={{fontSize:12,fontWeight:700,color:NAV}}>₹{personTotal.toLocaleString()}</div>
-                  </div>
-                  <div style={{borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
-                    {rows.map(e=><ExpRow key={e.id} e={e} showWho={false}/>)}
-                  </div>
+          <div style={{padding:"12px 12px 0"}}>
+            {viewExp.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:10}}>👤</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
+            {Object.entries(groupedByPerson).map(([person,rows])=>(
+              <div key={person} style={{marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.6}}>{person.toUpperCase()}</div>
+                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{rows.reduce((s,e)=>s+Number(e.amount),0).toLocaleString()}</div>
                 </div>
-              );
-            })}
+                {rows.map(e=><ExpTile key={e.id} e={e}/>)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── MONTH VIEW ── */}
+        {!expenses.loading&&viewBy==="month"&&(
+          <div style={{padding:"12px 12px 0"}}>
+            {expenses.data.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:10}}>🗓️</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
+            {Object.entries(groupedByMonth).map(([mo,rows])=>(
+              <div key={mo} style={{marginBottom:12}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                  <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.6}}>{mo.toUpperCase()}</div>
+                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{rows.reduce((s,e)=>s+Number(e.amount),0).toLocaleString()}</div>
+                </div>
+                {rows.map(e=><ExpTile key={e.id} e={e}/>)}
+              </div>
+            ))}
           </div>
         )}
 
         {/* ── FLOATING ADD BUTTON ── */}
         <button onClick={()=>{setEditId(null);setShowE(true);}}
-          style={{position:"fixed",bottom:80,right:20,zIndex:100,width:56,height:56,borderRadius:"50%",
-            background:SAF,border:"none",color:"#fff",fontSize:28,fontWeight:300,cursor:"pointer",
+          style={{position:"fixed",bottom:80,right:20,zIndex:100,width:54,height:54,borderRadius:"50%",
+            background:SAF,border:"none",color:"#fff",fontSize:26,cursor:"pointer",
             boxShadow:"0 4px 16px rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
           +
         </button>
 
-        {/* ── BOTTOM SHEET ── */}
+        {/* ── ADD/EDIT EXPENSE BOTTOM SHEET ── */}
         {showE&&(
           <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
             <div onClick={cancelEdit} style={{flex:1,background:"rgba(0,0,0,0.5)"}}/>
-            <div style={{background:"#fff",borderRadius:"24px 24px 0 0",padding:"0 0 0 0",maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
-              {/* Handle */}
+            <div style={{background:"#fff",borderRadius:"24px 24px 0 0",maxHeight:"92vh",display:"flex",flexDirection:"column"}}>
               <div style={{padding:"12px 20px 0",flexShrink:0}}>
-                <div style={{width:40,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 16px"}}/>
-                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:NAV,fontSize:18,marginBottom:16}}>
-                  {editId?"Edit Expense":"New Expense"}
-                </div>
+                <div style={{width:36,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 12px"}}/>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:NAV,fontSize:17,marginBottom:12}}>{editId?"Edit Expense":"New Expense"}</div>
               </div>
-              {/* Scrollable content */}
-              <div style={{flex:1,overflowY:"auto",padding:"0 20px",paddingBottom:24}}>
-                {/* Amount — big and centred */}
-                <div style={{background:"#F8F4F0",borderRadius:16,padding:"20px 16px",textAlign:"center",marginBottom:16}}>
-                  <div style={{fontSize:12,color:T.muted,marginBottom:8,fontWeight:700,letterSpacing:0.5}}>AMOUNT (₹)</div>
-                  <input
-                    style={{width:"100%",border:"none",background:"transparent",fontSize:36,fontWeight:800,
-                      textAlign:"center",color:NAV,outline:"none",fontFamily:"'Playfair Display',serif"}}
-                    type="number" placeholder="0" value={ef.amount}
-                    onChange={e=>setEf(f=>({...f,amount:e.target.value}))} autoFocus/>
+              <div style={{flex:1,overflowY:"auto",padding:"0 20px 28px"}}>
+                {/* Amount */}
+                <div style={{background:"#F8F4F0",borderRadius:14,padding:"16px",textAlign:"center",marginBottom:16}}>
+                  <div style={{fontSize:10,color:T.muted,marginBottom:6,fontWeight:700,letterSpacing:0.5}}>AMOUNT (₹)</div>
+                  <input style={{width:"100%",border:"none",background:"transparent",fontSize:34,fontWeight:800,textAlign:"center",color:NAV,outline:"none",fontFamily:"'Playfair Display',serif"}}
+                    type="number" placeholder="0" value={ef.amount} onChange={e=>setEf(f=>({...f,amount:e.target.value}))} autoFocus/>
                 </div>
                 {/* Who */}
-                <div style={{marginBottom:16}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>PAID BY</div>
-                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>PAID BY</div>
+                  <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
                     {members?.map(m=>(
                       <button key={m.id} onClick={()=>setEf(f=>({...f,who:m.name}))}
-                        style={{padding:"8px 14px",borderRadius:99,border:`2px solid ${ef.who===m.name?SAF:"#E8DDD0"}`,
-                          background:ef.who===m.name?"#FFF8E8":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",color:NAV}}>
+                        style={{padding:"7px 12px",borderRadius:99,border:`2px solid ${ef.who===m.name?SAF:"#E8DDD0"}`,
+                          background:ef.who===m.name?"#FFF8E8":"#fff",fontWeight:700,fontSize:12,cursor:"pointer",color:NAV}}>
                         {m.emoji} {m.name.split(" ")[0]}
                       </button>
                     ))}
                   </div>
                 </div>
-                {/* Category */}
-                <div style={{marginBottom:16}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>CATEGORY</div>
-                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                    {cats.map(c=>(
-                      <button key={c} onClick={()=>setEf(f=>({...f,cat:c}))}
-                        style={{width:50,height:50,borderRadius:14,border:`2px solid ${ef.cat===c?SAF:"#E8DDD0"}`,
-                          background:ef.cat===c?"#FFF8E8":"#fff",fontSize:24,cursor:"pointer",display:"flex",
-                          alignItems:"center",justifyContent:"center"}}>
-                        {c}
+                {/* Level 1 category */}
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>CATEGORY</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+                    {L1_CATS.map(c=>(
+                      <button key={c.e} onClick={()=>setEf(f=>({...f,cat:c.e,subcat:""}))}
+                        style={{padding:"7px 4px",borderRadius:10,border:`1.5px solid ${ef.cat===c.e?SAF:"#E8DDD0"}`,
+                          background:ef.cat===c.e?"#FFF8E8":"#F8F4F0",cursor:"pointer",textAlign:"center"}}>
+                        <div style={{fontSize:16,marginBottom:2}}>{c.e}</div>
+                        <div style={{fontSize:8,fontWeight:800,color:"#8B5E3C"}}>{c.l}</div>
                       </button>
                     ))}
                   </div>
                 </div>
+                {/* Level 2 subcategory */}
+                <div style={{marginBottom:10}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>SUBCATEGORY <span style={{fontWeight:400,color:T.muted}}>({selL1.l} →)</span></div>
+                  <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
+                    {selL1.sub.map(s=>(
+                      <button key={s} onClick={()=>setEf(f=>({...f,subcat:s}))}
+                        style={{padding:"5px 9px",borderRadius:7,border:`1.5px solid ${ef.subcat===s?NAV:"#E8DDD0"}`,
+                          background:ef.subcat===s?NAV:"#fff",fontSize:10,fontWeight:700,cursor:"pointer",
+                          color:ef.subcat===s?"#fff":NAV}}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Level 3 tag */}
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>TAG <span style={{fontWeight:400,color:T.muted}}>(optional)</span></div>
+                  <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}} value={ef.tag}
+                    onChange={e=>setEf(f=>({...f,tag:e.target.value}))} placeholder="e.g. Pranava's tiffin, work lunch…"/>
+                </div>
                 {/* Description */}
-                <div style={{marginBottom:16}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>DESCRIPTION</div>
-                  <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}}
-                    value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))}
-                    placeholder="e.g. Weekly groceries from DMart"/>
+                <div style={{marginBottom:14}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>DESCRIPTION</div>
+                  <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}} value={ef.label}
+                    onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Punjabi Dhaba dinner"/>
                 </div>
                 {/* Memory note */}
-                <div style={{marginBottom:24}}>
-                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>
-                    MEMORY NOTE <span style={{fontWeight:400,color:T.muted,textTransform:"none",letterSpacing:0}}>(optional)</span>
-                  </div>
-                  <textarea
-                    style={{...inp,height:72,resize:"none",lineHeight:1.6,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}}
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>MEMORY NOTE <span style={{fontWeight:400,color:T.muted}}>(optional)</span></div>
+                  <textarea style={{...inp,height:68,resize:"none",lineHeight:1.6,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}}
                     placeholder="Add a note… (e.g. Pranava's birthday dinner 🎂)"
                     value={ef.notes} onChange={e=>setEf(f=>({...f,notes:e.target.value}))}/>
                 </div>
-                {/* Buttons */}
                 <div style={{display:"flex",gap:10}}>
-                  <button onClick={cancelEdit}
-                    style={{flex:1,padding:14,borderRadius:14,border:"1.5px solid #E8DDD0",
-                      background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:14}}>
-                    Cancel
-                  </button>
-                  <button onClick={saveExpense}
-                    style={{flex:2,padding:14,borderRadius:14,border:"none",background:SAF,
-                      color:"#fff",fontWeight:700,cursor:"pointer",fontSize:15}}>
-                    {editId?"Update":"Save +10pts"}
-                  </button>
+                  <button onClick={cancelEdit} style={{flex:1,padding:13,borderRadius:13,border:"1.5px solid #E8DDD0",background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:13}}>Cancel</button>
+                  <button onClick={saveExpense} style={{flex:2,padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>{editId?"Update":"Save +10pts"}</button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── NUDGE POPUP ── */}
+        {nudgeTarget&&(
+          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+            <div onClick={()=>setNudgeTarget(null)} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
+            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"16px 18px 28px"}}>
+              <div style={{width:32,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 14px"}}/>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4}}>👋 Nudge about this?</div>
+              <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.6}}>
+                {nudgeTarget.who||"Someone"} spent ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}
+              </div>
+              {[
+                {icon:"👋",l:"Nudge now",sub:"Send an instant nudge",bg:TEAL,tc:TEALTEXT,fn:sendNudgeNow},
+                {icon:"⏰",l:"Schedule nudge",sub:"Tonight 8pm · Tomorrow morning · Custom",bg:"#EEF0FF",tc:"#3730A3",fn:()=>setNudgeTarget(null)},
+                {icon:"✍️",l:"Write a message",sub:"Add context before sending",bg:"#FFF0EC",tc:"#9B3A22",fn:()=>setNudgeTarget(null)},
+              ].map(opt=>(
+                <div key={opt.l} onClick={opt.fn}
+                  style={{display:"flex",alignItems:"center",gap:12,background:opt.bg,borderRadius:12,padding:"11px 14px",marginBottom:8,cursor:"pointer"}}>
+                  <div style={{fontSize:20,flexShrink:0}}>{opt.icon}</div>
+                  <div>
+                    <div style={{fontSize:12,fontWeight:800,color:opt.tc}}>{opt.l}</div>
+                    <div style={{fontSize:10,color:T.muted,marginTop:2}}>{opt.sub}</div>
+                  </div>
+                </div>
+              ))}
+              <button onClick={()=>setNudgeTarget(null)} style={{width:"100%",padding:8,background:"transparent",border:"none",fontSize:12,fontWeight:700,color:T.muted,cursor:"pointer",marginTop:4}}>Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {/* ── DELETE CONFIRM ── */}
+        {deleteConfirm&&(
+          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.5)"}}>
+            <div style={{background:"#fff",borderRadius:20,padding:"24px 20px",margin:"0 24px",maxWidth:340,width:"100%"}}>
+              <div style={{fontSize:36,textAlign:"center",marginBottom:12}}>🗑️</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:NAV,textAlign:"center",marginBottom:8}}>Delete this expense?</div>
+              <div style={{fontSize:12,color:T.muted,textAlign:"center",marginBottom:20,lineHeight:1.6}}>This can't be undone.</div>
+              <div style={{display:"flex",gap:10}}>
+                <button onClick={()=>setDeleteConfirm(null)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #E8DDD0",background:"transparent",fontWeight:700,cursor:"pointer",color:T.muted}}>Cancel</button>
+                <button onClick={doDelete} style={{flex:1,padding:12,borderRadius:12,border:"none",background:"#9B3A22",color:"#fff",fontWeight:700,cursor:"pointer"}}>Delete</button>
               </div>
             </div>
           </div>
         )}
       </>}
 
-      {tab==="goals" && <div style={{padding:"16px 16px 0"}}>
-        {goals.loading&&<Spinner/>}
-        {goals.data.map(g=>(<Card key={g.id}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><span style={{fontSize:26}}>{g.emoji}</span><div style={{flex:1}}><div style={{fontWeight:700,fontSize:15,color:T.dark}}>{g.title}</div><div style={{fontSize:12,color:T.muted}}>Target: ₹{Number(g.target).toLocaleString()}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:700,color:g.color,fontSize:15}}>₹{Number(g.saved).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>{Math.round(g.saved/g.target*100)}%</div></div></div><Bar value={Number(g.saved)} max={Number(g.target)} color={g.color}/><button onClick={()=>goals.remove(g.id)} style={{marginTop:8,fontSize:11,color:T.muted,background:"none",border:"none",cursor:"pointer"}}>Remove</button></Card>))}
-        {!goals.loading&&goals.data.length===0&&<Card style={{textAlign:"center",padding:28}}><div style={{fontSize:36,marginBottom:8}}>🎯</div><div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No goals yet</div><div style={{fontSize:12,color:T.muted}}>Dream big — add your first family goal!</div></Card>}
-        {showG?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Goal</div><div style={{marginBottom:10}}><label style={lbl}>Goal Name</label><input style={inp} value={gf.title} onChange={e=>setGf(f=>({...f,title:e.target.value}))} placeholder="e.g. Arya's College Fund"/></div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6}}>{["🎓","✈️","💍","🛡️","🏠","🚗","🎯","💰","🏖️","🎹"].map(e=><button key={e} onClick={()=>setGf(f=>({...f,emoji:e}))} style={{width:36,height:36,borderRadius:8,border:`2px solid ${gf.emoji===e?T.brown:T.border}`,background:gf.emoji===e?T.warm:"#fff",fontSize:18,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Target (₹)</label><input style={inp} type="number" value={gf.target} onChange={e=>setGf(f=>({...f,target:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Already Saved (₹)</label><input style={inp} type="number" value={gf.saved} onChange={e=>setGf(f=>({...f,saved:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Color</label><div style={{display:"flex",gap:8}}>{colors.map(c=><button key={c} onClick={()=>setGf(f=>({...f,color:c}))} style={{width:28,height:28,borderRadius:"50%",background:c,border:`3px solid ${gf.color===c?T.dark:"transparent"}`,cursor:"pointer"}}/>)}</div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowG(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(gf.title&&gf.target){await goals.add({title:gf.title,emoji:gf.emoji,target:Number(gf.target),saved:Number(gf.saved||0),color:gf.color});await onPts(20);setGf({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});setShowG(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save +20pts</button></div></Card>):<button onClick={()=>setShowG(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Goal</button>}
-      </div>}
-      {tab==="score"&&<div style={{padding:"16px 16px 0"}}><FreedomScoreScreen family={family}/></div>}
-      {tab==="budget"&&<div style={{padding:"16px 16px 0"}}><BudgetScreen family={family} expenses={expenses.data}/></div>}
+      {/* ── BREAKDOWN TAB ── */}
+      {tab==="breakdown"&&(
+        <div style={{padding:"12px 12px 0"}}>
+          {/* Fixed/Committed */}
+          <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10}}>
+            <div style={{fontSize:10,fontWeight:800,color:NAV,letterSpacing:0.5,marginBottom:10}}>🔒 FIXED / COMMITTED</div>
+            {[
+              {l:"🏠 Rent / EMI",amt:22000,paid:true},
+              {l:"📚 School fees",amt:8500,paid:true},
+              {l:"⚡ Electricity",amt:3200,paid:false},
+              {l:"📱 Internet + Mobile",amt:1800,paid:true},
+            ].map(r=>(
+              <div key={r.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"0.5px solid #F0EAE0"}}>
+                <div style={{fontSize:11,fontWeight:700,color:NAV}}>{r.l}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{r.amt.toLocaleString()}</div>
+                  <div style={{fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:5,background:r.paid?TEAL:"#FFF0EC",color:r.paid?TEALTEXT:"#9B3A22"}}>{r.paid?"✅ Paid":"❌ Due"}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Variable/Discretionary */}
+          <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10}}>
+            <div style={{fontSize:10,fontWeight:800,color:NAV,letterSpacing:0.5,marginBottom:10}}>🎯 VARIABLE / DISCRETIONARY</div>
+            {catMap.length===0&&<div style={{fontSize:12,color:T.muted,textAlign:"center",padding:"16px 0"}}>Log expenses to see your breakdown</div>}
+            {catMap.map(({e,l,spent:cs})=>(
+              <div key={e} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+                  <div style={{fontSize:11,fontWeight:700,color:NAV}}>{e} {l}</div>
+                  <div style={{fontSize:11,fontWeight:800,color:budget>0&&cs/budget>0.85?"#C97B84":budget>0&&cs/budget>0.6?"#E8A838":"#6B8F71"}}>₹{cs.toLocaleString()}{budget>0?` · ${Math.round((cs/budget)*100)}%`:""}</div>
+                </div>
+                <div style={{height:5,borderRadius:99,background:"#F0EAE0"}}>
+                  <div style={{width:`${Math.min(100,budget>0?Math.round((cs/budget)*100):Math.round((cs/spent)*100))}%`,height:"100%",borderRadius:99,
+                    background:budget>0&&cs/budget>0.85?"#C97B84":budget>0&&cs/budget>0.6?"#E8A838":"#6B8F71",transition:"width 0.6s"}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── INSIGHTS TAB ── */}
+      {tab==="insights"&&(
+        <div style={{padding:"12px 12px 0"}}>
+          {/* Monthly trend */}
+          <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10}}>
+            <div style={{fontSize:10,fontWeight:800,color:NAV,letterSpacing:0.5,marginBottom:4}}>📈 MONTHLY TREND</div>
+            <div style={{fontSize:9,color:T.muted,marginBottom:10}}>Last 6 months · total spend</div>
+            {expenses.data.length<5
+              ?<div style={{fontSize:11,color:T.muted,textAlign:"center",padding:"16px 0"}}>Keep logging to unlock trends (need 5+ expenses)</div>
+              :(()=>{
+                const months=[];
+                for(let i=5;i>=0;i--){const d=new Date();d.setMonth(d.getMonth()-i);months.push({key:d.toLocaleDateString("en-IN",{month:"short"}),m:d.getMonth(),y:d.getFullYear()});}
+                const maxAmt=Math.max(...months.map(mo=>expenses.data.filter(e=>{const d=new Date(e.date||e.created_at);return d.getMonth()===mo.m&&d.getFullYear()===mo.y;}).reduce((s,e)=>s+Number(e.amount),0)),1);
+                return(
+                  <div style={{display:"flex",alignItems:"flex-end",gap:5,height:60,marginBottom:6}}>
+                    {months.map((mo,i)=>{
+                      const amt=expenses.data.filter(e=>{const d=new Date(e.date||e.created_at);return d.getMonth()===mo.m&&d.getFullYear()===mo.y;}).reduce((s,e)=>s+Number(e.amount),0);
+                      const h=Math.round((amt/maxAmt)*52)||2;
+                      const isCur=i===5;
+                      return(
+                        <div key={mo.key} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                          <div style={{fontSize:8,fontWeight:700,color:isCur?SAF:T.muted}}>{amt>0?"₹"+(amt>=1000?Math.round(amt/1000)+"k":amt):""}</div>
+                          <div style={{width:"100%",height:h,borderRadius:"4px 4px 0 0",background:isCur?SAF:TEAL}}/>
+                          <div style={{fontSize:8,color:isCur?SAF:T.muted,fontWeight:isCur?800:400}}>{mo.key}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()
+            }
+          </div>
+          {/* Category pie */}
+          <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10}}>
+            <div style={{fontSize:10,fontWeight:800,color:NAV,letterSpacing:0.5,marginBottom:10}}>🥧 CATEGORY SPLIT</div>
+            {catMap.length===0
+              ?<div style={{fontSize:11,color:T.muted,textAlign:"center",padding:"16px 0"}}>Log expenses to see your split</div>
+              :<div style={{display:"flex",alignItems:"center",gap:12}}>
+                <svg width="64" height="64" viewBox="0 0 64 64" style={{flexShrink:0}}>
+                  {(()=>{
+                    const colors2=["#F4A724","#E0F7F2","#EEF0FF","#FFF0EC","#C5EFE8","#E8A838"];
+                    let angle=0;
+                    return catMap.slice(0,5).map(({e,spent:cs},i)=>{
+                      const pct2=cs/spent;
+                      const sweep=pct2*360;
+                      const r=28,cx=32,cy=32;
+                      const x1=cx+r*Math.cos((angle-90)*Math.PI/180);
+                      const y1=cy+r*Math.sin((angle-90)*Math.PI/180);
+                      angle+=sweep;
+                      const x2=cx+r*Math.cos((angle-90)*Math.PI/180);
+                      const y2=cy+r*Math.sin((angle-90)*Math.PI/180);
+                      const large=sweep>180?1:0;
+                      return <path key={e} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={colors2[i%colors2.length]}/>;
+                    });
+                  })()}
+                  <circle cx="32" cy="32" r="14" fill="#FDF6EC"/>
+                </svg>
+                <div style={{flex:1,display:"flex",flexDirection:"column",gap:5}}>
+                  {catMap.slice(0,4).map(({e,l,spent:cs},i)=>{
+                    const pcts=["#F4A724","#0A6B58","#3730A3","#9B3A22"];
+                    return(
+                      <div key={e} style={{display:"flex",alignItems:"center",gap:6}}>
+                        <div style={{width:8,height:8,borderRadius:2,background:["#F4A724",TEAL,"#EEF0FF","#FFF0EC"][i],border:"0.5px solid #ccc",flexShrink:0}}/>
+                        <div style={{flex:1,fontSize:9,color:NAV}}>{l}</div>
+                        <div style={{fontSize:9,fontWeight:800,color:NAV}}>{Math.round((cs/spent)*100)}%</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            }
+          </div>
+          {/* Patterns */}
+          <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10}}>
+            <div style={{fontSize:10,fontWeight:800,color:NAV,letterSpacing:0.5,marginBottom:10}}>🔍 PATTERNS</div>
+            {expenses.data.length<5
+              ?<div style={{fontSize:11,color:T.muted,textAlign:"center",padding:"16px 0"}}>Keep logging to unlock patterns</div>
+              :[
+                {icon:"✅",text:"All committed bills paid this month",tag:"On track",tagBg:TEAL,tagC:TEALTEXT},
+                {icon:"💡",text:`Top spend: ${topCat?topCat.l:"—"} at ₹${topCat?topCat.spent.toLocaleString():"0"} this month`,tag:"Insight",tagBg:"#EEF0FF",tagC:"#3730A3"},
+                {icon:"⚠️",text:"Set a monthly budget in Profile to unlock smart cautions",tag:"Tip",tagBg:"#FFF0EC",tagC:"#9B3A22"},
+              ].map((p,i)=>(
+                <div key={i} style={{display:"flex",gap:10,background:"#F8F4F0",borderRadius:10,padding:"9px 10px",marginBottom:7}}>
+                  <div style={{fontSize:18,flexShrink:0}}>{p.icon}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:NAV,lineHeight:1.5}}>{p.text}</div>
+                    <div style={{fontSize:8,fontWeight:800,padding:"2px 6px",borderRadius:4,background:p.tagBg,color:p.tagC,display:"inline-block",marginTop:4}}>{p.tag}</div>
+                  </div>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      )}
+
+      {/* ── MORE POPUP (Goals + Score) ── */}
+      {showMore&&(
+        <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+          <div onClick={()=>setShowMore(false)} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
+          <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"16px 18px 32px",maxHeight:"80vh",overflowY:"auto"}}>
+            <div style={{width:32,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 14px"}}/>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:14}}>Goals & Score</div>
+            {/* Goals */}
+            <div style={{marginBottom:14}}>
+              <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.5,marginBottom:8}}>🎯 FAMILY GOALS</div>
+              {goals.loading&&<Spinner/>}
+              {goals.data.map(g=>(<div key={g.id} style={{background:"#F8F4F0",borderRadius:12,padding:"10px 12px",marginBottom:7}}>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+                  <span style={{fontSize:20}}>{g.emoji}</span>
+                  <div style={{flex:1}}><div style={{fontWeight:700,fontSize:12,color:NAV}}>{g.title}</div><div style={{fontSize:10,color:T.muted}}>Target: ₹{Number(g.target).toLocaleString()}</div></div>
+                  <div style={{textAlign:"right"}}><div style={{fontWeight:800,color:g.color,fontSize:12}}>₹{Number(g.saved).toLocaleString()}</div><div style={{fontSize:9,color:T.muted}}>{Math.round(g.saved/g.target*100)}%</div></div>
+                </div>
+                <Bar value={Number(g.saved)} max={Number(g.target)} color={g.color}/>
+              </div>))}
+              {!goals.loading&&goals.data.length===0&&<div style={{fontSize:11,color:T.muted,textAlign:"center",padding:"12px 0"}}>No goals yet</div>}
+              {showG
+                ?<div style={{background:"#F8F4F0",borderRadius:12,padding:"12px"}}>
+                  <div style={{marginBottom:8}}><label style={lbl}>Goal Name</label><input style={inp} value={gf.title} onChange={e=>setGf(f=>({...f,title:e.target.value}))} placeholder="e.g. Arya's College Fund"/></div>
+                  <div style={{marginBottom:8}}><label style={lbl}>Target (₹)</label><input style={inp} type="number" value={gf.target} onChange={e=>setGf(f=>({...f,target:e.target.value}))}/></div>
+                  <div style={{marginBottom:8}}><label style={lbl}>Already Saved (₹)</label><input style={inp} type="number" value={gf.saved} onChange={e=>setGf(f=>({...f,saved:e.target.value}))}/></div>
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setShowG(false)} style={{flex:1,padding:10,borderRadius:10,border:"1.5px solid #E8DDD0",background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700,fontSize:12}}>Cancel</button>
+                    <button onClick={async()=>{if(gf.title&&gf.target){await goals.add({title:gf.title,emoji:gf.emoji,target:Number(gf.target),saved:Number(gf.saved||0),color:gf.color});await onPts(20);setGf({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});setShowG(false);}}} style={{flex:2,padding:10,borderRadius:10,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:12}}>Save +20pts</button>
+                  </div>
+                </div>
+                :<button onClick={()=>setShowG(true)} style={{width:"100%",padding:10,borderRadius:10,border:`2px dashed ${SAF}`,background:"transparent",color:"#8B5E3C",fontWeight:700,fontSize:12,cursor:"pointer",marginTop:4}}>+ Add Goal</button>
+              }
+            </div>
+            {/* Score */}
+            <div>
+              <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.5,marginBottom:8}}>📊 FREEDOM SCORE</div>
+              <FreedomScoreScreen family={family}/>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
