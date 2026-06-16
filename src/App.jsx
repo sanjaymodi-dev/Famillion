@@ -793,6 +793,54 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   );
 }
 
+function MonthView({expenses,NAV,TEAL,TEALTEXT,ExpTile}){
+  const [selMonth,setSelMonth]=useState(()=>new Date().getMonth());
+  const [selYear,setSelYear]=useState(()=>new Date().getFullYear());
+  const prevMonth=()=>{if(selMonth===0){setSelMonth(11);setSelYear(y=>y-1);}else setSelMonth(m=>m-1);};
+  const nextMonth=()=>{if(selMonth===11){setSelMonth(0);setSelYear(y=>y+1);}else setSelMonth(m=>m+1);};
+  const monthLabel=new Date(selYear,selMonth,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+  const monthRows=expenses.data.filter(e=>{const d=new Date(e.date||e.created_at);return d.getMonth()===selMonth&&d.getFullYear()===selYear;});
+  const monthTotal=monthRows.reduce((s,e)=>s+Number(e.amount),0);
+  const today=new Date();
+  const quickMonths=[
+    {m:today.getMonth()===0?11:today.getMonth()-1,y:today.getMonth()===0?today.getFullYear()-1:today.getFullYear()},
+    {m:today.getMonth(),y:today.getFullYear()},
+    {m:today.getMonth()===11?0:today.getMonth()+1,y:today.getMonth()===11?today.getFullYear()+1:today.getFullYear()},
+  ];
+  return(
+    <div style={{padding:"12px 12px 0"}}>
+      <div style={{display:"flex",gap:6,marginBottom:10}}>
+        {quickMonths.map((qm,i)=>{
+          const ql=new Date(qm.y,qm.m,1).toLocaleDateString("en-IN",{month:"short"});
+          const isActive=qm.m===selMonth&&qm.y===selYear;
+          return <button key={i} onClick={()=>{setSelMonth(qm.m);setSelYear(qm.y);}}
+            style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",fontSize:10,fontWeight:800,cursor:"pointer",
+              background:isActive?NAV:TEAL,color:isActive?"#fff":TEALTEXT}}>{ql}{i===1?" (this)":i===2?" →":""}</button>;
+        })}
+      </div>
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+        <button onClick={prevMonth} style={{background:TEAL,border:"none",borderRadius:8,padding:"6px 12px",color:TEALTEXT,fontWeight:800,cursor:"pointer",fontSize:12}}>←</button>
+        <div style={{fontWeight:700,color:NAV,fontSize:13}}>{monthLabel}</div>
+        <button onClick={nextMonth} style={{background:TEAL,border:"none",borderRadius:8,padding:"6px 12px",color:TEALTEXT,fontWeight:800,cursor:"pointer",fontSize:12}}>→</button>
+      </div>
+      {monthRows.length===0
+        ?<div style={{textAlign:"center",padding:"32px 20px",color:T.muted}}>
+            <div style={{fontSize:36,marginBottom:8}}>🗓️</div>
+            <div style={{fontWeight:700,color:NAV,marginBottom:4}}>No expenses in {monthLabel}</div>
+            <div style={{fontSize:12}}>Tap + to add an expense or reminder</div>
+          </div>
+        :<>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,padding:"6px 0",borderBottom:`0.5px solid #EDE0D0`}}>
+            <div style={{fontSize:11,fontWeight:700,color:T.muted}}>{monthRows.length} transactions</div>
+            <div style={{fontSize:12,fontWeight:800,color:NAV}}>₹{monthTotal.toLocaleString()}</div>
+          </div>
+          {monthRows.map(e=><ExpTile key={e.id} e={e}/>)}
+        </>
+      }
+    </div>
+  );
+}
+
 function MoneyScreen({ family, members, familyId, onPts }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
@@ -889,7 +937,6 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   };
 
   // ── BACK BUTTON (Budget tab only) ──
-  const {useEffect,useCallback}=React;
   useEffect(()=>{
     const onBack=(e)=>{
       // close overlays in priority order
@@ -1097,56 +1144,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         )}
 
         {/* ── MONTH VIEW ── */}
-        {!expenses.loading&&viewBy==="month"&&(()=>{
-          const [selMonth,setSelMonth]=React.useState(()=>new Date().getMonth());
-          const [selYear,setSelYear]=React.useState(()=>new Date().getFullYear());
-          const prevMonth=()=>{if(selMonth===0){setSelMonth(11);setSelYear(y=>y-1);}else setSelMonth(m=>m-1);};
-          const nextMonth=()=>{if(selMonth===11){setSelMonth(0);setSelYear(y=>y+1);}else setSelMonth(m=>m+1);};
-          const monthLabel=new Date(selYear,selMonth,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
-          const monthRows=expenses.data.filter(e=>{const d=new Date(e.date||e.created_at);return d.getMonth()===selMonth&&d.getFullYear()===selYear;});
-          const monthTotal=monthRows.reduce((s,e)=>s+Number(e.amount),0);
-          // always show prev, current, next month as quick nav
-          const today=new Date();
-          const quickMonths=[
-            {m:today.getMonth()===0?11:today.getMonth()-1,y:today.getMonth()===0?today.getFullYear()-1:today.getFullYear()},
-            {m:today.getMonth(),y:today.getFullYear()},
-            {m:today.getMonth()===11?0:today.getMonth()+1,y:today.getMonth()===11?today.getFullYear()+1:today.getFullYear()},
-          ];
-          return(
-            <div style={{padding:"12px 12px 0"}}>
-              {/* Quick month pills */}
-              <div style={{display:"flex",gap:6,marginBottom:10}}>
-                {quickMonths.map((qm,i)=>{
-                  const ql=new Date(qm.y,qm.m,1).toLocaleDateString("en-IN",{month:"short"});
-                  const isActive=qm.m===selMonth&&qm.y===selYear;
-                  return <button key={i} onClick={()=>{setSelMonth(qm.m);setSelYear(qm.y);}}
-                    style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",fontSize:10,fontWeight:800,cursor:"pointer",
-                      background:isActive?NAV:TEAL,color:isActive?"#fff":TEALTEXT}}>{ql}{i===1?" (this)":i===2?" →":""}</button>;
-                })}
-              </div>
-              {/* Nav bar */}
-              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-                <button onClick={prevMonth} style={{background:TEAL,border:"none",borderRadius:8,padding:"6px 12px",color:TEALTEXT,fontWeight:800,cursor:"pointer",fontSize:12}}>←</button>
-                <div style={{fontWeight:700,color:NAV,fontSize:13}}>{monthLabel}</div>
-                <button onClick={nextMonth} style={{background:TEAL,border:"none",borderRadius:8,padding:"6px 12px",color:TEALTEXT,fontWeight:800,cursor:"pointer",fontSize:12}}>→</button>
-              </div>
-              {monthRows.length===0
-                ?<div style={{textAlign:"center",padding:"32px 20px",color:T.muted}}>
-                    <div style={{fontSize:36,marginBottom:8}}>🗓️</div>
-                    <div style={{fontWeight:700,color:NAV,marginBottom:4}}>No expenses in {monthLabel}</div>
-                    <div style={{fontSize:12}}>Tap + to add an expense or reminder</div>
-                  </div>
-                :<>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,padding:"6px 0",borderBottom:`0.5px solid #EDE0D0`}}>
-                    <div style={{fontSize:11,fontWeight:700,color:T.muted}}>{monthRows.length} transactions</div>
-                    <div style={{fontSize:12,fontWeight:800,color:NAV}}>₹{monthTotal.toLocaleString()}</div>
-                  </div>
-                  {monthRows.map(e=><ExpTile key={e.id} e={e}/>)}
-                </>
-              }
-            </div>
-          );
-        })()}
+        {!expenses.loading&&viewBy==="month"&&<MonthView expenses={expenses} NAV={NAV} TEAL={TEAL} TEALTEXT={TEALTEXT} ExpTile={ExpTile}/>}
 
         {/* ── FLOATING ADD BUTTON ── */}
         <button onClick={()=>{setEditId(null);setShowE(true);}}
