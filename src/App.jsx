@@ -983,7 +983,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
     const tid=nudgeTarget?.id;
     setNudgedId(tid);
     setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);
-    setTimeout(()=>setNudgedId(null),750);
+    setTimeout(()=>setNudgedId(null),1500);
     // TODO Nudge 2.0: wire to nudge API with nudgeMsg
   };
 
@@ -1035,7 +1035,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
       {/* Inline nudge flash — appears right below buttons for 0.75s */}
       {nudgedId===e.id&&(
         <div style={{marginTop:6,background:TEAL,borderRadius:8,padding:"5px 10px",fontSize:10,fontWeight:800,color:TEALTEXT,
-          display:"flex",alignItems:"center",gap:5,animation:"nudgeFade 0.75s ease forwards"}}>
+          display:"flex",alignItems:"center",gap:5,animation:"nudgeFade 1.5s ease forwards"}}>
           ✓ Nudge sent{e.who?` to ${e.who.split(" ")[0]}`:""}!
           <style>{`@keyframes nudgeFade{0%{opacity:0;transform:translateY(4px)}20%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}`}</style>
         </div>
