@@ -326,7 +326,83 @@ function AuthScreen({ onAuth }) {
   const handleLogin = async () => {
     setLoading(true); setError("");
     const {error} = await sb.auth.signIn(email, password);
-    if (error) { setError(error.message||"Login failed. Check email and password."); setLoading(false); return; }
+    if (error) {
+      let msg = "Sign in failed. Please check your email and password.";
+      if (error.message?.toLowerCase().includes("email not confirmed")) {
+        msg = "Please verify your email first — check your inbox for the confirmation link we sent you.";
+      } else if (error.message?.toLowerCase().includes("invalid login")) {
+        msg = "Incorrect email or password. Please try again.";
+      } else if (error.message) {
+        msg = error.message;
+      }
+      setError(msg); setLoading(false); return;
+    }
+
+    // Complete any pending setup (family creation or join) deferred from before email verification
+    const pendingRaw = localStorage.getItem("fn_pending_setup");
+    if (pendingRaw) {
+      try {
+        const p = JSON.parse(pendingRaw);
+        if (p.type === "join") {
+          // Complete join: create user_profiles row + link/create member
+          const {error:profErr} = await sb.from("user_profiles").insert({
+            id: sb._userId, family_id: p.familyId, display_name: p.displayName,
+            member_id: p.selectedMemberId||null,
+          });
+          if (profErr && !profErr.message?.includes("duplicate")) {
+            console.warn("user_profiles insert error:", profErr.message);
+          }
+          if (p.selectedMemberId) {
+            await sb.from("members").update({name:p.displayName, emoji:p.emoji}).eq("id",p.selectedMemberId);
+          } else {
+            const {data:newMem} = await sb.from("members").insert({
+              family_id:p.familyId, name:p.displayName, emoji:p.emoji,
+              relationship:"", dob:null, occupation:"",
+            }).select();
+            const newId = Array.isArray(newMem)?newMem[0]?.id:newMem?.id;
+            if (newId) await sb.from("user_profiles").update({member_id:newId}).eq("id",sb._userId);
+          }
+        } else {
+          // Complete family creation
+          const {data:famData, error:famErr} = await sb.from("families").insert({
+            name:p.familyName, city:p.city,
+            monthly_income:p.monthly_income, monthly_expenses:p.monthly_expenses,
+            savings:p.savings, debts:p.debts, insurance:p.insurance, age:p.age,
+            points:0, badges:[], invite_code:p.invite_code,
+          }).select();
+          if (!famErr) {
+            const fid = Array.isArray(famData)?famData[0]?.id:famData?.id;
+            if (fid) {
+              await sb.from("user_profiles").insert({
+                id:sb._userId, family_id:fid, display_name:p.email,
+              });
+              if (p.members?.length > 0) {
+                const {data:insertedMembers} = await sb.from("members").insert(
+                  p.members.map(m=>({family_id:fid,...m}))
+                ).select();
+                // Link admin to the member whose name best matches their email username
+                const emailUser = p.email.split("@")[0].toLowerCase();
+                const matched = Array.isArray(insertedMembers)
+                  ? insertedMembers.find(m=>
+                      m.name.toLowerCase().includes(emailUser) ||
+                      emailUser.includes(m.name.toLowerCase().split(" ")[0])
+                    )
+                  : null;
+                const linkMember = matched || (Array.isArray(insertedMembers)?insertedMembers[0]:null);
+                if (linkMember?.id) {
+                  await sb.from("user_profiles").update({member_id:linkMember.id}).eq("id",sb._userId);
+                }
+              }
+            }
+          }
+        }
+        localStorage.removeItem("fn_pending_setup");
+      } catch(setupErr) {
+        console.warn("Pending setup error:", setupErr);
+        localStorage.removeItem("fn_pending_setup");
+      }
+    }
+
     onAuth({id:sb._userId, email}); setLoading(false);
   };
 
@@ -335,23 +411,27 @@ function AuthScreen({ onAuth }) {
     try {
       const {data:authData, error:authError} = await sb.auth.signUp(email, password);
       if (authError) throw new Error(authError.message||"Signup failed");
-      const userId = sb._userId || authData?.user?.id;
+      // With "Confirm email" ON, Supabase returns user.id but no access_token yet.
+      // Store everything in localStorage and complete setup on first sign-in after verification.
+      const userId = authData?.user?.id || sb._userId;
+      if (!userId) throw new Error("Could not get your user ID. Please try again.");
       const inviteRef = `INV-${Math.random().toString(36).substr(2,8).toUpperCase()}`;
-      const {data:famData, error:famErr} = await sb.from("families").insert({
-        name:familyName, city, monthly_income:Number(income)||0, monthly_expenses:Number(expenses)||0,
-        savings:Number(savings)||0, debts:Number(debts)||0, insurance:Number(insurance)||0, age:Number(age)||30,
-        points:0, badges:[], invite_code:inviteRef,
-      }).select();
-      if (famErr) throw new Error(famErr.message||"Could not create family");
-      const fid = Array.isArray(famData) ? famData[0]?.id : famData?.id;
-      if (!fid) throw new Error("Family ID not returned");
-      if (userId) await sb.from("user_profiles").insert({id:userId, family_id:fid, display_name:email, is_admin:true});
-      if (members.length > 0) {
-        const {data:insertedMembers}=await sb.from("members").insert(members.map(m=>({family_id:fid, name:m.name, emoji:m.emoji, relationship:m.relationship||"", dob:m.dob||null, occupation:m.occupation||""}))).select();
-        const adminMember=Array.isArray(insertedMembers)?insertedMembers[0]:null;
-        if(adminMember?.id&&userId)await sb.from("user_profiles").update({member_id:adminMember.id}).eq("id",userId);
-      }
-      setSuccess(`✅ Family created! Invite code: ${inviteRef}. Check email to verify, then sign in.`);
+      const pendingSetup = {
+        type: "create",
+        userId,
+        familyName, city,
+        monthly_income: Number(income)||0,
+        monthly_expenses: Number(expenses)||0,
+        savings: Number(savings)||0,
+        debts: Number(debts)||0,
+        insurance: Number(insurance)||0,
+        age: Number(age)||30,
+        invite_code: inviteRef,
+        members: members.map(m=>({name:m.name, emoji:m.emoji, relationship:m.relationship||"", dob:m.dob||null, occupation:m.occupation||""})),
+        email,
+      };
+      localStorage.setItem("fn_pending_setup", JSON.stringify(pendingSetup));
+      setSuccess(`✅ Almost there! Your family invite code is: ${inviteRef}\n\nA verification email has been sent to ${email}. Click the link in that email, then come back and sign in — your family will be set up automatically.`);
       setMode("login"); setStep(1);
     } catch(e) { setError(e.message); }
     setLoading(false);
@@ -380,23 +460,31 @@ function AuthScreen({ onAuth }) {
 
   const handleJoin=async()=>{
     const finalName=joinName.trim();
+    if(!email.trim()){setError("Please enter your email.");return;}
+    if(password.length<6){setError("Password must be at least 6 characters.");return;}
     if(!finalName){setError("Please enter your name.");return;}
     setLoading(true);setError("");
     try{
       const {data:authData,error:authError}=await sb.auth.signUp(email,password);
-      if(authError)throw new Error(authError.message||"Signup failed");
-      const userId=sb._userId||authData?.user?.id;
-      if(!userId)throw new Error("Could not get user ID after signup. Please try again.");
-      const {error:profErr}=await sb.from("user_profiles").insert({id:userId,family_id:joinFamily.id,display_name:finalName,is_admin:false,member_id:selectedMemberId||null});
-      if(profErr&&!profErr.message?.includes("duplicate"))throw new Error("Could not link you to the family: "+profErr.message);
-      if(selectedMemberId){
-        await sb.from("members").update({name:finalName,emoji:joinEmoji}).eq("id",selectedMemberId);
-      } else {
-        const {data:newMem}=await sb.from("members").insert({family_id:joinFamily.id,name:finalName,emoji:joinEmoji,relationship:"",dob:null,occupation:""});
-        const newId=Array.isArray(newMem)?newMem[0]?.id:newMem?.id;
-        if(newId)await sb.from("user_profiles").update({member_id:newId}).eq("id",userId);
+      // "User already registered" means they tried before — still okay, re-save pending data
+      if(authError&&!authError.message?.toLowerCase().includes("already registered")){
+        throw new Error(authError.message||"Signup failed");
       }
-      setSuccess(`✅ Joined ${joinFamily.name}! Check your email to verify, then sign in.`);
+      // With "Confirm email" ON, we get user.id but no token yet.
+      // Store pending join data — completed after email verify + sign-in.
+      const userId=authData?.user?.id||sb._userId;
+      if(!userId&&!authError)throw new Error("Could not get your user ID. Please try again.");
+      const pendingJoin={
+        type:"join",
+        familyId:joinFamily.id,
+        familyName:joinFamily.name,
+        displayName:finalName,
+        selectedMemberId:selectedMemberId||null,
+        emoji:joinEmoji,
+        email,
+      };
+      localStorage.setItem("fn_pending_setup",JSON.stringify(pendingJoin));
+      setSuccess(`✅ Almost there! A verification email has been sent to ${email}. Click the link to verify, then sign in here and you'll be added to ${joinFamily.name} automatically.`);
       setMode("login");setJoinMode(false);setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);
     }catch(e){setError(e.message);}
     setLoading(false);
