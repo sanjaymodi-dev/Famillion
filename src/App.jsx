@@ -793,6 +793,40 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   );
 }
 
+function PersonBlock({name,pt,count,rows,emoji,cats,pct,color,NAV,ExpTile}){
+  const [showRows,setShowRows]=useState(false);
+  return(
+    <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:8}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+        <span style={{fontSize:22,flexShrink:0}}>{emoji}</span>
+        <div style={{flex:1}}>
+          <div style={{fontSize:13,fontWeight:800,color:NAV}}>{name}</div>
+          <div style={{fontSize:10,color:T.muted}}>{count} txn{count!==1?"s":""}</div>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:14,fontWeight:800,color:NAV}}>₹{pt.toLocaleString()}</div>
+          <div style={{fontSize:10,color:T.muted}}>{pct}% of total</div>
+        </div>
+      </div>
+      <div style={{height:5,borderRadius:99,background:"#F0EAE0",marginBottom:8}}>
+        <div style={{width:`${pct}%`,height:"100%",borderRadius:99,background:color}}/>
+      </div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:8}}>
+        {cats.map(dc=>(
+          <div key={dc.c} style={{background:"#F8F4F0",borderRadius:6,padding:"3px 8px",fontSize:9,fontWeight:700,color:NAV}}>
+            {dc.c} {dc.l} ₹{dc.amt>=1000?Math.round(dc.amt/1000)+"k":dc.amt}
+          </div>
+        ))}
+      </div>
+      <button onClick={()=>setShowRows(s=>!s)}
+        style={{width:"100%",padding:"5px",borderRadius:7,border:"none",background:"#F8F4F0",color:T.muted,fontSize:10,fontWeight:700,cursor:"pointer"}}>
+        {showRows?`▲ Hide expenses`:`▼ View all ${count} expenses`}
+      </button>
+      {showRows&&<div style={{marginTop:8}}>{rows.map(e=><ExpTile key={e.id} e={e}/>)}</div>}
+    </div>
+  );
+}
+
 function MonthView({expenses,NAV,TEAL,TEALTEXT,ExpTile}){
   const [selMonth,setSelMonth]=useState(()=>new Date().getMonth());
   const [selYear,setSelYear]=useState(()=>new Date().getFullYear());
@@ -852,6 +886,15 @@ function MoneyScreen({ family, members, familyId, onPts }) {
 
   // spend tab state
   const [viewBy,setViewBy]     = useState("category");
+  // auto-detect logged-in member name
+  const myName=members?.find(m=>m.name.toLowerCase().includes((family?._userEmail||"").split("@")[0].toLowerCase()))?.name
+    ||members?.find(m=>m.id===family?._memberId)?.name
+    ||members?.[0]?.name||"";
+
+  const [dateFrom,setDateFrom] = useState("");
+  const [dateTo,setDateTo]     = useState("");
+  const [dateApplied,setDateApplied] = useState(false);
+
   const [drillCat,setDrillCat] = useState(null);
   const [showE,setShowE]       = useState(false);
   const [editId,setEditId]     = useState(null);
@@ -920,27 +963,27 @@ function MoneyScreen({ family, members, familyId, onPts }) {
 
   // handlers
   const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label||"",amount:String(e.amount),cat:e.cat||"🍱",subcat:e.subcategory||"",tag:"",who:e.who||"",notes:e.notes||""});setShowE(true);};
-  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:"",notes:""});setShowE(false);};
+  const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:myName,notes:""});setShowE(false);};
+  const openNewExpense=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:myName,notes:""});setShowE(true);};
   const saveExpense=async()=>{
     if(!ef.amount)return;
     const payload={label:ef.label||selL1.l,amount:Number(ef.amount),cat:ef.cat,subcategory:ef.subcat,who:ef.who,notes:ef.notes,date:new Date().toISOString()};
     if(editId){await expenses.update(editId,payload);setEditId(null);}
     else{await expenses.add(payload);await onPts(10);}
-    setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:"",notes:""});setShowE(false);
+    setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:myName,notes:""});setShowE(false);
   };
   const confirmDelete=(id)=>setDeleteConfirm(id);
   const doDelete=async()=>{if(deleteConfirm){await expenses.remove(deleteConfirm);setDeleteConfirm(null);}};
 
-  const [nudgeToast,setNudgeToast] = useState(null); // {msg} shown briefly
+  const [nudgeToast,setNudgeToast] = useState(null);
   const [nudgeMsg,setNudgeMsg] = useState("");
   const [nudgeMsgMode,setNudgeMsgMode] = useState(false);
   const openNudge=(e)=>{setNudgeTarget({id:e.id,label:e.label||e.cat,who:e.who,amount:Number(e.amount)});setNudgeMsg("");setNudgeMsgMode(false);};
   const sendNudgeNow=()=>{
-    const toastMsg=nudgeMsg.trim()?`👋 Nudge sent to ${nudgeTarget?.who||"family"}!`:"👋 Nudge sent!";
-    setNudgedId(nudgeTarget?.id);
+    const tid=nudgeTarget?.id;
+    setNudgedId(tid);
     setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);
-    setNudgeToast(toastMsg);
-    setTimeout(()=>{setNudgedId(null);setNudgeToast(null);},3000);
+    setTimeout(()=>setNudgedId(null),750);
     // TODO Nudge 2.0: wire to nudge API with nudgeMsg
   };
 
@@ -983,12 +1026,20 @@ function MoneyScreen({ family, members, familyId, onPts }) {
       </div>
       {e.notes&&<div style={{background:"#FFF8E8",borderRadius:8,padding:"4px 8px",fontSize:10,color:"#8B5E3C",marginBottom:8}}>📝 {e.notes}</div>}
       <div style={{display:"flex",gap:6,paddingTop:8,borderTop:`0.5px solid #F0EAE0`}}>
-        <button onClick={()=>openNudge(e)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:nudgedId===e.id?"#C5EFE8":TEAL,color:TEALTEXT,fontSize:11,fontWeight:800,cursor:"pointer"}}>
-          {nudgedId===e.id?"✓ Nudged":"👋 Nudge"}
+        <button onClick={()=>openNudge(e)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:TEAL,color:TEALTEXT,fontSize:11,fontWeight:800,cursor:"pointer"}}>
+          👋 Nudge
         </button>
         <button onClick={()=>startEdit(e)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:"#EEF0FF",color:"#3730A3",fontSize:11,fontWeight:800,cursor:"pointer"}}>✏️ Edit</button>
         <button onClick={()=>confirmDelete(e.id)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:"#FFF0EC",color:"#9B3A22",fontSize:11,fontWeight:800,cursor:"pointer"}}>🗑 Delete</button>
       </div>
+      {/* Inline nudge flash — appears right below buttons for 0.75s */}
+      {nudgedId===e.id&&(
+        <div style={{marginTop:6,background:TEAL,borderRadius:8,padding:"5px 10px",fontSize:10,fontWeight:800,color:TEALTEXT,
+          display:"flex",alignItems:"center",gap:5,animation:"nudgeFade 0.75s ease forwards"}}>
+          ✓ Nudge sent{e.who?` to ${e.who.split(" ")[0]}`:""}!
+          <style>{`@keyframes nudgeFade{0%{opacity:0;transform:translateY(4px)}20%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}`}</style>
+        </div>
+      )}
     </div>
   );
 
@@ -1098,7 +1149,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
                 </div>
               ))}
               {/* Add expense tile */}
-              <div onClick={()=>{setEditId(null);setShowE(true);}}
+              <div onClick={openNewExpense}
                 style={{background:"#FFF8E8",borderRadius:12,border:`1.5px dashed ${SAF}`,padding:"10px",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",minHeight:80}}>
                 <div style={{width:28,height:28,borderRadius:"50%",background:SAF,color:"#fff",fontSize:18,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:5}}>+</div>
                 <div style={{fontSize:10,fontWeight:800,color:"#8B5E3C",textAlign:"center"}}>Add Expense</div>
@@ -1123,48 +1174,133 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         )}
 
         {/* ── DATE VIEW ── */}
-        {!expenses.loading&&viewBy==="date"&&(
-          <div style={{padding:"12px 12px 0"}}>
-            {viewExp.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:10}}>📅</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
-            {Object.entries(groupedByDate).map(([label,rows])=>(
-              <div key={label} style={{marginBottom:12}}>
-                <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.6,marginBottom:6}}>{label.toUpperCase()}</div>
-                {rows.map(e=><ExpTile key={e.id} e={e}/>)}
+        {!expenses.loading&&viewBy==="date"&&(()=>{
+          const allExp=expenses.data;
+          // filtered by date range if applied
+          const filtered=dateApplied&&dateFrom&&dateTo
+            ?allExp.filter(e=>{const d=new Date(e.date||e.created_at);return d>=new Date(dateFrom)&&d<=new Date(dateTo+"T23:59:59");})
+            :allExp;
+          const total=filtered.reduce((s,e)=>s+Number(e.amount),0);
+          const days=[...new Set(filtered.map(e=>new Date(e.date||e.created_at).toDateString()))];
+          const avgDay=days.length>0?Math.round(total/days.length):0;
+          // group by date
+          const grouped=filtered.reduce((acc,e)=>{
+            const d=new Date(e.date||e.created_at);
+            const today=new Date();const yest=new Date();yest.setDate(today.getDate()-1);
+            const key=d.toDateString()===today.toDateString()?"Today":d.toDateString()===yest.toDateString()?"Yesterday":d.toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"});
+            if(!acc[key]){acc[key]={rows:[],dt:d};}acc[key].rows.push(e);return acc;
+          },{});
+          const maxDay=Math.max(...Object.values(grouped).map(g=>g.rows.reduce((s,e)=>s+Number(e.amount),0)),1);
+          return(
+            <div style={{padding:"10px 12px 0"}}>
+              {/* Date range picker */}
+              <div style={{background:"#fff",borderRadius:10,border:"0.5px solid #EDE0D0",padding:"8px 10px",marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                <input type="date" value={dateFrom} onChange={e=>setDateFrom(e.target.value)}
+                  style={{flex:1,border:"none",background:"#F8F4F0",borderRadius:6,padding:"5px 7px",fontSize:10,color:NAV,fontWeight:700}}/>
+                <span style={{fontSize:10,color:T.muted,flexShrink:0}}>→</span>
+                <input type="date" value={dateTo} onChange={e=>setDateTo(e.target.value)}
+                  style={{flex:1,border:"none",background:"#F8F4F0",borderRadius:6,padding:"5px 7px",fontSize:10,color:NAV,fontWeight:700}}/>
+                <button onClick={()=>setDateApplied(dateFrom&&dateTo?true:false)}
+                  style={{background:NAV,color:"#fff",border:"none",borderRadius:6,padding:"5px 10px",fontSize:9,fontWeight:800,cursor:"pointer",flexShrink:0}}>Apply</button>
+                {dateApplied&&<button onClick={()=>{setDateFrom("");setDateTo("");setDateApplied(false);}}
+                  style={{background:"#F0F0F0",color:T.muted,border:"none",borderRadius:6,padding:"5px 8px",fontSize:9,fontWeight:800,cursor:"pointer",flexShrink:0}}>✕</button>}
               </div>
-            ))}
-          </div>
-        )}
+              {/* Summary strip */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+                {[{v:`₹${total>=1000?Math.round(total/1000)+"k":total.toLocaleString()}`,l:"Total",c:"#C97B84"},
+                  {v:String(filtered.length),l:"Transactions",c:NAV},
+                  {v:`₹${avgDay>=1000?Math.round(avgDay/1000)+"k":avgDay.toLocaleString()}`,l:"Daily avg",c:"#6B8F71"}
+                ].map(s=>(
+                  <div key={s.l} style={{background:"#fff",borderRadius:9,border:"0.5px solid #EDE0D0",padding:"7px 8px",textAlign:"center"}}>
+                    <div style={{fontSize:12,fontWeight:800,color:s.c}}>{s.v}</div>
+                    <div style={{fontSize:8,color:T.muted,marginTop:2}}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+              {filtered.length===0&&<div style={{textAlign:"center",padding:"32px 0",color:T.muted}}><div style={{fontSize:36,marginBottom:8}}>📅</div><div style={{fontWeight:700,color:NAV}}>No expenses in this range</div></div>}
+              {/* Date groups */}
+              {Object.entries(grouped).map(([label,{rows}])=>{
+                const dayTotal=rows.reduce((s,e)=>s+Number(e.amount),0);
+                const barW=Math.round((dayTotal/maxDay)*100);
+                // cat breakdown for this day
+                const dayCats=[...new Set(rows.map(e=>e.cat))].map(c=>({
+                  c,l:L1_CATS.find(l=>l.e===c)?.l||c,
+                  amt:rows.filter(e=>e.cat===c).reduce((s,e)=>s+Number(e.amount),0)
+                })).sort((a,b)=>b.amt-a.amt);
+                return(
+                  <div key={label} style={{marginBottom:12}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                      <div style={{fontSize:10,fontWeight:800,color:NAV}}>{label}</div>
+                      <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{dayTotal.toLocaleString()}</div>
+                    </div>
+                    <div style={{height:3,borderRadius:99,background:"#F0EAE0",marginBottom:6}}>
+                      <div style={{width:`${barW}%`,height:"100%",borderRadius:99,background:SAF}}/>
+                    </div>
+                    {rows.map(e=><ExpTile key={e.id} e={e}/>)}
+                    {/* Category chips for this day */}
+                    <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:2,marginBottom:4}}>
+                      {dayCats.map(dc=>(
+                        <div key={dc.c} style={{background:"#F8F4F0",borderRadius:6,padding:"3px 7px",fontSize:8,fontWeight:700,color:NAV}}>
+                          {dc.c} {dc.l} ₹{dc.amt>=1000?Math.round(dc.amt/1000)+"k":dc.amt}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ── PERSON VIEW ── */}
-        {!expenses.loading&&viewBy==="person"&&(
-          <div style={{padding:"12px 12px 0"}}>
-            {viewExp.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:10}}>👤</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
-            {Object.entries(groupedByPerson).map(([person,rows])=>(
-              <div key={person} style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.6}}>{person.toUpperCase()}</div>
-                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{rows.reduce((s,e)=>s+Number(e.amount),0).toLocaleString()}</div>
-                </div>
-                {rows.map(e=><ExpTile key={e.id} e={e}/>)}
+        {!expenses.loading&&viewBy==="person"&&(()=>{
+          const allExp=expenses.data;
+          const total=allExp.reduce((s,e)=>s+Number(e.amount),0);
+          const byPerson=allExp.reduce((acc,e)=>{const k=e.who||"Unknown";if(!acc[k])acc[k]=[];acc[k].push(e);return acc;},{});
+          const personTotals=Object.entries(byPerson).map(([name,rows])=>({
+            name,
+            total:rows.reduce((s,e)=>s+Number(e.amount),0),
+            count:rows.length,
+            rows,
+            emoji:members?.find(m=>m.name===name)?.emoji||"👤",
+            cats:[...new Set(rows.map(e=>e.cat))].map(c=>({
+              c,l:L1_CATS.find(l=>l.e===c)?.l||c,
+              amt:rows.filter(e=>e.cat===c).reduce((s,e)=>s+Number(e.amount),0)
+            })).sort((a,b)=>b.amt-a.amt).slice(0,3)
+          })).sort((a,b)=>b.total-a.total);
+          const perHead=personTotals.length>0?Math.round(total/personTotals.length):0;
+          const barColors=["#F4A724","#6B8F71","#E0F7F2","#EEF0FF","#FFF0EC"];
+          return(
+            <div style={{padding:"10px 12px 0"}}>
+              {/* Summary strip */}
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+                {[{v:`₹${total>=1000?Math.round(total/1000)+"k":total.toLocaleString()}`,l:"Total",c:"#C97B84"},
+                  {v:String(personTotals.length),l:"Members",c:NAV},
+                  {v:`₹${perHead>=1000?Math.round(perHead/1000)+"k":perHead.toLocaleString()}`,l:"Per person",c:"#6B8F71"}
+                ].map(s=>(
+                  <div key={s.l} style={{background:"#fff",borderRadius:9,border:"0.5px solid #EDE0D0",padding:"7px 8px",textAlign:"center"}}>
+                    <div style={{fontSize:12,fontWeight:800,color:s.c}}>{s.v}</div>
+                    <div style={{fontSize:8,color:T.muted,marginTop:2}}>{s.l}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+              {personTotals.length===0&&<div style={{textAlign:"center",padding:"32px 0",color:T.muted}}><div style={{fontSize:36,marginBottom:8}}>👤</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
+              {/* Per-person blocks */}
+              {personTotals.map(({name,total:pt,count,rows,emoji,cats},i)=>{
+                const pct=total>0?Math.round((pt/total)*100):0;
+                return(
+                  <PersonBlock key={name} name={name} pt={pt} count={count} rows={rows} emoji={emoji} cats={cats} pct={pct} color={barColors[i%barColors.length]} NAV={NAV} ExpTile={ExpTile}/>
+                );
+              })}
+            </div>
+          );
+        })()}
 
         {/* ── MONTH VIEW ── */}
         {!expenses.loading&&viewBy==="month"&&<MonthView expenses={expenses} NAV={NAV} TEAL={TEAL} TEALTEXT={TEALTEXT} ExpTile={ExpTile}/>}
 
-        {/* ── NUDGE TOAST ── */}
-        {nudgeToast&&(
-          <div style={{position:"fixed",top:80,left:"50%",transform:"translateX(-50%)",zIndex:400,
-            background:NAV,color:"#fff",borderRadius:12,padding:"10px 20px",fontSize:13,fontWeight:700,
-            boxShadow:"0 4px 20px rgba(0,0,0,0.2)",whiteSpace:"nowrap"}}>
-            {nudgeToast}
-          </div>
-        )}
-
         {/* ── FLOATING ADD BUTTON ── */}
-        <button onClick={()=>{setEditId(null);setShowE(true);}}
+        <button onClick={openNewExpense}
           style={{position:"fixed",bottom:80,right:20,zIndex:100,width:54,height:54,borderRadius:"50%",
             background:SAF,border:"none",color:"#fff",fontSize:26,cursor:"pointer",
             boxShadow:"0 4px 16px rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
@@ -1199,6 +1335,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
                       </button>
                     ))}
                   </div>
+                  {myName&&ef.who===myName&&<div style={{fontSize:9,color:T.muted,marginTop:5}}>Auto-selected based on your account</div>}
                 </div>
                 {/* Level 1 category */}
                 <div style={{marginBottom:10}}>
