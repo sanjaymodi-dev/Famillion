@@ -842,113 +842,304 @@ function MoneyScreen({ family, members, familyId, onPts }) {
     setEf({label:"",amount:"",cat:"🛒",who:"",notes:"",step:1});setShowE(false);
   };
 
-  const SAF="#F4A724", NAV="#0F1F3D";
+  const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC";
+  const [viewBy,setViewBy] = useState("category"); // category | person | date
+  const [drillCat,setDrillCat] = useState(null); // which category tile was tapped
+
+  // Category totals for this month
+  const monthExp=expenses.data.filter(e=>new Date(e.date||e.created_at).getMonth()===month);
+  const catTotals=cats.map(c=>{
+    const catSpent=monthExp.filter(e=>e.cat===c).reduce((s,e)=>s+Number(e.amount),0);
+    const catCount=monthExp.filter(e=>e.cat===c).length;
+    return{c,spent:catSpent,count:catCount};
+  }).filter(x=>x.spent>0).sort((a,b)=>b.spent-a.spent);
+  const topCat=catTotals[0];
+  const budget=family?.monthly_expenses||0;
+  const pct=budget>0?Math.min(100,Math.round((spent/budget)*100)):0;
+  const pctColor=pct<60?"#6B8F71":pct<85?"#E8A838":"#C97B84";
+
+  // For date/person views — apply filter then group
+  const baseExp=drillCat?expenses.data.filter(e=>e.cat===drillCat):expenses.data;
+  const viewExp=filterWho==="all"?baseExp:baseExp.filter(e=>e.who===filterWho);
+
+  const groupedByDate=viewExp.reduce((acc,e)=>{
+    const d=new Date(e.date||e.created_at);
+    const today=new Date(); const yest=new Date(); yest.setDate(today.getDate()-1);
+    const key=d.toDateString()===today.toDateString()?"Today":d.toDateString()===yest.toDateString()?"Yesterday":d.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+    if(!acc[key])acc[key]=[];acc[key].push(e);return acc;
+  },{});
+
+  const groupedByPerson=viewExp.reduce((acc,e)=>{
+    const key=e.who||"Unknown";
+    if(!acc[key])acc[key]=[];acc[key].push(e);return acc;
+  },{});
+
+  const ExpRow=({e,showWho=true})=>(
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderBottom:`1px solid ${T.border}`,minHeight:44,background:"#fff"}}>
+      <span style={{fontSize:20,flexShrink:0}}>{e.cat}</span>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{fontSize:13,fontWeight:600,color:NAV,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e.label||e.cat}</div>
+        {showWho&&e.who&&<div style={{fontSize:11,color:T.muted}}>{e.who}</div>}
+      </div>
+      <div style={{fontWeight:700,color:NAV,fontSize:13,flexShrink:0,marginRight:4}}>₹{Number(e.amount).toLocaleString()}</div>
+      {/* Nudge button — visible, saffron on tap */}
+      <button onClick={()=>handleNudge(e.id)} title="Nudge family member"
+        style={{flexShrink:0,width:30,height:30,borderRadius:"50%",border:`1.5px solid ${nudgedId===e.id?SAF:T.border}`,background:nudgedId===e.id?"#FFF8E8":"transparent",cursor:"pointer",fontSize:14,display:"flex",alignItems:"center",justifyContent:"center",transition:"all 0.2s"}}>
+        {nudgedId===e.id?"✓":"👋"}
+      </button>
+      <button onClick={()=>startEdit(e)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",fontSize:15,padding:"0 2px",color:T.brown}}>✏️</button>
+      <button onClick={()=>expenses.remove(e.id)} style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",fontSize:18,padding:"0 2px",color:T.muted}}>×</button>
+    </div>
+  );
+
+  const catLabels={"🛒":"Groceries","⚡":"Utilities","🏥":"Health","🚗":"Transport","🍔":"Food","🎓":"Education","🏠":"Home","✈️":"Travel","☕":"Misc","🎮":"Entertainment","👗":"Clothing","💊":"Medicine"};
 
   return (
-    <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Family Finances</div>
-      <div style={{display:"flex",gap:8,marginBottom:16,overflowX:"auto",paddingBottom:4}}>
-        <Pill label="💸 Expenses" active={tab==="expenses"} onClick={()=>setTab("expenses")}/>
-        <Pill label="🎯 Goals"    active={tab==="goals"}    onClick={()=>setTab("goals")}/>
-        <Pill label="📊 Score"    active={tab==="score"}    onClick={()=>setTab("score")}/>
-        <Pill label="📋 Budget"   active={tab==="budget"}   onClick={()=>setTab("budget")}/>
+    <div style={{background:CRM,minHeight:"100%",paddingBottom:90}}>
+
+      {/* ── NAVY HERO ── */}
+      <div style={{background:NAV,padding:"20px 20px 24px"}}>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.5)",marginBottom:2}}>{new Date().toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:36,fontWeight:700,color:SAF,lineHeight:1}}>₹{spent.toLocaleString()}</div>
+        <div style={{fontSize:13,color:"rgba(255,255,255,0.55)",marginTop:4,marginBottom:14}}>spent{budget>0?` of ₹${budget.toLocaleString()} budget`:""}</div>
+        {/* Budget bar */}
+        {budget>0&&<>
+          <div style={{background:"rgba(255,255,255,0.15)",borderRadius:99,height:6,marginBottom:6}}>
+            <div style={{width:`${pct}%`,background:pctColor,height:"100%",borderRadius:99,transition:"width 0.8s ease"}}/>
+          </div>
+          <div style={{fontSize:11,color:"rgba(255,255,255,0.45)"}}>{pct}% of budget used</div>
+        </>}
+        {/* 4 stat tiles */}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8,marginTop:16}}>
+          {[
+            {label:"Spent",   value:`₹${spent>=1000?Math.round(spent/1000)+"k":spent.toLocaleString()}`, color:SAF},
+            {label:"Left",    value:`₹${Math.max(0,budget-spent)>=1000?Math.round(Math.max(0,budget-spent)/1000)+"k":Math.max(0,budget-spent).toLocaleString()}`, color:"#6B8F71"},
+            {label:"Txns",    value:String(monthExp.length), color:"rgba(255,255,255,0.9)"},
+            {label:"Top",     value:topCat?topCat.c:"—", color:"rgba(255,255,255,0.9)"},
+          ].map(s=>(
+            <div key={s.label} style={{background:"rgba(255,255,255,0.08)",borderRadius:12,padding:"10px 8px",textAlign:"center"}}>
+              <div style={{fontSize:16,fontWeight:800,color:s.color,lineHeight:1}}>{s.value}</div>
+              <div style={{fontSize:10,color:"rgba(255,255,255,0.4)",marginTop:4}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* ── SUB-TAB PILLS ── */}
+      <div style={{background:"#fff",padding:"12px 16px 0",borderBottom:`1px solid ${T.border}`}}>
+        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12}}>
+          <Pill label="💸 Expenses" active={tab==="expenses"} onClick={()=>setTab("expenses")}/>
+          <Pill label="🎯 Goals"    active={tab==="goals"}    onClick={()=>setTab("goals")}/>
+          <Pill label="📊 Score"    active={tab==="score"}    onClick={()=>setTab("score")}/>
+          <Pill label="📋 Budget"   active={tab==="budget"}   onClick={()=>setTab("budget")}/>
+        </div>
       </div>
 
       {tab==="expenses" && <>
-        {/* Summary bar */}
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>💸</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.rose}}>₹{spent.toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Spent this month</div></Card>
-          <Card style={{marginBottom:0}}><div style={{fontSize:20,marginBottom:4}}>🏦</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:T.green}}>₹{Math.max(0,(family?.monthly_expenses||0)-spent).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>Remaining</div></Card>
-        </div>
-        {/* Who filter */}
-        <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto",paddingBottom:4}}>
-          <Pill label="All" active={filterWho==="all"} onClick={()=>setFilterWho("all")} color={T.teal}/>
-          {members?.map(m=><Pill key={m.id} label={m.name} active={filterWho===m.name} onClick={()=>setFilterWho(m.name)} color={T.teal}/>)}
-        </div>
-        {/* Expense list — compact rows grouped by date */}
-        {expenses.loading&&<Spinner/>}
-        {!expenses.loading&&filteredExp.length===0&&<Card style={{textAlign:"center",padding:28}}><div style={{fontSize:36,marginBottom:8}}>💸</div><div style={{fontWeight:700,color:T.dark,marginBottom:4}}>Nothing logged yet</div><div style={{fontSize:12,color:T.muted}}>Add your first expense below</div></Card>}
-        {Object.entries(groupedExp).map(([dateLabel,rows])=>(
-          <div key={dateLabel} style={{marginBottom:12}}>
-            <div style={{fontSize:11,fontWeight:800,color:T.muted,letterSpacing:0.6,marginBottom:6}}>{dateLabel}</div>
-            <div style={{background:T.card,borderRadius:14,overflow:"hidden",boxShadow:"0 1px 6px rgba(0,0,0,0.05)"}}>
-              {rows.map((e,i)=>(
-                <div key={e.id} style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px",borderBottom:i<rows.length-1?`1px solid ${T.border}`:"none",minHeight:44}}>
-                  <span style={{fontSize:20,flexShrink:0}}>{e.cat}</span>
-                  <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:13,fontWeight:600,color:T.dark,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{e.label}</div>
-                    {e.who&&<div style={{fontSize:11,color:T.muted}}>{e.who}</div>}
-                  </div>
-                  <div style={{fontWeight:700,color:T.dark,fontSize:13,flexShrink:0}}>₹{Number(e.amount).toLocaleString()}</div>
-                  <button onClick={()=>handleNudge(e.id)} title="Nudge" style={{background:"none",border:"none",cursor:"pointer",fontSize:14,padding:"0 2px",opacity:0.5}}>{nudgedId===e.id?"✓":"👋"}</button>
-                  <button onClick={()=>startEdit(e)} style={{background:"none",border:"none",cursor:"pointer",fontSize:13,padding:"0 2px",color:T.brown}}>✏️</button>
-                  <button onClick={()=>expenses.remove(e.id)} style={{background:"none",border:"none",cursor:"pointer",fontSize:16,padding:"0 2px",color:T.muted}}>×</button>
-                </div>
-              ))}
-            </div>
+        {/* ── VIEW TOGGLE ── */}
+        <div style={{padding:"14px 16px 10px",background:"#fff",borderBottom:`1px solid ${T.border}`}}>
+          <div style={{display:"flex",background:"#F0EAE0",borderRadius:10,padding:3,gap:2}}>
+            {[["category","By Category"],["date","By Date"],["person","By Person"]].map(([v,l])=>(
+              <button key={v} onClick={()=>{setViewBy(v);setDrillCat(null);setFilterWho("all");}}
+                style={{flex:1,padding:"7px 4px",borderRadius:8,border:"none",cursor:"pointer",fontSize:11,fontWeight:700,
+                  background:viewBy===v?NAV:"transparent",color:viewBy===v?"#fff":"#8B5E3C",transition:"all 0.2s"}}>
+                {l}
+              </button>
+            ))}
           </div>
-        ))}
+        </div>
 
-        {/* Add / Edit expense — bottom sheet style */}
-        {showE?(
+        {expenses.loading&&<div style={{padding:32}}><Spinner/></div>}
+
+        {/* ── CATEGORY VIEW ── */}
+        {!expenses.loading&&viewBy==="category"&&!drillCat&&(
+          <div style={{padding:"16px 16px 0"}}>
+            {catTotals.length===0&&(
+              <div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}>
+                <div style={{fontSize:40,marginBottom:12}}>💸</div>
+                <div style={{fontWeight:700,color:NAV,marginBottom:4}}>No expenses yet</div>
+                <div style={{fontSize:13}}>Tap + below to log your first one</div>
+              </div>
+            )}
+            {catTotals.map(({c,spent:cs,count})=>(
+              <div key={c} onClick={()=>setDrillCat(c)}
+                style={{background:"#fff",borderRadius:14,padding:"14px 16px",marginBottom:10,cursor:"pointer",
+                  boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+                <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:8}}>
+                  <span style={{fontSize:28,flexShrink:0}}>{c}</span>
+                  <div style={{flex:1}}>
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <div style={{fontWeight:700,color:NAV,fontSize:14}}>{catLabels[c]||c}</div>
+                      <div style={{fontWeight:800,color:NAV,fontSize:15}}>₹{cs.toLocaleString()}</div>
+                    </div>
+                    <div style={{fontSize:11,color:T.muted,marginTop:2}}>{count} transaction{count!==1?"s":""}{budget>0?` · ${Math.round((cs/budget)*100)}% of budget`:""}</div>
+                  </div>
+                </div>
+                <div style={{background:"#F0EAE0",borderRadius:99,height:5}}>
+                  <div style={{width:`${Math.min(100,Math.round((cs/spent)*100))}%`,
+                    background:cs/budget>0.85?"#C97B84":cs/budget>0.6?"#E8A838":"#6B8F71",
+                    height:"100%",borderRadius:99}}/>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── DRILLED CATEGORY VIEW ── */}
+        {!expenses.loading&&viewBy==="category"&&drillCat&&(
+          <div style={{padding:"12px 16px 0"}}>
+            <button onClick={()=>setDrillCat(null)}
+              style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",padding:"0 0 12px",display:"flex",alignItems:"center",gap:4}}>
+              ← All Categories
+            </button>
+            <div style={{fontWeight:700,color:NAV,fontSize:16,marginBottom:12}}>{drillCat} {catLabels[drillCat]||""}</div>
+            <div style={{borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+              {expenses.data.filter(e=>e.cat===drillCat).length===0
+                ?<div style={{padding:24,textAlign:"center",color:T.muted,background:"#fff"}}>No expenses in this category</div>
+                :expenses.data.filter(e=>e.cat===drillCat).map(e=><ExpRow key={e.id} e={e}/>)
+              }
+            </div>
+          </div>
+        )}
+
+        {/* ── DATE VIEW ── */}
+        {!expenses.loading&&viewBy==="date"&&(
+          <div style={{padding:"16px 16px 0"}}>
+            {viewExp.length===0&&<div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:12}}>📅</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
+            {Object.entries(groupedByDate).map(([label,rows])=>(
+              <div key={label} style={{marginBottom:14}}>
+                <div style={{fontSize:11,fontWeight:800,color:T.muted,letterSpacing:0.6,marginBottom:6}}>{label}</div>
+                <div style={{borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+                  {rows.map(e=><ExpRow key={e.id} e={e}/>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── PERSON VIEW ── */}
+        {!expenses.loading&&viewBy==="person"&&(
+          <div style={{padding:"16px 16px 0"}}>
+            {viewExp.length===0&&<div style={{textAlign:"center",padding:"48px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:12}}>👤</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
+            {Object.entries(groupedByPerson).map(([person,rows])=>{
+              const personTotal=rows.reduce((s,e)=>s+Number(e.amount),0);
+              return(
+                <div key={person} style={{marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+                    <div style={{fontSize:11,fontWeight:800,color:T.muted,letterSpacing:0.6}}>{person}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:NAV}}>₹{personTotal.toLocaleString()}</div>
+                  </div>
+                  <div style={{borderRadius:14,overflow:"hidden",boxShadow:"0 1px 4px rgba(0,0,0,0.06)"}}>
+                    {rows.map(e=><ExpRow key={e.id} e={e} showWho={false}/>)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── FLOATING ADD BUTTON ── */}
+        <button onClick={()=>{setEditId(null);setShowE(true);}}
+          style={{position:"fixed",bottom:80,right:20,zIndex:100,width:56,height:56,borderRadius:"50%",
+            background:SAF,border:"none",color:"#fff",fontSize:28,fontWeight:300,cursor:"pointer",
+            boxShadow:"0 4px 16px rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+          +
+        </button>
+
+        {/* ── BOTTOM SHEET ── */}
+        {showE&&(
           <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-            <div onClick={cancelEdit} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
-            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"20px 20px 36px",maxHeight:"85vh",overflowY:"auto"}}>
-              <div style={{width:36,height:4,borderRadius:99,background:T.border,margin:"0 auto 16px"}}/>
-              <div style={{fontWeight:700,color:NAV,fontSize:16,marginBottom:16}}>{editId?"Edit Expense":"Add Expense"}</div>
-              {/* Step 1: Amount */}
-              <div style={{marginBottom:14}}>
-                <label style={lbl}>Amount (₹)</label>
-                <input style={{...inp,fontSize:28,fontWeight:700,textAlign:"center",padding:"14px"}} type="number" placeholder="0" value={ef.amount} onChange={e=>setEf(f=>({...f,amount:e.target.value}))} autoFocus/>
-              </div>
-              {/* Step 2: Who */}
-              <div style={{marginBottom:14}}>
-                <label style={lbl}>Paid by</label>
-                <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-                  {members?.map(m=>(
-                    <button key={m.id} onClick={()=>setEf(f=>({...f,who:m.name}))}
-                      style={{padding:"8px 14px",borderRadius:99,border:`2px solid ${ef.who===m.name?SAF:T.border}`,background:ef.who===m.name?"#FFF8E8":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",color:T.dark}}>
-                      {m.emoji} {m.name.split(" ")[0]}
-                    </button>
-                  ))}
+            <div onClick={cancelEdit} style={{flex:1,background:"rgba(0,0,0,0.5)"}}/>
+            <div style={{background:"#fff",borderRadius:"24px 24px 0 0",padding:"0 0 0 0",maxHeight:"90vh",display:"flex",flexDirection:"column"}}>
+              {/* Handle */}
+              <div style={{padding:"12px 20px 0",flexShrink:0}}>
+                <div style={{width:40,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 16px"}}/>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:NAV,fontSize:18,marginBottom:16}}>
+                  {editId?"Edit Expense":"New Expense"}
                 </div>
               </div>
-              {/* Step 3: Category */}
-              <div style={{marginBottom:14}}>
-                <label style={lbl}>Category</label>
-                <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-                  {cats.map(c=><button key={c} onClick={()=>setEf(f=>({...f,cat:c}))} style={{width:46,height:46,borderRadius:12,border:`2px solid ${ef.cat===c?SAF:T.border}`,background:ef.cat===c?"#FFF8E8":"#fff",fontSize:22,cursor:"pointer"}}>{c}</button>)}
+              {/* Scrollable content */}
+              <div style={{flex:1,overflowY:"auto",padding:"0 20px",paddingBottom:24}}>
+                {/* Amount — big and centred */}
+                <div style={{background:"#F8F4F0",borderRadius:16,padding:"20px 16px",textAlign:"center",marginBottom:16}}>
+                  <div style={{fontSize:12,color:T.muted,marginBottom:8,fontWeight:700,letterSpacing:0.5}}>AMOUNT (₹)</div>
+                  <input
+                    style={{width:"100%",border:"none",background:"transparent",fontSize:36,fontWeight:800,
+                      textAlign:"center",color:NAV,outline:"none",fontFamily:"'Playfair Display',serif"}}
+                    type="number" placeholder="0" value={ef.amount}
+                    onChange={e=>setEf(f=>({...f,amount:e.target.value}))} autoFocus/>
                 </div>
-              </div>
-              {/* Step 4: Description */}
-              <div style={{marginBottom:14}}>
-                <label style={lbl}>Description</label>
-                <input style={inp} value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Weekly groceries from DMart"/>
-              </div>
-              {/* Step 5: Memory note */}
-              <div style={{marginBottom:20}}>
-                <label style={lbl}>Memory note <span style={{fontWeight:400,color:T.muted}}>(optional)</span></label>
-                <textarea style={{...inp,height:64,resize:"none",lineHeight:1.5}} placeholder="Add a note… (e.g. Pranava's birthday dinner)" value={ef.notes} onChange={e=>setEf(f=>({...f,notes:e.target.value}))}/>
-              </div>
-              <div style={{display:"flex",gap:8}}>
-                <button onClick={cancelEdit} style={{flex:1,padding:13,borderRadius:13,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
-                <button onClick={saveExpense} style={{flex:2,padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:15}}>{editId?"Update":"Save +10pts"}</button>
+                {/* Who */}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>PAID BY</div>
+                  <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                    {members?.map(m=>(
+                      <button key={m.id} onClick={()=>setEf(f=>({...f,who:m.name}))}
+                        style={{padding:"8px 14px",borderRadius:99,border:`2px solid ${ef.who===m.name?SAF:"#E8DDD0"}`,
+                          background:ef.who===m.name?"#FFF8E8":"#fff",fontWeight:700,fontSize:13,cursor:"pointer",color:NAV}}>
+                        {m.emoji} {m.name.split(" ")[0]}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Category */}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>CATEGORY</div>
+                  <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
+                    {cats.map(c=>(
+                      <button key={c} onClick={()=>setEf(f=>({...f,cat:c}))}
+                        style={{width:50,height:50,borderRadius:14,border:`2px solid ${ef.cat===c?SAF:"#E8DDD0"}`,
+                          background:ef.cat===c?"#FFF8E8":"#fff",fontSize:24,cursor:"pointer",display:"flex",
+                          alignItems:"center",justifyContent:"center"}}>
+                        {c}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {/* Description */}
+                <div style={{marginBottom:16}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>DESCRIPTION</div>
+                  <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}}
+                    value={ef.label} onChange={e=>setEf(f=>({...f,label:e.target.value}))}
+                    placeholder="e.g. Weekly groceries from DMart"/>
+                </div>
+                {/* Memory note */}
+                <div style={{marginBottom:24}}>
+                  <div style={{fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>
+                    MEMORY NOTE <span style={{fontWeight:400,color:T.muted,textTransform:"none",letterSpacing:0}}>(optional)</span>
+                  </div>
+                  <textarea
+                    style={{...inp,height:72,resize:"none",lineHeight:1.6,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}}
+                    placeholder="Add a note… (e.g. Pranava's birthday dinner 🎂)"
+                    value={ef.notes} onChange={e=>setEf(f=>({...f,notes:e.target.value}))}/>
+                </div>
+                {/* Buttons */}
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={cancelEdit}
+                    style={{flex:1,padding:14,borderRadius:14,border:"1.5px solid #E8DDD0",
+                      background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:14}}>
+                    Cancel
+                  </button>
+                  <button onClick={saveExpense}
+                    style={{flex:2,padding:14,borderRadius:14,border:"none",background:SAF,
+                      color:"#fff",fontWeight:700,cursor:"pointer",fontSize:15}}>
+                    {editId?"Update":"Save +10pts"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        ):(
-          <button onClick={()=>{setEditId(null);setShowE(true);}} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Expense</button>
         )}
       </>}
 
-      {tab==="goals" && <>
+      {tab==="goals" && <div style={{padding:"16px 16px 0"}}>
         {goals.loading&&<Spinner/>}
         {goals.data.map(g=>(<Card key={g.id}><div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><span style={{fontSize:26}}>{g.emoji}</span><div style={{flex:1}}><div style={{fontWeight:700,fontSize:15,color:T.dark}}>{g.title}</div><div style={{fontSize:12,color:T.muted}}>Target: ₹{Number(g.target).toLocaleString()}</div></div><div style={{textAlign:"right"}}><div style={{fontWeight:700,color:g.color,fontSize:15}}>₹{Number(g.saved).toLocaleString()}</div><div style={{fontSize:11,color:T.muted}}>{Math.round(g.saved/g.target*100)}%</div></div></div><Bar value={Number(g.saved)} max={Number(g.target)} color={g.color}/><button onClick={()=>goals.remove(g.id)} style={{marginTop:8,fontSize:11,color:T.muted,background:"none",border:"none",cursor:"pointer"}}>Remove</button></Card>))}
         {!goals.loading&&goals.data.length===0&&<Card style={{textAlign:"center",padding:28}}><div style={{fontSize:36,marginBottom:8}}>🎯</div><div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No goals yet</div><div style={{fontSize:12,color:T.muted}}>Dream big — add your first family goal!</div></Card>}
         {showG?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Goal</div><div style={{marginBottom:10}}><label style={lbl}>Goal Name</label><input style={inp} value={gf.title} onChange={e=>setGf(f=>({...f,title:e.target.value}))} placeholder="e.g. Arya's College Fund"/></div><div style={{marginBottom:10}}><label style={lbl}>Icon</label><div style={{display:"flex",gap:6}}>{["🎓","✈️","💍","🛡️","🏠","🚗","🎯","💰","🏖️","🎹"].map(e=><button key={e} onClick={()=>setGf(f=>({...f,emoji:e}))} style={{width:36,height:36,borderRadius:8,border:`2px solid ${gf.emoji===e?T.brown:T.border}`,background:gf.emoji===e?T.warm:"#fff",fontSize:18,cursor:"pointer"}}>{e}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Target (₹)</label><input style={inp} type="number" value={gf.target} onChange={e=>setGf(f=>({...f,target:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Already Saved (₹)</label><input style={inp} type="number" value={gf.saved} onChange={e=>setGf(f=>({...f,saved:e.target.value}))}/></div><div style={{marginBottom:14}}><label style={lbl}>Color</label><div style={{display:"flex",gap:8}}>{colors.map(c=><button key={c} onClick={()=>setGf(f=>({...f,color:c}))} style={{width:28,height:28,borderRadius:"50%",background:c,border:`3px solid ${gf.color===c?T.dark:"transparent"}`,cursor:"pointer"}}/>)}</div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowG(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(gf.title&&gf.target){await goals.add({title:gf.title,emoji:gf.emoji,target:Number(gf.target),saved:Number(gf.saved||0),color:gf.color});await onPts(20);setGf({title:"",emoji:"🎯",target:"",saved:"",color:T.blue});setShowG(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save +20pts</button></div></Card>):<button onClick={()=>setShowG(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Goal</button>}
-      </>}
-      {tab==="score"&&<FreedomScoreScreen family={family}/>}
-      {tab==="budget"&&<BudgetScreen family={family} expenses={expenses.data}/>}
+      </div>}
+      {tab==="score"&&<div style={{padding:"16px 16px 0"}}><FreedomScoreScreen family={family}/></div>}
+      {tab==="budget"&&<div style={{padding:"16px 16px 0"}}><BudgetScreen family={family} expenses={expenses.data}/></div>}
     </div>
   );
 }
