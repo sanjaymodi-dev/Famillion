@@ -877,14 +877,39 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   const confirmDelete=(id)=>setDeleteConfirm(id);
   const doDelete=async()=>{if(deleteConfirm){await expenses.remove(deleteConfirm);setDeleteConfirm(null);}};
 
-  // nudge popup
-  const openNudge=(e)=>setNudgeTarget({id:e.id,label:e.label||e.cat,who:e.who,amount:Number(e.amount)});
+  // nudge popup + message
+  const [nudgeMsg,setNudgeMsg] = useState("");
+  const [nudgeMsgMode,setNudgeMsgMode] = useState(false);
+  const openNudge=(e)=>{setNudgeTarget({id:e.id,label:e.label||e.cat,who:e.who,amount:Number(e.amount)});setNudgeMsg("");setNudgeMsgMode(false);};
   const sendNudgeNow=()=>{
     setNudgedId(nudgeTarget?.id);
     setTimeout(()=>setNudgedId(null),2500);
-    setNudgeTarget(null);
-    // TODO Nudge 2.0: wire to nudge API
+    setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);
+    // TODO Nudge 2.0: wire to nudge API with nudgeMsg
   };
+
+  // ── BACK BUTTON (Budget tab only) ──
+  const {useEffect,useCallback}=React;
+  useEffect(()=>{
+    const onBack=(e)=>{
+      // close overlays in priority order
+      if(deleteConfirm){setDeleteConfirm(null);return;}
+      if(nudgeTarget){setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);return;}
+      if(showMore){setShowMore(false);return;}
+      if(showE){cancelEdit();return;}
+      if(drillCat){setDrillCat(null);return;}
+      // else let default happen (go to home tab handled by parent)
+    };
+    window.addEventListener("popstate",onBack);
+    return()=>window.removeEventListener("popstate",onBack);
+  },[deleteConfirm,nudgeTarget,showMore,showE,drillCat]);
+
+  // push a history entry whenever a layer opens so back has something to pop
+  useEffect(()=>{
+    if(showE||nudgeTarget||deleteConfirm||showMore||drillCat){
+      window.history.pushState({budget:true},"");
+    }
+  },[showE,!!nudgeTarget,!!deleteConfirm,showMore,drillCat]);
 
   // full-width expense tile for drill-in
   const ExpTile=({e})=>(
@@ -913,7 +938,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   );
 
   return (
-    <div style={{background:CRM,minHeight:"100%",paddingBottom:90}}>
+    <div style={{background:CRM,minHeight:"100vh",paddingBottom:90}}>
 
       {/* ── SLIM NAVY BAR ── */}
       <div style={{background:NAV,padding:"12px 16px 14px"}}>
@@ -967,10 +992,11 @@ function MoneyScreen({ family, members, familyId, onPts }) {
             {v:"month",   icon:"🗓️",l:"Month",    navy:false},
           ].map(f=>(
             <button key={f.v} onClick={()=>{setViewBy(f.v);setDrillCat(null);}}
-              style={{padding:"7px 2px",borderRadius:8,border:"none",fontSize:9,fontWeight:800,textAlign:"center",cursor:"pointer",lineHeight:1.3,
-                background:viewBy===f.v?(f.navy?NAV:TEALTEXT):(f.navy?NAV:TEAL),
-                color:viewBy===f.v?"#fff":(f.navy?"#fff":TEALTEXT),
-                opacity:viewBy===f.v?1:0.65}}>
+              style={{padding:"7px 2px 5px",borderRadius:8,border:"none",fontSize:9,fontWeight:800,textAlign:"center",cursor:"pointer",lineHeight:1.3,
+                background:f.navy?NAV:TEAL,
+                color:f.navy?"#fff":TEALTEXT,
+                borderBottom:viewBy===f.v?`3px solid ${SAF}`:"3px solid transparent",
+                boxSizing:"border-box"}}>
               <div style={{fontSize:13,marginBottom:2}}>{f.icon}</div>
               {f.l}
             </button>
@@ -1071,20 +1097,56 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         )}
 
         {/* ── MONTH VIEW ── */}
-        {!expenses.loading&&viewBy==="month"&&(
-          <div style={{padding:"12px 12px 0"}}>
-            {expenses.data.length===0&&<div style={{textAlign:"center",padding:"40px 20px",color:T.muted}}><div style={{fontSize:40,marginBottom:10}}>🗓️</div><div style={{fontWeight:700,color:NAV}}>No expenses yet</div></div>}
-            {Object.entries(groupedByMonth).map(([mo,rows])=>(
-              <div key={mo} style={{marginBottom:12}}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                  <div style={{fontSize:10,fontWeight:800,color:T.muted,letterSpacing:0.6}}>{mo.toUpperCase()}</div>
-                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{rows.reduce((s,e)=>s+Number(e.amount),0).toLocaleString()}</div>
-                </div>
-                {rows.map(e=><ExpTile key={e.id} e={e}/>)}
+        {!expenses.loading&&viewBy==="month"&&(()=>{
+          const [selMonth,setSelMonth]=React.useState(()=>new Date().getMonth());
+          const [selYear,setSelYear]=React.useState(()=>new Date().getFullYear());
+          const prevMonth=()=>{if(selMonth===0){setSelMonth(11);setSelYear(y=>y-1);}else setSelMonth(m=>m-1);};
+          const nextMonth=()=>{if(selMonth===11){setSelMonth(0);setSelYear(y=>y+1);}else setSelMonth(m=>m+1);};
+          const monthLabel=new Date(selYear,selMonth,1).toLocaleDateString("en-IN",{month:"long",year:"numeric"});
+          const monthRows=expenses.data.filter(e=>{const d=new Date(e.date||e.created_at);return d.getMonth()===selMonth&&d.getFullYear()===selYear;});
+          const monthTotal=monthRows.reduce((s,e)=>s+Number(e.amount),0);
+          // always show prev, current, next month as quick nav
+          const today=new Date();
+          const quickMonths=[
+            {m:today.getMonth()===0?11:today.getMonth()-1,y:today.getMonth()===0?today.getFullYear()-1:today.getFullYear()},
+            {m:today.getMonth(),y:today.getFullYear()},
+            {m:today.getMonth()===11?0:today.getMonth()+1,y:today.getMonth()===11?today.getFullYear()+1:today.getFullYear()},
+          ];
+          return(
+            <div style={{padding:"12px 12px 0"}}>
+              {/* Quick month pills */}
+              <div style={{display:"flex",gap:6,marginBottom:10}}>
+                {quickMonths.map((qm,i)=>{
+                  const ql=new Date(qm.y,qm.m,1).toLocaleDateString("en-IN",{month:"short"});
+                  const isActive=qm.m===selMonth&&qm.y===selYear;
+                  return <button key={i} onClick={()=>{setSelMonth(qm.m);setSelYear(qm.y);}}
+                    style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",fontSize:10,fontWeight:800,cursor:"pointer",
+                      background:isActive?NAV:TEAL,color:isActive?"#fff":TEALTEXT}}>{ql}{i===1?" (this)":i===2?" →":""}</button>;
+                })}
               </div>
-            ))}
-          </div>
-        )}
+              {/* Nav bar */}
+              <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+                <button onClick={prevMonth} style={{background:TEAL,border:"none",borderRadius:8,padding:"6px 12px",color:TEALTEXT,fontWeight:800,cursor:"pointer",fontSize:12}}>←</button>
+                <div style={{fontWeight:700,color:NAV,fontSize:13}}>{monthLabel}</div>
+                <button onClick={nextMonth} style={{background:TEAL,border:"none",borderRadius:8,padding:"6px 12px",color:TEALTEXT,fontWeight:800,cursor:"pointer",fontSize:12}}>→</button>
+              </div>
+              {monthRows.length===0
+                ?<div style={{textAlign:"center",padding:"32px 20px",color:T.muted}}>
+                    <div style={{fontSize:36,marginBottom:8}}>🗓️</div>
+                    <div style={{fontWeight:700,color:NAV,marginBottom:4}}>No expenses in {monthLabel}</div>
+                    <div style={{fontSize:12}}>Tap + to add an expense or reminder</div>
+                  </div>
+                :<>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,padding:"6px 0",borderBottom:`0.5px solid #EDE0D0`}}>
+                    <div style={{fontSize:11,fontWeight:700,color:T.muted}}>{monthRows.length} transactions</div>
+                    <div style={{fontSize:12,fontWeight:800,color:NAV}}>₹{monthTotal.toLocaleString()}</div>
+                  </div>
+                  {monthRows.map(e=><ExpTile key={e.id} e={e}/>)}
+                </>
+              }
+            </div>
+          );
+        })()}
 
         {/* ── FLOATING ADD BUTTON ── */}
         <button onClick={()=>{setEditId(null);setShowE(true);}}
@@ -1182,28 +1244,50 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         {/* ── NUDGE POPUP ── */}
         {nudgeTarget&&(
           <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-            <div onClick={()=>setNudgeTarget(null)} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
+            <div onClick={()=>{setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);}} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
             <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"16px 18px 28px"}}>
               <div style={{width:32,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 14px"}}/>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4}}>👋 Nudge about this?</div>
-              <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.6}}>
-                {nudgeTarget.who||"Someone"} spent ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}
-              </div>
-              {[
-                {icon:"👋",l:"Nudge now",sub:"Send an instant nudge",bg:TEAL,tc:TEALTEXT,fn:sendNudgeNow},
-                {icon:"⏰",l:"Schedule nudge",sub:"Tonight 8pm · Tomorrow morning · Custom",bg:"#EEF0FF",tc:"#3730A3",fn:()=>setNudgeTarget(null)},
-                {icon:"✍️",l:"Write a message",sub:"Add context before sending",bg:"#FFF0EC",tc:"#9B3A22",fn:()=>setNudgeTarget(null)},
-              ].map(opt=>(
-                <div key={opt.l} onClick={opt.fn}
-                  style={{display:"flex",alignItems:"center",gap:12,background:opt.bg,borderRadius:12,padding:"11px 14px",marginBottom:8,cursor:"pointer"}}>
-                  <div style={{fontSize:20,flexShrink:0}}>{opt.icon}</div>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:800,color:opt.tc}}>{opt.l}</div>
-                    <div style={{fontSize:10,color:T.muted,marginTop:2}}>{opt.sub}</div>
+              {!nudgeMsgMode?(
+                <>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4}}>👋 Nudge about this?</div>
+                  <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.6,background:"#F8F4F0",borderRadius:8,padding:"8px 10px"}}>
+                    {nudgeTarget.who||"Someone"} spent ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}
                   </div>
-                </div>
-              ))}
-              <button onClick={()=>setNudgeTarget(null)} style={{width:"100%",padding:8,background:"transparent",border:"none",fontSize:12,fontWeight:700,color:T.muted,cursor:"pointer",marginTop:4}}>Cancel</button>
+                  {[
+                    {icon:"👋",l:"Nudge with a message",sub:"Write what you want to say",bg:TEAL,tc:TEALTEXT,fn:()=>setNudgeMsgMode(true)},
+                    {icon:"⏰",l:"Schedule nudge",sub:"Tonight 8pm · Tomorrow morning · Custom",bg:"#EEF0FF",tc:"#3730A3",fn:()=>setNudgeTarget(null)},
+                  ].map(opt=>(
+                    <div key={opt.l} onClick={opt.fn}
+                      style={{display:"flex",alignItems:"center",gap:12,background:opt.bg,borderRadius:12,padding:"11px 14px",marginBottom:8,cursor:"pointer"}}>
+                      <div style={{fontSize:20,flexShrink:0}}>{opt.icon}</div>
+                      <div>
+                        <div style={{fontSize:12,fontWeight:800,color:opt.tc}}>{opt.l}</div>
+                        <div style={{fontSize:10,color:T.muted,marginTop:2}}>{opt.sub}</div>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={()=>{setNudgeTarget(null);setNudgeMsg("");}} style={{width:"100%",padding:8,background:"transparent",border:"none",fontSize:12,fontWeight:700,color:T.muted,cursor:"pointer",marginTop:4}}>Cancel</button>
+                </>
+              ):(
+                <>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4}}>✍️ Write your nudge</div>
+                  <div style={{fontSize:11,color:T.muted,marginBottom:10}}>About: {nudgeTarget.who||"Someone"}'s ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}</div>
+                  <textarea
+                    autoFocus
+                    placeholder={`e.g. "Eat healthy next time, no more burgers! 🥗"`}
+                    value={nudgeMsg}
+                    onChange={e=>setNudgeMsg(e.target.value)}
+                    style={{...inp,height:90,resize:"none",lineHeight:1.6,background:"#F8F4F0",border:`1.5px solid ${TEAL}`,marginBottom:12}}
+                  />
+                  <div style={{display:"flex",gap:8}}>
+                    <button onClick={()=>setNudgeMsgMode(false)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #E8DDD0",background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>← Back</button>
+                    <button onClick={sendNudgeNow} disabled={!nudgeMsg.trim()}
+                      style={{flex:2,padding:12,borderRadius:12,border:"none",background:nudgeMsg.trim()?TEALTEXT:"#ccc",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>
+                      Send Nudge 👋
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
