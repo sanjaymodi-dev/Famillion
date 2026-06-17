@@ -737,12 +737,12 @@ const COLLAGES=[
   {photos:[0,6,18]},
 ];
 
-function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges }) {
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges, currentUserName, onOpenNudge }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
-  const unseenNudges=(nudges||[]).filter(n=>!n.seen).slice(0,1);
+  const unseenNudges=(nudges||[]).filter(n=>!n.seen&&n.to_member===currentUserName).slice(0,1);
   const [slide,setSlide]=useState(0);
   const totalSlides=COLLAGES.length;
   const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
@@ -841,7 +841,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
                 <div style={{fontSize:12,color:"#1A1A1A",fontWeight:700}}>{unseenNudges[0].from_member} nudged you</div>
                 <div style={{fontSize:10,color:"#888",marginTop:1}}>{unseenNudges[0].note}</div>
               </div>
-              <div style={{fontSize:9,background:HL,color:SAF,borderRadius:99,padding:"4px 10px",whiteSpace:"nowrap",flexShrink:0,cursor:"pointer"}}>View</div>
+              <div onClick={()=>onOpenNudge&&onOpenNudge(unseenNudges[0])} style={{fontSize:9,background:HL,color:SAF,borderRadius:99,padding:"4px 10px",whiteSpace:"nowrap",flexShrink:0,cursor:"pointer"}}>View</div>
             </div>
           </div>
         )}
@@ -956,14 +956,186 @@ function MonthView({expenses,NAV,TEAL,TEALTEXT,ExpTile}){
             <div style={{fontSize:11,fontWeight:700,color:T.muted}}>{monthRows.length} transactions</div>
             <div style={{fontSize:12,fontWeight:800,color:NAV}}>₹{monthTotal.toLocaleString()}</div>
           </div>
-          {monthRows.map(e=><ExpTile key={e.id} e={e}/>)}
+      {monthRows.map(e=><ExpTile key={e.id} e={e}/>)}
         </>
       }
     </div>
   );
 }
 
-function MoneyScreen({ family, members, familyId, onPts }) {
+// ── NUDGE DETAIL VIEW — Thread + Close tabs, generic across any related_table ──
+function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
+  const NAV="#0F1F3D", SAF="#F4A724", TEAL="#E0F7F2", TEALTEXT="#0A6B58";
+  const [dtab,setDtab]=useState("thread"); // thread | close
+  const [history,setHistory]=useState([]);
+  const [loadingHist,setLoadingHist]=useState(true);
+  const [comment,setComment]=useState("");
+  const [status,setStatus]=useState(nudge?.status||"created");
+  const [closed,setClosed]=useState(!!nudge?.closed);
+  const [sending,setSending]=useState(false);
+
+  const fetchHistory=async()=>{
+    if(!nudge?.id)return;
+    const {data:rows}=await sb.from("nudge_history").select("*").eq("nudge_id",nudge.id).order("created_at",{ascending:true});
+    setHistory(Array.isArray(rows)?rows:[]);
+    setLoadingHist(false);
+  };
+
+  useEffect(()=>{
+    fetchHistory();
+    if(nudge?.id && !nudge.seen){
+      sb.from("nudges").update({seen:true}).eq("id",nudge.id);
+      onMarkSeen&&onMarkSeen(nudge.id);
+    }
+  },[nudge?.id]);
+
+  const STATUSES=[
+    {id:"created",l:"Sent"},{id:"seen",l:"Seen"},{id:"acknowledged",l:"Ack'd"},
+    {id:"in_progress",l:"In progress"},{id:"completed",l:"Done"},
+  ];
+  const statusIdx=STATUSES.findIndex(s=>s.id===status);
+
+  const advanceStatus=async(newStatus)=>{
+    if(!nudge?.id||sending)return;
+    setSending(true);
+    await sb.from("nudges").update({status:newStatus}).eq("id",nudge.id);
+    await sb.from("nudge_history").insert({
+      nudge_id:nudge.id, family_id:nudge.family_id, status:newStatus,
+      note:null, by_member:currentUserName,
+    });
+    setStatus(newStatus);
+    await fetchHistory();
+    setSending(false);
+  };
+
+  const postComment=async()=>{
+    if(!comment.trim()||!nudge?.id||sending)return;
+    setSending(true);
+    await sb.from("nudge_history").insert({
+      nudge_id:nudge.id, family_id:nudge.family_id, status:null,
+      note:comment.trim(), by_member:currentUserName,
+    });
+    setComment("");
+    await fetchHistory();
+    setSending(false);
+  };
+
+  const confirmClose=async()=>{
+    if(!nudge?.id||sending)return;
+    setSending(true);
+    await sb.from("nudges").update({closed:true}).eq("id",nudge.id);
+    await sb.from("nudge_history").insert({
+      nudge_id:nudge.id, family_id:nudge.family_id, status:"closed",
+      note:null, by_member:currentUserName,
+    });
+    setClosed(true);
+    setSending(false);
+    setDtab("thread");
+    await fetchHistory();
+  };
+
+  if(!nudge)return null;
+
+  return(
+    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
+      <div onClick={onClose} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
+      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"16px 18px 28px",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
+        <div style={{width:32,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 14px",flexShrink:0}}/>
+
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexShrink:0}}>
+          <div style={{width:34,height:34,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>👤</div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontSize:13,fontWeight:700,color:NAV}}>{nudge.from_member} nudged you</div>
+            <div style={{fontSize:10,color:"#888",marginTop:1}}>{nudge.note}</div>
+          </div>
+          <button onClick={onClose} style={{background:"transparent",border:"none",fontSize:18,color:"#999",cursor:"pointer",padding:4,flexShrink:0}}>✕</button>
+        </div>
+
+        <div style={{display:"flex",borderBottom:"1.5px solid #EDE0D0",marginBottom:12,flexShrink:0}}>
+          <div onClick={()=>setDtab("thread")} style={{flex:1,textAlign:"center",padding:"8px 0",fontSize:11,fontWeight:dtab==="thread"?700:400,color:dtab==="thread"?NAV:"#888",borderBottom:dtab==="thread"?`2px solid ${SAF}`:"2px solid transparent",cursor:"pointer"}}>Thread</div>
+          <div onClick={()=>setDtab("close")} style={{flex:1,textAlign:"center",padding:"8px 0",fontSize:11,fontWeight:dtab==="close"?700:400,color:dtab==="close"?NAV:"#888",borderBottom:dtab==="close"?`2px solid ${SAF}`:"2px solid transparent",cursor:"pointer"}}>Close</div>
+        </div>
+
+        {dtab==="thread"&&(
+          <div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+            <div style={{display:"flex",gap:4,marginBottom:10,flexShrink:0}}>
+              {STATUSES.map((s,i)=>(
+                <div key={s.id} style={{flex:1,textAlign:"center",padding:"5px 2px",borderRadius:6,fontSize:9,fontWeight:700,
+                  background:i<=statusIdx?(s.id==="completed"?NAV:"#EAF3DE"):"#EDE8DF",
+                  color:i<=statusIdx?(s.id==="completed"?SAF:"#27500A"):"#888"}}>
+                  {s.l}{s.id==="completed"&&i===statusIdx?" ✓":""}
+                </div>
+              ))}
+            </div>
+            {status==="completed"&&(
+              <div style={{fontSize:9,color:"#888",textAlign:"center",marginBottom:10,flexShrink:0}}>Ask resolved · thread stays open for comments</div>
+            )}
+
+            <div style={{flex:1,overflowY:"auto",borderTop:"0.5px solid #F0EAE0",paddingTop:10,marginBottom:10,display:"flex",flexDirection:"column",gap:8,minHeight:80}}>
+              {loadingHist&&<div style={{fontSize:11,color:"#aaa",textAlign:"center"}}>Loading…</div>}
+              {!loadingHist&&history.length===0&&<div style={{fontSize:11,color:"#aaa",textAlign:"center"}}>No activity yet</div>}
+              {history.map(h=>(
+                h.status&&h.status!=="closed"?(
+                  <div key={h.id} style={{alignSelf:"center",fontSize:9,color:"#999",background:"#F4F1EC",borderRadius:99,padding:"3px 10px"}}>
+                    {h.by_member} marked {STATUSES.find(s=>s.id===h.status)?.l||h.status}
+                  </div>
+                ):h.status==="closed"?(
+                  <div key={h.id} style={{alignSelf:"center",fontSize:9,color:"#A32D2D",background:"#FCEBEB",borderRadius:99,padding:"3px 10px"}}>
+                    {h.by_member} closed this thread
+                  </div>
+                ):(
+                  <div key={h.id} style={{background:"#FDF6EC",borderRadius:10,padding:"7px 10px",fontSize:11,color:"#8B5E3C",alignSelf:"flex-start",maxWidth:"82%"}}>
+                    <span style={{fontWeight:700,color:NAV}}>{h.by_member}:</span> {h.note}
+                  </div>
+                )
+              ))}
+            </div>
+
+            {!closed?(
+              <>
+                <div style={{display:"flex",gap:6,marginBottom:10,flexShrink:0}}>
+                  {status==="created"&&<button onClick={()=>advanceStatus("acknowledged")} disabled={sending} style={{flex:1,padding:9,borderRadius:10,border:"none",background:SAF,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Acknowledge</button>}
+                  {status==="acknowledged"&&<button onClick={()=>advanceStatus("in_progress")} disabled={sending} style={{flex:1,padding:9,borderRadius:10,border:"none",background:SAF,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Mark in progress</button>}
+                  {(status==="in_progress"||status==="created"||status==="acknowledged")&&<button onClick={()=>advanceStatus("completed")} disabled={sending} style={{flex:1,padding:9,borderRadius:10,border:`1.5px solid ${SAF}`,background:"transparent",color:"#8B5E3C",fontSize:11,fontWeight:700,cursor:"pointer"}}>Mark done</button>}
+                </div>
+                <div style={{display:"flex",gap:6,flexShrink:0}}>
+                  <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==="Enter"&&postComment()} placeholder="Add a comment..." style={{flex:1,fontSize:12,padding:"9px 12px",borderRadius:10,border:"1px solid #E8DDD0",outline:"none"}}/>
+                  <button onClick={postComment} disabled={!comment.trim()||sending} style={{width:38,height:38,borderRadius:10,border:"none",background:comment.trim()?SAF:"#ccc",color:"#fff",cursor:"pointer",flexShrink:0,fontSize:14}}>➤</button>
+                </div>
+              </>
+            ):(
+              <div style={{textAlign:"center",fontSize:10,color:"#A32D2D",padding:8,background:"#FCEBEB",borderRadius:8,flexShrink:0}}>This thread is closed and read-only</div>
+            )}
+          </div>
+        )}
+
+        {dtab==="close"&&(
+          <div>
+            {!closed?(
+              <>
+                <div style={{textAlign:"center",padding:"10px 0 18px"}}>
+                  <div style={{fontSize:28}}>🔒</div>
+                  <div style={{fontSize:12,fontWeight:700,color:NAV,marginTop:10}}>Close this nudge thread?</div>
+                  <div style={{fontSize:10,color:"#888",marginTop:6,lineHeight:1.6,padding:"0 12px"}}>
+                    No one will be able to comment after this. The thread stays visible to everyone, just read-only.
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setDtab("thread")} style={{flex:1,padding:10,borderRadius:10,border:"1.5px solid #E8DDD0",background:"transparent",color:"#8B5E3C",fontSize:12,fontWeight:700,cursor:"pointer"}}>Keep it open</button>
+                  <button onClick={confirmClose} disabled={sending} style={{flex:1,padding:10,borderRadius:10,border:"none",background:"#A32D2D",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Close thread</button>
+                </div>
+              </>
+            ):(
+              <div style={{textAlign:"center",fontSize:11,color:"#888",padding:20}}>This thread is already closed.</div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MoneyScreen({ family, members, familyId, onPts, nudges }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
   const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC", TEAL="#E0F7F2", TEALTEXT="#0A6B58";
@@ -1067,12 +1239,21 @@ function MoneyScreen({ family, members, familyId, onPts }) {
   const [nudgeMsg,setNudgeMsg] = useState("");
   const [nudgeMsgMode,setNudgeMsgMode] = useState(false);
   const openNudge=(e)=>{setNudgeTarget({id:e.id,label:e.label||e.cat,who:e.who,amount:Number(e.amount)});setNudgeMsg("");setNudgeMsgMode(false);};
-  const sendNudgeNow=()=>{
+  const sendNudgeNow=async()=>{
     const tid=nudgeTarget?.id;
+    const targetWho=nudgeTarget?.who;
+    const targetLabel=nudgeTarget?.label;
     setNudgedId(tid);
     setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);
     setTimeout(()=>setNudgedId(null),1500);
-    // TODO Nudge 2.0: wire to nudge API with nudgeMsg
+    if(nudges?.add && tid){
+      await nudges.add({
+        from_member:myName, to_member:targetWho||"",
+        task_type:"expense", note:nudgeMsg||`About ${targetLabel||"this expense"}`, tone:"🙏 Gentle reminder",
+        seen:false, type:"nudge", status:"created",
+        related_id:tid, related_table:"expenses", closed:false,
+      });
+    }
   };
 
   // ── BACK BUTTON (Budget tab only) ──
@@ -1120,7 +1301,7 @@ function MoneyScreen({ family, members, familyId, onPts }) {
         <button onClick={()=>startEdit(e)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:"#EEF0FF",color:"#3730A3",fontSize:11,fontWeight:800,cursor:"pointer"}}>✏️ Edit</button>
         <button onClick={()=>confirmDelete(e.id)} style={{flex:1,padding:"6px 4px",borderRadius:8,border:"none",background:"#FFF0EC",color:"#9B3A22",fontSize:11,fontWeight:800,cursor:"pointer"}}>🗑 Delete</button>
       </div>
-      {/* Inline nudge flash — appears right below buttons for 0.75s */}
+      {/* Inline nudge flash — appears right below buttons for 1.5s */}
       {nudgedId===e.id&&(
         <div style={{marginTop:6,background:TEAL,borderRadius:8,padding:"5px 10px",fontSize:10,fontWeight:800,color:TEALTEXT,
           display:"flex",alignItems:"center",gap:5,animation:"nudgeFade 1.5s ease forwards"}}>
@@ -1128,6 +1309,15 @@ function MoneyScreen({ family, members, familyId, onPts }) {
           <style>{`@keyframes nudgeFade{0%{opacity:0;transform:translateY(4px)}20%{opacity:1;transform:translateY(0)}80%{opacity:1}100%{opacity:0}}`}</style>
         </div>
       )}
+      {(()=>{
+        const nudgeCount=(nudges?.data||[]).filter(n=>n.related_table==="expenses"&&n.related_id===e.id).length;
+        return nudgeCount>0?(
+          <div style={{marginTop:6,display:"flex",alignItems:"center",justifyContent:"space-between",background:"#FAEEDA",borderRadius:8,padding:"5px 10px"}}>
+            <div style={{fontSize:10,fontWeight:800,color:"#854F0B"}}>🔔 Nudged</div>
+            <div style={{fontSize:10,fontWeight:800,color:"#633806"}}>×{nudgeCount}</div>
+          </div>
+        ):null;
+      })()}
     </div>
   );
 
@@ -2747,6 +2937,7 @@ export default function App() {
   const [tab,setTab]=useState("home");
   const [showMore,setShowMore]=useState(false);
   const [selectedMember,setSelectedMember]=useState(null);
+  const [activeNudge,setActiveNudge]=useState(null);
 const [showHeader,setShowHeader]=useState(false);
 
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
@@ -2932,13 +3123,15 @@ useEffect(()=>{
     </div>
   );
 
+  const currentUserName=members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone";
+
   const screens={
     
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)}/>,
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} currentUserName={currentUserName} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)} onOpenNudge={(n)=>setActiveNudge(n)}/>,
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
-    budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts} setFamily={setFamily}/>,
+    budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts} setFamily={setFamily} nudges={nudges}/>,
     plan:     <CalendarScreen  familyId={family?.id} members={members}/>,
     chores:   <ChoresScreen    familyId={family?.id} onPts={handlePts}/>,
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
@@ -3080,6 +3273,15 @@ useEffect(()=>{
           </div>
         </div>
       </div>
+
+      {activeNudge&&(
+        <NudgeDetailView
+          nudge={activeNudge}
+          currentUserName={currentUserName}
+          onClose={()=>setActiveNudge(null)}
+          onMarkSeen={()=>nudges.refetch&&nudges.refetch()}
+        />
+      )}
     </div>
   );
 }
