@@ -991,9 +991,13 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
     }
   },[nudge?.id]);
 
-  const STATUSES=[
-    {id:"created",l:"Sent"},{id:"seen",l:"Seen"},{id:"acknowledged",l:"Ack'd"},
+  const isTaskNudge=nudge?.task_type==="bill"||nudge?.task_type==="chore";
+  const STATUSES=isTaskNudge?[
+    {id:"created",l:"Sent"},{id:"seen",l:"Seen"},{id:"acknowledged",l:"Got it"},
     {id:"in_progress",l:"In progress"},{id:"completed",l:"Done"},
+  ]:[
+    {id:"created",l:"Sent"},{id:"seen",l:"Seen"},{id:"acknowledged",l:"Got it"},
+    {id:"completed",l:"Done"},
   ];
   const statusIdx=STATUSES.findIndex(s=>s.id===status);
 
@@ -1039,18 +1043,18 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
   if(!nudge)return null;
 
   return(
-    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-      <div onClick={onClose} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
-      <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"16px 18px 28px",maxHeight:"85vh",display:"flex",flexDirection:"column"}}>
-        <div style={{width:32,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 14px",flexShrink:0}}/>
+    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+      <div style={{background:"#fff",borderRadius:20,padding:"20px 18px",width:"100%",maxWidth:340,maxHeight:"85vh",display:"flex",flexDirection:"column",position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+        <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"transparent",border:"none",fontSize:18,color:"#999",cursor:"pointer",padding:4,zIndex:1}}>✕</button>
 
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10,flexShrink:0}}>
-          <div style={{width:34,height:34,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>👤</div>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{fontSize:13,fontWeight:700,color:NAV}}>{nudge.from_member} nudged you</div>
-            <div style={{fontSize:10,color:"#888",marginTop:1}}>{nudge.note}</div>
-          </div>
-          <button onClick={onClose} style={{background:"transparent",border:"none",fontSize:18,color:"#999",cursor:"pointer",padding:4,flexShrink:0}}>✕</button>
+        <div style={{textAlign:"center",flexShrink:0}}>
+          <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,margin:"0 auto 8px"}}>👋</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV}}>{nudge.from_member} nudged you!</div>
+        </div>
+
+        <div style={{background:"#FDF6EC",border:`2px solid ${SAF}`,borderRadius:14,padding:"14px 12px",margin:"12px 0",textAlign:"center",flexShrink:0}}>
+          <div style={{fontSize:14,fontWeight:700,color:NAV,lineHeight:1.45}}>"{nudge.note}"</div>
         </div>
 
         <div style={{display:"flex",borderBottom:"1.5px solid #EDE0D0",marginBottom:12,flexShrink:0}}>
@@ -1096,9 +1100,9 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
             {!closed?(
               <>
                 <div style={{display:"flex",gap:6,marginBottom:10,flexShrink:0}}>
-                  {status==="created"&&<button onClick={()=>advanceStatus("acknowledged")} disabled={sending} style={{flex:1,padding:9,borderRadius:10,border:"none",background:SAF,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Acknowledge</button>}
-                  {status==="acknowledged"&&<button onClick={()=>advanceStatus("in_progress")} disabled={sending} style={{flex:1,padding:9,borderRadius:10,border:"none",background:SAF,color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>Mark in progress</button>}
-                  {(status==="in_progress"||status==="created"||status==="acknowledged")&&<button onClick={()=>advanceStatus("completed")} disabled={sending} style={{flex:1,padding:9,borderRadius:10,border:`1.5px solid ${SAF}`,background:"transparent",color:"#8B5E3C",fontSize:11,fontWeight:700,cursor:"pointer"}}>Mark done</button>}
+                  {status==="created"&&<button onClick={()=>advanceStatus("acknowledged")} disabled={sending} style={{flex:1,padding:11,borderRadius:12,border:"none",background:SAF,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Got it 👍</button>}
+                  {isTaskNudge&&status==="acknowledged"&&<button onClick={()=>advanceStatus("in_progress")} disabled={sending} style={{flex:1,padding:11,borderRadius:12,border:"none",background:SAF,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Mark in progress</button>}
+                  {(status==="in_progress"||status==="created"||status==="acknowledged")&&<button onClick={()=>advanceStatus("completed")} disabled={sending} style={{flex:1,padding:11,borderRadius:12,border:`1.5px solid ${SAF}`,background:"transparent",color:"#8B5E3C",fontSize:12,fontWeight:700,cursor:"pointer"}}>Mark done</button>}
                 </div>
                 <div style={{display:"flex",gap:6,flexShrink:0}}>
                   <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==="Enter"&&postComment()} placeholder="Add a comment..." style={{flex:1,fontSize:12,padding:"9px 12px",borderRadius:10,border:"1px solid #E8DDD0",outline:"none"}}/>
@@ -1182,6 +1186,7 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
   ];
   const [customCats,setCustomCats] = useState([]); // [{e,l,sub:[]}] user-added L1 cats
   const [showAddCat,setShowAddCat] = useState(false); // show add category input
+  const [expenseSubPopup,setExpenseSubPopup] = useState(null); // null | "category" | "details"
   const [newCatName,setNewCatName] = useState("");
   const [showAddSubcat,setShowAddSubcat] = useState(false);
   const [newSubcatName,setNewSubcatName] = useState("");
@@ -1589,6 +1594,7 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
 
         {/* ── ADD/EDIT EXPENSE BOTTOM SHEET ── */}
         {showE&&(
+          <>
           <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
             <div onClick={cancelEdit} style={{flex:1,background:"rgba(0,0,0,0.5)"}}/>
             <div style={{background:"#fff",borderRadius:"24px 24px 0 0",maxHeight:"92vh",display:"flex",flexDirection:"column"}}>
@@ -1617,6 +1623,35 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                   </div>
                   {myName&&ef.who===myName&&<div style={{fontSize:9,color:T.muted,marginTop:5}}>Auto-selected based on your account</div>}
                 </div>
+                {/* Category + Details tiles */}
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:18}}>
+                  <div onClick={()=>setExpenseSubPopup("category")}
+                    style={{background:ef.cat?"#FFF8E8":"#F8F4F0",border:`1.5px solid ${ef.cat?SAF:"#E8DDD0"}`,borderRadius:16,padding:"14px 8px",textAlign:"center",cursor:"pointer"}}>
+                    <div style={{fontSize:26,marginBottom:6}}>{ef.cat||"🏷️"}</div>
+                    <div style={{fontSize:9,fontWeight:700,color:"#8B5E3C",marginBottom:3,letterSpacing:0.3}}>CATEGORY</div>
+                    <div style={{fontSize:10,fontWeight:700,color:NAV,lineHeight:1.3}}>{selL1.l}{ef.subcat?<><br/>{ef.subcat}</>:null}</div>
+                  </div>
+                  <div onClick={()=>setExpenseSubPopup("details")}
+                    style={{background:(ef.label||ef.notes)?"#FFF8E8":"#F8F4F0",border:`1.5px solid ${(ef.label||ef.notes)?SAF:"#E8DDD0"}`,borderRadius:16,padding:"14px 8px",textAlign:"center",cursor:"pointer"}}>
+                    <div style={{fontSize:26,marginBottom:6}}>📝</div>
+                    <div style={{fontSize:9,fontWeight:700,color:"#8B5E3C",marginBottom:3,letterSpacing:0.3}}>DETAILS</div>
+                    <div style={{fontSize:10,fontWeight:600,color:ef.label?NAV:"#bbb"}}>{ef.label||"+ Add notes"}</div>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:10}}>
+                  <button onClick={cancelEdit} style={{flex:1,padding:13,borderRadius:13,border:"1.5px solid #E8DDD0",background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:13}}>Cancel</button>
+                  <button onClick={saveExpense} style={{flex:2,padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>{editId?"Update":"Save +10pts"}</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── CATEGORY SUB-POPUP ── */}
+          {expenseSubPopup==="category"&&(
+            <div style={{position:"fixed",inset:0,zIndex:260,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+              <div onClick={()=>setExpenseSubPopup(null)} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+              <div style={{background:"#fff",borderRadius:20,padding:"20px 18px",width:"100%",maxWidth:340,maxHeight:"80vh",overflowY:"auto",position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,textAlign:"center",marginBottom:14}}>Pick a category</div>
                 {/* Level 1 category */}
                 <div style={{marginBottom:10}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>CATEGORY</div>
@@ -1679,7 +1714,6 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                           <button onClick={()=>{
                             if(newSubcatName.trim()){
                               setCustomCats(cc=>cc.map(c=>c.e===selL1.e?{...c,sub:[...c.sub,newSubcatName.trim()]}:c));
-                              // also add to L1_CATS in memory for built-in cats
                               const builtIn=L1_CATS.find(c=>c.e===selL1.e);
                               if(builtIn&&!builtIn.sub.includes(newSubcatName.trim()))builtIn.sub.push(newSubcatName.trim());
                               setEf(f=>({...f,subcat:newSubcatName.trim()}));
@@ -1693,9 +1727,8 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                   </div>
                 </div>
                 {/* Level 3 tag */}
-                <div style={{marginBottom:14}}>
+                <div style={{marginBottom:16}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>TAG <span style={{fontWeight:400,color:T.muted}}>(optional — your own label)</span></div>
-                  {/* Previously used tags as quick chips */}
                   {(()=>{
                     const usedTags=[...new Set(expenses.data.map(e=>e.subcategory).filter(Boolean))].slice(0,6);
                     return usedTags.length>0?(
@@ -1714,38 +1747,47 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                   <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}} value={ef.tag}
                     onChange={e=>setEf(f=>({...f,tag:e.target.value}))} placeholder="e.g. Pranava's tiffin, work lunch…"/>
                 </div>
+                <button onClick={()=>setExpenseSubPopup(null)} style={{width:"100%",padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>Done</button>
+              </div>
+            </div>
+          )}
+
+          {/* ── DETAILS SUB-POPUP ── */}
+          {expenseSubPopup==="details"&&(
+            <div style={{position:"fixed",inset:0,zIndex:260,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+              <div onClick={()=>setExpenseSubPopup(null)} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+              <div style={{background:"#fff",borderRadius:20,padding:"20px 18px",width:"100%",maxWidth:340,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,textAlign:"center",marginBottom:14}}>Add details</div>
                 {/* Description */}
                 <div style={{marginBottom:14}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>DESCRIPTION</div>
-                  <input style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}} value={ef.label}
+                  <input autoFocus style={{...inp,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}} value={ef.label}
                     onChange={e=>setEf(f=>({...f,label:e.target.value}))} placeholder="e.g. Punjabi Dhaba dinner"/>
                 </div>
                 {/* Memory note */}
-                <div style={{marginBottom:20}}>
+                <div style={{marginBottom:18}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>MEMORY NOTE <span style={{fontWeight:400,color:T.muted}}>(optional)</span></div>
                   <textarea style={{...inp,height:68,resize:"none",lineHeight:1.6,background:"#F8F4F0",border:"1.5px solid #E8DDD0"}}
                     placeholder="Add a note… (e.g. Pranava's birthday dinner 🎂)"
                     value={ef.notes} onChange={e=>setEf(f=>({...f,notes:e.target.value}))}/>
                 </div>
-                <div style={{display:"flex",gap:10}}>
-                  <button onClick={cancelEdit} style={{flex:1,padding:13,borderRadius:13,border:"1.5px solid #E8DDD0",background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:13}}>Cancel</button>
-                  <button onClick={saveExpense} style={{flex:2,padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>{editId?"Update":"Save +10pts"}</button>
-                </div>
+                <button onClick={()=>setExpenseSubPopup(null)} style={{width:"100%",padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>Done</button>
               </div>
             </div>
-          </div>
+          )}
+          </>
         )}
 
         {/* ── NUDGE POPUP ── */}
         {nudgeTarget&&(
-          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-            <div onClick={()=>{setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);}} style={{flex:1,background:"rgba(0,0,0,0.4)"}}/>
-            <div style={{background:"#fff",borderRadius:"20px 20px 0 0",padding:"16px 18px 28px"}}>
-              <div style={{width:32,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 14px"}}/>
+          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+            <div onClick={()=>{setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);}} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+            <div style={{background:"#fff",borderRadius:20,padding:"22px 20px",width:"100%",maxWidth:320,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
               {!nudgeMsgMode?(
                 <>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4}}>👋 Nudge about this?</div>
-                  <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.6,background:"#F8F4F0",borderRadius:8,padding:"8px 10px"}}>
+                  <div style={{textAlign:"center",fontSize:34,marginBottom:8}}>👋</div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:NAV,marginBottom:10,textAlign:"center"}}>Nudge about this?</div>
+                  <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.6,background:"#F8F4F0",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
                     {nudgeTarget.who||"Someone"} spent ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}
                   </div>
                   {[
@@ -1765,21 +1807,22 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                 </>
               ):(
                 <>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4}}>✍️ Write your nudge</div>
-                  <div style={{fontSize:11,color:T.muted,marginBottom:10}}>About: {nudgeTarget.who||"Someone"}'s ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}</div>
+                  <div style={{textAlign:"center",fontSize:30,marginBottom:6}}>✍️</div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4,textAlign:"center"}}>Write your nudge</div>
+                  <div style={{fontSize:10,color:T.muted,marginBottom:12,textAlign:"center"}}>About: {nudgeTarget.who||"Someone"}'s ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}</div>
                   <textarea
                     autoFocus
                     placeholder={`e.g. "Eat healthy next time, no more burgers! 🥗"`}
                     value={nudgeMsg}
                     onChange={e=>setNudgeMsg(e.target.value)}
-                    style={{...inp,height:90,resize:"none",lineHeight:1.6,background:"#F8F4F0",border:`1.5px solid ${TEAL}`,marginBottom:12}}
+                    style={{...inp,height:100,resize:"none",lineHeight:1.5,background:"#FFF8E8",border:`2px solid ${SAF}`,marginBottom:16,fontSize:14,fontWeight:600,color:NAV,textAlign:"center",borderRadius:12}}
                   />
-                  <div style={{display:"flex",gap:8}}>
-                    <button onClick={()=>setNudgeMsgMode(false)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #E8DDD0",background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>← Back</button>
+                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
                     <button onClick={sendNudgeNow} disabled={!nudgeMsg.trim()}
-                      style={{flex:2,padding:12,borderRadius:12,border:"none",background:nudgeMsg.trim()?TEALTEXT:"#ccc",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>
+                      style={{padding:14,borderRadius:14,border:"none",background:nudgeMsg.trim()?`linear-gradient(135deg,${TEALTEXT},${NAV})`:"#ccc",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>
                       Send Nudge 👋
                     </button>
+                    <button onClick={()=>setNudgeMsgMode(false)} style={{padding:10,borderRadius:14,border:"none",background:"transparent",color:T.muted,fontWeight:600,cursor:"pointer",fontSize:12}}>← Back</button>
                   </div>
                 </>
               )}
