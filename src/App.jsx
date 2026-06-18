@@ -771,14 +771,14 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
               {(members||[]).slice(0,3).map(m=>(
                 <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                  <div style={{width:30,height:30,borderRadius:"50%",background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,overflow:"hidden"}}>
+                  <div style={{width:30,height:30,borderRadius:8,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,overflow:"hidden"}}>
                     {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
                   </div>
                   <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
                 </div>
               ))}
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <div style={{width:30,height:30,borderRadius:"50%",background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>➕</div>
+                <div style={{width:30,height:30,borderRadius:8,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>➕</div>
                 <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
               </div>
             </div>
@@ -1232,7 +1232,7 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
   // handlers
   const startEdit=(e)=>{setEditId(e.id);setEf({label:e.label||"",amount:String(e.amount),cat:e.cat||"🍱",subcat:e.subcategory||"",tag:"",who:e.who||"",notes:e.notes||""});setShowE(true);};
   const cancelEdit=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:myName,notes:""});setShowE(false);};
-  const openNewExpense=()=>{setEditId(null);setEf({label:"",amount:"",cat:"🍱",subcat:"",tag:"",who:myName,notes:""});setShowE(true);};
+  const openNewExpense=()=>{setEditId(null);setEf({label:"",amount:"",cat:drillCat||"🍱",subcat:"",tag:"",who:myName,notes:""});setShowE(true);};
   const saveExpense=async()=>{
     if(!ef.amount)return;
     const payload={label:ef.label||selL1.l,amount:Number(ef.amount),cat:ef.cat,subcategory:ef.subcat,who:ef.who,notes:ef.notes,date:new Date().toISOString()};
@@ -2538,7 +2538,7 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
           const hasJoined=linkedIds===null||linkedIds.has(m.id);
           return(
           <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
-            <div style={{width:42,height:42,borderRadius:"50%",background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
+            <div style={{width:42,height:42,borderRadius:10,background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
               {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
             </div>
             <div style={{flex:1}}>
@@ -2718,6 +2718,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   const [avatarUrl,setAvatarUrl]=useState(member.avatar_url||null);
   const [cropSrc,setCropSrc]=useState(null);
   const [cropOffset,setCropOffset]=useState({x:0,y:0});
+  const [cropZoom,setCropZoom]=useState(1);
   const [cropDragging,setCropDragging]=useState(false);
   const [dragStart,setDragStart]=useState({x:0,y:0});
   const cropImgRef=useRef(null);
@@ -2757,7 +2758,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   const handleCropDragMove=(clientX,clientY)=>{
     if(!cropDragging)return;
     const img=cropImgRef.current;if(!img)return;
-    const maxX=img.offsetWidth-CROP_SIZE;const maxY=img.offsetHeight-CROP_SIZE;
+    const maxX=Math.max(0,img.offsetWidth*cropZoom-CROP_SIZE);const maxY=Math.max(0,img.offsetHeight*cropZoom-CROP_SIZE);
     setCropOffset({x:Math.max(0,Math.min(maxX,clientX-dragStart.x)),y:Math.max(0,Math.min(maxY,clientY-dragStart.y))});
   };
   const handleCropEnd=()=>setCropDragging(false);
@@ -2766,7 +2767,9 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
     try{
       const img=cropImgRef.current;
       const displayed=img.getBoundingClientRect();
-      const scaleX=img.naturalWidth/displayed.width;const scaleY=img.naturalHeight/displayed.height;
+      const baseScaleX=img.naturalWidth/displayed.width;const baseScaleY=img.naturalHeight/displayed.height;
+      // account for zoom — at higher zoom, each on-screen pixel maps to fewer natural pixels
+      const scaleX=baseScaleX/cropZoom;const scaleY=baseScaleY/cropZoom;
       const canvas=document.createElement("canvas");canvas.width=400;canvas.height=400;
       const ctx=canvas.getContext("2d");
       ctx.drawImage(img,cropOffset.x*scaleX,cropOffset.y*scaleY,CROP_SIZE*scaleX,CROP_SIZE*scaleY,0,0,400,400);
@@ -2788,19 +2791,34 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
   if(cropSrc)return(
     <div style={{padding:"16px",fontFamily:"Lato,sans-serif"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark,marginBottom:12}}>Crop Photo</div>
-      <div style={{position:"relative",overflow:"hidden",borderRadius:16,background:"#000",marginBottom:16,userSelect:"none",touchAction:"none"}}
+      <div style={{position:"relative",overflow:"hidden",borderRadius:16,background:"#000",marginBottom:14,userSelect:"none",touchAction:"none"}}
         onMouseMove={e=>handleCropDragMove(e.clientX,e.clientY)}
         onMouseUp={handleCropEnd} onMouseLeave={handleCropEnd}
         onTouchMove={e=>{e.preventDefault();handleCropDragMove(e.touches[0].clientX,e.touches[0].clientY);}}
         onTouchEnd={handleCropEnd}>
-        <img ref={cropImgRef} src={cropSrc} alt="crop" style={{width:"100%",display:"block",opacity:0.5,pointerEvents:"none"}}/>
-        <div style={{position:"absolute",top:cropOffset.y,left:cropOffset.x,width:CROP_SIZE,height:CROP_SIZE,border:"3px solid #fff",borderRadius:"50%",boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",cursor:"move",boxSizing:"border-box"}}
+        <img ref={cropImgRef} src={cropSrc} alt="crop" style={{width:"100%",display:"block",opacity:0.5,pointerEvents:"none",transform:`scale(${cropZoom})`,transformOrigin:"top left"}}/>
+        <div style={{position:"absolute",top:cropOffset.y,left:cropOffset.x,width:CROP_SIZE,height:CROP_SIZE,border:"3px solid #fff",borderRadius:14,boxShadow:"0 0 0 9999px rgba(0,0,0,0.5)",cursor:"move",boxSizing:"border-box"}}
           onMouseDown={e=>handleCropDragStart(e.clientX,e.clientY)}
           onTouchStart={e=>handleCropDragStart(e.touches[0].clientX,e.touches[0].clientY)}/>
       </div>
-      <div style={{fontSize:12,color:T.muted,textAlign:"center",marginBottom:16}}>Drag the circle to position your photo</div>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <span style={{fontSize:14,color:T.muted}}>🔍</span>
+        <input type="range" min="1" max="3" step="0.05" value={cropZoom}
+          onChange={e=>{
+            const newZoom=Number(e.target.value);
+            const img=cropImgRef.current;
+            if(img){
+              const maxX=Math.max(0,img.offsetWidth*newZoom-CROP_SIZE);const maxY=Math.max(0,img.offsetHeight*newZoom-CROP_SIZE);
+              setCropOffset(o=>({x:Math.min(o.x,maxX),y:Math.min(o.y,maxY)}));
+            }
+            setCropZoom(newZoom);
+          }}
+          style={{flex:1}}/>
+        <span style={{fontSize:12,color:T.muted,minWidth:32}}>{Math.round(cropZoom*100)}%</span>
+      </div>
+      <div style={{fontSize:12,color:T.muted,textAlign:"center",marginBottom:16}}>Drag to position, use the slider to zoom</div>
       <div style={{display:"flex",gap:10}}>
-        <button onClick={()=>setCropSrc(null)} style={{flex:1,padding:13,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+        <button onClick={()=>{setCropSrc(null);setCropZoom(1);setCropOffset({x:0,y:0});}} style={{flex:1,padding:13,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer"}}>Cancel</button>
         <button onClick={handleCropAndUpload} disabled={uploading} style={{flex:2,padding:13,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{uploading?"Uploading…":"Crop & Upload"}</button>
       </div>
     </div>
@@ -2811,7 +2829,7 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
       <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
       <div style={{textAlign:"center",marginBottom:20}}>
         <label style={{cursor:"pointer",display:"inline-block",position:"relative"}}>
-          <div style={{width:80,height:80,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
+          <div style={{width:80,height:80,borderRadius:18,background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
             {avatarUrl?<img src={avatarUrl} alt={member.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
           </div>
           <div style={{position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{uploading?"⏳":"📷"}</div>
