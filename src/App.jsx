@@ -1043,23 +1043,23 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
   if(!nudge)return null;
 
   return(
-    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+    <div style={{position:"fixed",inset:0,zIndex:500,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-      <div style={{background:"#fff",borderRadius:20,padding:"20px 18px",width:"100%",maxWidth:340,maxHeight:"85vh",display:"flex",flexDirection:"column",position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
-        <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"transparent",border:"none",fontSize:18,color:"#999",cursor:"pointer",padding:4,zIndex:1}}>✕</button>
+      <div style={{background:"#fff",borderRadius:22,padding:"24px 22px",width:"100%",maxWidth:380,maxHeight:"85vh",display:"flex",flexDirection:"column",position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+        <button onClick={onClose} style={{position:"absolute",top:14,right:14,background:"transparent",border:"none",fontSize:20,color:"#999",cursor:"pointer",padding:4,zIndex:1}}>✕</button>
 
         <div style={{textAlign:"center",flexShrink:0}}>
-          <div style={{width:40,height:40,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,margin:"0 auto 8px"}}>👋</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV}}>{nudge.from_member} nudged you!</div>
+          <div style={{width:48,height:48,borderRadius:"50%",background:"rgba(244,167,36,0.15)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,margin:"0 auto 10px"}}>👋</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:NAV}}>{nudge.from_member} nudged you!</div>
         </div>
 
-        <div style={{background:"#FDF6EC",border:`2px solid ${SAF}`,borderRadius:14,padding:"14px 12px",margin:"12px 0",textAlign:"center",flexShrink:0}}>
-          <div style={{fontSize:14,fontWeight:700,color:NAV,lineHeight:1.45}}>"{nudge.note}"</div>
+        <div style={{background:"#FDF6EC",border:`2px solid ${SAF}`,borderRadius:16,padding:"16px 14px",margin:"14px 0",textAlign:"center",flexShrink:0}}>
+          <div style={{fontSize:16,fontWeight:700,color:NAV,lineHeight:1.45}}>"{nudge.note}"</div>
         </div>
 
-        <div style={{display:"flex",borderBottom:"1.5px solid #EDE0D0",marginBottom:12,flexShrink:0}}>
-          <div onClick={()=>setDtab("thread")} style={{flex:1,textAlign:"center",padding:"8px 0",fontSize:11,fontWeight:dtab==="thread"?700:400,color:dtab==="thread"?NAV:"#888",borderBottom:dtab==="thread"?`2px solid ${SAF}`:"2px solid transparent",cursor:"pointer"}}>Thread</div>
-          <div onClick={()=>setDtab("close")} style={{flex:1,textAlign:"center",padding:"8px 0",fontSize:11,fontWeight:dtab==="close"?700:400,color:dtab==="close"?NAV:"#888",borderBottom:dtab==="close"?`2px solid ${SAF}`:"2px solid transparent",cursor:"pointer"}}>Close</div>
+        <div style={{display:"flex",borderBottom:"1.5px solid #EDE0D0",marginBottom:14,flexShrink:0}}>
+          <div onClick={()=>setDtab("thread")} style={{flex:1,textAlign:"center",padding:"10px 0",fontSize:13,fontWeight:dtab==="thread"?700:400,color:dtab==="thread"?NAV:"#888",borderBottom:dtab==="thread"?`2px solid ${SAF}`:"2px solid transparent",cursor:"pointer"}}>Thread</div>
+          <div onClick={()=>setDtab("close")} style={{flex:1,textAlign:"center",padding:"10px 0",fontSize:13,fontWeight:dtab==="close"?700:400,color:dtab==="close"?NAV:"#888",borderBottom:dtab==="close"?`2px solid ${SAF}`:"2px solid transparent",cursor:"pointer"}}>Close</div>
         </div>
 
         {dtab==="thread"&&(
@@ -1099,14 +1099,14 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
 
             {!closed?(
               <>
-                <div style={{display:"flex",gap:6,marginBottom:10,flexShrink:0}}>
-                  {status==="created"&&<button onClick={()=>advanceStatus("acknowledged")} disabled={sending} style={{flex:1,padding:11,borderRadius:12,border:"none",background:SAF,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Got it 👍</button>}
-                  {isTaskNudge&&status==="acknowledged"&&<button onClick={()=>advanceStatus("in_progress")} disabled={sending} style={{flex:1,padding:11,borderRadius:12,border:"none",background:SAF,color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Mark in progress</button>}
-                  {(status==="in_progress"||status==="created"||status==="acknowledged")&&<button onClick={()=>advanceStatus("completed")} disabled={sending} style={{flex:1,padding:11,borderRadius:12,border:`1.5px solid ${SAF}`,background:"transparent",color:"#8B5E3C",fontSize:12,fontWeight:700,cursor:"pointer"}}>Mark done</button>}
+                <div style={{display:"flex",gap:8,marginBottom:12,flexShrink:0}}>
+                  {status==="created"&&<button onClick={()=>advanceStatus("acknowledged")} disabled={sending} style={{flex:1,padding:13,borderRadius:14,border:"none",background:SAF,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Got it 👍</button>}
+                  {isTaskNudge&&status==="acknowledged"&&<button onClick={()=>advanceStatus("in_progress")} disabled={sending} style={{flex:1,padding:13,borderRadius:14,border:"none",background:SAF,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Mark in progress</button>}
+                  {(status==="in_progress"||status==="created"||status==="acknowledged")&&<button onClick={()=>advanceStatus("completed")} disabled={sending} style={{flex:1,padding:13,borderRadius:14,border:`1.5px solid ${SAF}`,background:"transparent",color:"#8B5E3C",fontSize:13,fontWeight:700,cursor:"pointer"}}>Mark done</button>}
                 </div>
-                <div style={{display:"flex",gap:6,flexShrink:0}}>
-                  <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==="Enter"&&postComment()} placeholder="Add a comment..." style={{flex:1,fontSize:12,padding:"9px 12px",borderRadius:10,border:"1px solid #E8DDD0",outline:"none"}}/>
-                  <button onClick={postComment} disabled={!comment.trim()||sending} style={{width:38,height:38,borderRadius:10,border:"none",background:comment.trim()?SAF:"#ccc",color:"#fff",cursor:"pointer",flexShrink:0,fontSize:14}}>➤</button>
+                <div style={{display:"flex",gap:8,flexShrink:0}}>
+                  <input value={comment} onChange={e=>setComment(e.target.value)} onKeyDown={e=>e.key==="Enter"&&postComment()} placeholder="Add a comment..." style={{flex:1,fontSize:13,padding:"11px 14px",borderRadius:12,border:"1px solid #E8DDD0",outline:"none"}}/>
+                  <button onClick={postComment} disabled={!comment.trim()||sending} style={{width:44,height:44,borderRadius:12,border:"none",background:comment.trim()?SAF:"#ccc",color:"#fff",cursor:"pointer",flexShrink:0,fontSize:16}}>➤</button>
                 </div>
               </>
             ):(
@@ -1119,20 +1119,20 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
           <div>
             {!closed?(
               <>
-                <div style={{textAlign:"center",padding:"10px 0 18px"}}>
-                  <div style={{fontSize:28}}>🔒</div>
-                  <div style={{fontSize:12,fontWeight:700,color:NAV,marginTop:10}}>Close this nudge thread?</div>
-                  <div style={{fontSize:10,color:"#888",marginTop:6,lineHeight:1.6,padding:"0 12px"}}>
+                <div style={{textAlign:"center",padding:"10px 0 20px"}}>
+                  <div style={{fontSize:32}}>🔒</div>
+                  <div style={{fontSize:15,fontWeight:700,color:NAV,marginTop:12}}>Close this nudge thread?</div>
+                  <div style={{fontSize:12,color:"#888",marginTop:8,lineHeight:1.6,padding:"0 8px"}}>
                     No one will be able to comment after this. The thread stays visible to everyone, just read-only.
                   </div>
                 </div>
                 <div style={{display:"flex",gap:8}}>
-                  <button onClick={()=>setDtab("thread")} style={{flex:1,padding:10,borderRadius:10,border:"1.5px solid #E8DDD0",background:"transparent",color:"#8B5E3C",fontSize:12,fontWeight:700,cursor:"pointer"}}>Keep it open</button>
-                  <button onClick={confirmClose} disabled={sending} style={{flex:1,padding:10,borderRadius:10,border:"none",background:"#A32D2D",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>Close thread</button>
+                  <button onClick={()=>setDtab("thread")} style={{flex:1,padding:13,borderRadius:14,border:"1.5px solid #E8DDD0",background:"transparent",color:"#8B5E3C",fontSize:13,fontWeight:700,cursor:"pointer"}}>Keep it open</button>
+                  <button onClick={confirmClose} disabled={sending} style={{flex:1,padding:13,borderRadius:14,border:"none",background:"#A32D2D",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Close thread</button>
                 </div>
               </>
             ):(
-              <div style={{textAlign:"center",fontSize:11,color:"#888",padding:20}}>This thread is already closed.</div>
+              <div style={{textAlign:"center",fontSize:13,color:"#888",padding:24}}>This thread is already closed.</div>
             )}
           </div>
         )}
@@ -1595,14 +1595,14 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
         {/* ── ADD/EDIT EXPENSE BOTTOM SHEET ── */}
         {showE&&(
           <>
-          <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",flexDirection:"column",justifyContent:"flex-end"}}>
-            <div onClick={cancelEdit} style={{flex:1,background:"rgba(0,0,0,0.5)"}}/>
-            <div style={{background:"#fff",borderRadius:"24px 24px 0 0",maxHeight:"92vh",display:"flex",flexDirection:"column"}}>
-              <div style={{padding:"12px 20px 0",flexShrink:0}}>
-                <div style={{width:36,height:4,borderRadius:99,background:"#E0D8D0",margin:"0 auto 12px"}}/>
-                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:NAV,fontSize:17,marginBottom:12}}>{editId?"Edit Expense":"New Expense"}</div>
+          <div style={{position:"fixed",inset:0,zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div onClick={cancelEdit} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+            <div style={{background:"#fff",borderRadius:22,maxHeight:"88vh",width:"100%",maxWidth:360,display:"flex",flexDirection:"column",position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+              <div style={{padding:"18px 20px 0",flexShrink:0,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                <div style={{fontFamily:"'Playfair Display',serif",fontWeight:700,color:NAV,fontSize:18}}>{editId?"Edit Expense":"New Expense"}</div>
+                {!editId&&<div style={{background:SAF,color:"#fff",borderRadius:99,padding:"4px 10px",fontSize:11,fontWeight:800,flexShrink:0}}>+10 pts</div>}
               </div>
-              <div style={{flex:1,overflowY:"auto",padding:"0 20px 100px"}}>
+              <div style={{flex:1,overflowY:"auto",padding:"14px 20px 20px"}}>
                 {/* Amount */}
                 <div style={{background:"#F8F4F0",borderRadius:14,padding:"16px",textAlign:"center",marginBottom:16}}>
                   <div style={{fontSize:10,color:T.muted,marginBottom:6,fontWeight:700,letterSpacing:0.5}}>AMOUNT (₹)</div>
@@ -1638,9 +1638,9 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                     <div style={{fontSize:10,fontWeight:600,color:ef.label?NAV:"#bbb"}}>{ef.label||"+ Add notes"}</div>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:10}}>
-                  <button onClick={cancelEdit} style={{flex:1,padding:13,borderRadius:13,border:"1.5px solid #E8DDD0",background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:13}}>Cancel</button>
-                  <button onClick={saveExpense} style={{flex:2,padding:13,borderRadius:13,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>{editId?"Update":"Save +10pts"}</button>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={cancelEdit} style={{flex:1,padding:11,borderRadius:14,border:"1.5px solid #E8DDD0",background:"transparent",color:"#A08070",cursor:"pointer",fontWeight:700,fontSize:12}}>Cancel</button>
+                  <button onClick={saveExpense} style={{flex:2,padding:11,borderRadius:14,border:"none",background:`linear-gradient(135deg,${TEALTEXT},${NAV})`,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>{editId?"Update":"Save Expense"}</button>
                 </div>
               </div>
             </div>
@@ -1780,14 +1780,14 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
 
         {/* ── NUDGE POPUP ── */}
         {nudgeTarget&&(
-          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+          <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
             <div onClick={()=>{setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);}} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-            <div style={{background:"#fff",borderRadius:20,padding:"22px 20px",width:"100%",maxWidth:320,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+            <div style={{background:"#fff",borderRadius:22,padding:"26px 22px",width:"100%",maxWidth:360,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
               {!nudgeMsgMode?(
                 <>
-                  <div style={{textAlign:"center",fontSize:34,marginBottom:8}}>👋</div>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:NAV,marginBottom:10,textAlign:"center"}}>Nudge about this?</div>
-                  <div style={{fontSize:11,color:T.muted,marginBottom:14,lineHeight:1.6,background:"#F8F4F0",borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+                  <div style={{textAlign:"center",fontSize:40,marginBottom:10}}>👋</div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:NAV,marginBottom:12,textAlign:"center"}}>Nudge about this?</div>
+                  <div style={{fontSize:13,color:T.muted,marginBottom:16,lineHeight:1.6,background:"#F8F4F0",borderRadius:10,padding:"10px 12px",textAlign:"center"}}>
                     {nudgeTarget.who||"Someone"} spent ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}
                   </div>
                   {[
@@ -1795,34 +1795,34 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                     {icon:"⏰",l:"Schedule nudge",sub:"Tonight 8pm · Tomorrow morning · Custom",bg:"#EEF0FF",tc:"#3730A3",fn:()=>setNudgeTarget(null)},
                   ].map(opt=>(
                     <div key={opt.l} onClick={opt.fn}
-                      style={{display:"flex",alignItems:"center",gap:12,background:opt.bg,borderRadius:12,padding:"11px 14px",marginBottom:8,cursor:"pointer"}}>
-                      <div style={{fontSize:20,flexShrink:0}}>{opt.icon}</div>
+                      style={{display:"flex",alignItems:"center",gap:14,background:opt.bg,borderRadius:14,padding:"14px 16px",marginBottom:10,cursor:"pointer"}}>
+                      <div style={{fontSize:24,flexShrink:0}}>{opt.icon}</div>
                       <div>
-                        <div style={{fontSize:12,fontWeight:800,color:opt.tc}}>{opt.l}</div>
-                        <div style={{fontSize:10,color:T.muted,marginTop:2}}>{opt.sub}</div>
+                        <div style={{fontSize:14,fontWeight:800,color:opt.tc}}>{opt.l}</div>
+                        <div style={{fontSize:12,color:T.muted,marginTop:3}}>{opt.sub}</div>
                       </div>
                     </div>
                   ))}
-                  <button onClick={()=>{setNudgeTarget(null);setNudgeMsg("");}} style={{width:"100%",padding:8,background:"transparent",border:"none",fontSize:12,fontWeight:700,color:T.muted,cursor:"pointer",marginTop:4}}>Cancel</button>
+                  <button onClick={()=>{setNudgeTarget(null);setNudgeMsg("");}} style={{width:"100%",padding:12,background:"transparent",border:"1.5px solid #E8DDD0",borderRadius:14,fontSize:13,fontWeight:700,color:T.muted,cursor:"pointer",marginTop:6}}>Cancel</button>
                 </>
               ):(
                 <>
-                  <div style={{textAlign:"center",fontSize:30,marginBottom:6}}>✍️</div>
-                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:NAV,marginBottom:4,textAlign:"center"}}>Write your nudge</div>
-                  <div style={{fontSize:10,color:T.muted,marginBottom:12,textAlign:"center"}}>About: {nudgeTarget.who||"Someone"}'s ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}</div>
+                  <div style={{textAlign:"center",fontSize:36,marginBottom:8}}>✍️</div>
+                  <div style={{fontFamily:"'Playfair Display',serif",fontSize:19,fontWeight:700,color:NAV,marginBottom:6,textAlign:"center"}}>Write your nudge</div>
+                  <div style={{fontSize:12,color:T.muted,marginBottom:14,textAlign:"center"}}>About: {nudgeTarget.who||"Someone"}'s ₹{nudgeTarget.amount.toLocaleString()} on {nudgeTarget.label}</div>
                   <textarea
                     autoFocus
                     placeholder={`e.g. "Eat healthy next time, no more burgers! 🥗"`}
                     value={nudgeMsg}
                     onChange={e=>setNudgeMsg(e.target.value)}
-                    style={{...inp,height:100,resize:"none",lineHeight:1.5,background:"#FFF8E8",border:`2px solid ${SAF}`,marginBottom:16,fontSize:14,fontWeight:600,color:NAV,textAlign:"center",borderRadius:12}}
+                    style={{...inp,height:110,resize:"none",lineHeight:1.5,background:"#FFF8E8",border:`2px solid ${SAF}`,marginBottom:18,fontSize:16,fontWeight:600,color:NAV,textAlign:"center",borderRadius:14}}
                   />
-                  <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <div style={{display:"flex",flexDirection:"column",gap:10}}>
                     <button onClick={sendNudgeNow} disabled={!nudgeMsg.trim()}
-                      style={{padding:14,borderRadius:14,border:"none",background:nudgeMsg.trim()?`linear-gradient(135deg,${TEALTEXT},${NAV})`:"#ccc",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:14}}>
+                      style={{padding:16,borderRadius:16,border:"none",background:nudgeMsg.trim()?`linear-gradient(135deg,${TEALTEXT},${NAV})`:"#ccc",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:15}}>
                       Send Nudge 👋
                     </button>
-                    <button onClick={()=>setNudgeMsgMode(false)} style={{padding:10,borderRadius:14,border:"none",background:"transparent",color:T.muted,fontWeight:600,cursor:"pointer",fontSize:12}}>← Back</button>
+                    <button onClick={()=>setNudgeMsgMode(false)} style={{padding:12,borderRadius:14,border:"1.5px solid #E8DDD0",background:"transparent",color:T.muted,fontWeight:700,cursor:"pointer",fontSize:13}}>← Back</button>
                   </div>
                 </>
               )}
