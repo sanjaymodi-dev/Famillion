@@ -984,8 +984,10 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
   useEffect(()=>{
     fetchHistory();
     if(nudge?.id && !nudge.seen){
-      sb.from("nudges").update({seen:true}).eq("id",nudge.id);
-      onMarkSeen&&onMarkSeen(nudge.id);
+      (async()=>{
+        await sb.from("nudges").update({seen:true}).eq("id",nudge.id);
+        onMarkSeen&&onMarkSeen(nudge.id);
+      })();
     }
   },[nudge?.id]);
 
@@ -1135,7 +1137,7 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
   );
 }
 
-function MoneyScreen({ family, members, familyId, onPts, nudges }) {
+function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
   const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC", TEAL="#E0F7F2", TEALTEXT="#0A6B58";
@@ -1147,7 +1149,7 @@ function MoneyScreen({ family, members, familyId, onPts, nudges }) {
   // spend tab state
   const [viewBy,setViewBy]     = useState("category");
   // auto-detect logged-in member name
-  const myName=members?.find(m=>m.name.toLowerCase().includes((family?._userEmail||"").split("@")[0].toLowerCase()))?.name
+  const myName=members?.find(m=>m.id===myMemberId)?.name||members?.find(m=>m.name.toLowerCase().includes((family?._userEmail||"").split("@")[0].toLowerCase()))?.name
     ||members?.find(m=>m.id===family?._memberId)?.name
     ||members?.[0]?.name||"";
 
@@ -1196,8 +1198,8 @@ function MoneyScreen({ family, members, familyId, onPts, nudges }) {
   const catMap=L1_CATS.map(c=>{
     const cs=monthExp.filter(e=>e.cat===c.e).reduce((s,e)=>s+Number(e.amount),0);
     return{...c,spent:cs,count:monthExp.filter(e=>e.cat===c.e).length};
-  }).filter(c=>c.spent>0).sort((a,b)=>b.spent-a.spent);
-  const topCat=catMap[0];
+  }).sort((a,b)=>b.spent-a.spent);
+  const topCat=catMap.find(c=>c.spent>0);
 
   // views
   const viewExp=viewBy==="category"&&drillCat
@@ -2938,6 +2940,7 @@ export default function App() {
   const [showMore,setShowMore]=useState(false);
   const [selectedMember,setSelectedMember]=useState(null);
   const [activeNudge,setActiveNudge]=useState(null);
+  const [myMemberId,setMyMemberId]=useState(null);
 const [showHeader,setShowHeader]=useState(false);
 
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
@@ -3075,6 +3078,7 @@ const [showHeader,setShowHeader]=useState(false);
         clearTimeout(timeout);
         setFamily(Array.isArray(fam)?fam[0]:fam);
         setMembers(Array.isArray(mems)?mems:[]);
+        setMyMemberId(profile.member_id||null);
       } catch(e){ clearTimeout(timeout); setFamily({id:null,name:"My Family",city:"",points:0,monthly_income:0,monthly_expenses:0,savings:0,debts:0,insurance:0,age:30,_noProfile:true}); }
     })();
     return()=>clearTimeout(timeout);
@@ -3118,12 +3122,12 @@ useEffect(()=>{
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
       <div style={{width:"100%",maxWidth:420,margin:"0 auto"}}>
-        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers} currentUserName={members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone"}/>
+        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers} currentUserName={members.find(m=>m.id===myMemberId)?.name||members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone"}/>
       </div>
     </div>
   );
 
-  const currentUserName=members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone";
+  const currentUserName=members.find(m=>m.id===myMemberId)?.name||members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone";
 
   const screens={
     
@@ -3131,7 +3135,7 @@ useEffect(()=>{
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
-    budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts} setFamily={setFamily} nudges={nudges}/>,
+    budget:   <MoneyScreen     family={family} members={members} familyId={family?.id} onPts={handlePts} setFamily={setFamily} nudges={nudges} myMemberId={myMemberId}/>,
     plan:     <CalendarScreen  familyId={family?.id} members={members}/>,
     chores:   <ChoresScreen    familyId={family?.id} onPts={handlePts}/>,
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
@@ -3215,7 +3219,7 @@ useEffect(()=>{
 
         {/* FLOATING AI BUTTON */}
         {tab!=="concierge"&&(
-          <button onClick={()=>handleTabChange("concierge")} style={{position:"fixed",bottom:82,right:"calc(50% - 195px)",zIndex:150,width:46,height:46,borderRadius:"50%",background:`linear-gradient(135deg,${T.lav},${T.blue})`,border:"none",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>🤖</button>
+          <button onClick={()=>handleTabChange("concierge")} style={{position:"fixed",bottom:148,right:20,zIndex:150,width:46,height:46,borderRadius:"50%",background:`linear-gradient(135deg,${T.lav},${T.blue})`,border:"none",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>🤖</button>
         )}
 
         {/* MORE DRAWER */}
