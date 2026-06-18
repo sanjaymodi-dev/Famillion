@@ -1144,6 +1144,7 @@ function NudgeDetailView({ nudge, currentUserName, onClose, onMarkSeen }) {
 function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
+  const nudgeHistory = useTable("nudge_history", familyId);
   const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC", TEAL="#E0F7F2", TEALTEXT="#0A6B58";
 
   // sub-tab: spend | breakdown | insights | more
@@ -1250,13 +1251,25 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
     const tid=nudgeTarget?.id;
     const targetWho=nudgeTarget?.who;
     const targetLabel=nudgeTarget?.label;
+    const msgToSend=nudgeMsg||`About ${targetLabel||"this expense"}`;
     setNudgedId(tid);
     setNudgeTarget(null);setNudgeMsg("");setNudgeMsgMode(false);
     setTimeout(()=>setNudgedId(null),1500);
-    if(nudges?.add && tid){
+    if(!tid)return;
+    // Check for an existing OPEN nudge thread on this expense — consolidate into it instead of creating a duplicate
+    const existing=(nudges?.data||[]).find(n=>n.related_table==="expenses"&&n.related_id===tid&&!n.closed);
+    if(existing){
+      await sb.from("nudge_history").insert({
+        nudge_id:existing.id, family_id:existing.family_id, status:null,
+        note:msgToSend, by_member:myName,
+      });
+      // bump seen back to false so the recipient sees this as a fresh update
+      await sb.from("nudges").update({seen:false}).eq("id",existing.id);
+      nudges?.refetch&&nudges.refetch();
+    }else if(nudges?.add){
       await nudges.add({
         from_member:myName, to_member:targetWho||"",
-        task_type:"expense", note:nudgeMsg||`About ${targetLabel||"this expense"}`, tone:"🙏 Gentle reminder",
+        task_type:"expense", note:msgToSend, tone:"🙏 Gentle reminder",
         seen:false, type:"nudge", status:"created",
         related_id:tid, related_table:"expenses", closed:false,
       });
@@ -1317,13 +1330,16 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
         </div>
       )}
       {(()=>{
-        const nudgeCount=(nudges?.data||[]).filter(n=>n.related_table==="expenses"&&n.related_id===e.id).length;
-        return nudgeCount>0?(
+        const linkedNudge=(nudges?.data||[]).find(n=>n.related_table==="expenses"&&n.related_id===e.id);
+        if(!linkedNudge)return null;
+        const replyCount=(nudgeHistory?.data||[]).filter(h=>h.nudge_id===linkedNudge.id&&h.note).length;
+        const msgCount=1+replyCount; // 1 for the original nudge message + any replies/re-nudges
+        return(
           <div style={{marginTop:6,display:"flex",alignItems:"center",justifyContent:"space-between",background:"#FAEEDA",borderRadius:8,padding:"5px 10px"}}>
             <div style={{fontSize:10,fontWeight:800,color:"#854F0B"}}>🔔 Nudged</div>
-            <div style={{fontSize:10,fontWeight:800,color:"#633806"}}>×{nudgeCount}</div>
+            <div style={{fontSize:10,fontWeight:800,color:"#633806"}}>×{msgCount}</div>
           </div>
-        ):null;
+        );
       })()}
     </div>
   );
