@@ -771,14 +771,14 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
               {(members||[]).slice(0,3).map(m=>(
                 <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                  <div style={{width:30,height:30,borderRadius:8,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,overflow:"hidden"}}>
+                  <div style={{width:"100%",aspectRatio:"1",borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
                     {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
                   </div>
                   <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
                 </div>
               ))}
               <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <div style={{width:30,height:30,borderRadius:8,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14}}>➕</div>
+                <div style={{width:"100%",aspectRatio:"1",borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>➕</div>
                 <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
               </div>
             </div>
@@ -1145,6 +1145,7 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
   const expenses = useTable("expenses", familyId);
   const goals    = useTable("goals", familyId);
   const nudgeHistory = useTable("nudge_history", familyId);
+  const breakdownBills = useTable("bills", familyId);
   const SAF="#F4A724", NAV="#0F1F3D", CRM="#FDF6EC", TEAL="#E0F7F2", TEALTEXT="#0A6B58";
 
   // sub-tab: spend | breakdown | insights | more
@@ -1868,17 +1869,14 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
           {/* Fixed/Committed */}
           <div style={{background:"#fff",borderRadius:14,border:"0.5px solid #EDE0D0",padding:"12px 14px",marginBottom:10}}>
             <div style={{fontSize:10,fontWeight:800,color:NAV,letterSpacing:0.5,marginBottom:10}}>🔒 FIXED / COMMITTED</div>
-            {[
-              {l:"🏠 Rent / EMI",amt:22000,paid:true},
-              {l:"📚 School fees",amt:8500,paid:true},
-              {l:"⚡ Electricity",amt:3200,paid:false},
-              {l:"📱 Internet + Mobile",amt:1800,paid:true},
-            ].map(r=>(
-              <div key={r.l} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"0.5px solid #F0EAE0"}}>
-                <div style={{fontSize:11,fontWeight:700,color:NAV}}>{r.l}</div>
+            {breakdownBills.loading&&<div style={{fontSize:12,color:T.muted,textAlign:"center",padding:"12px 0"}}>Loading…</div>}
+            {!breakdownBills.loading&&breakdownBills.data.length===0&&<div style={{fontSize:12,color:T.muted,textAlign:"center",padding:"12px 0"}}>No bills added yet — add one from the Errands tab</div>}
+            {breakdownBills.data.map(b=>(
+              <div key={b.id} onClick={()=>breakdownBills.update(b.id,{paid:!b.paid})} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:"0.5px solid #F0EAE0",cursor:"pointer"}}>
+                <div style={{fontSize:11,fontWeight:700,color:NAV}}>{b.icon} {b.label}</div>
                 <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{r.amt.toLocaleString()}</div>
-                  <div style={{fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:5,background:r.paid?TEAL:"#FFF0EC",color:r.paid?TEALTEXT:"#9B3A22"}}>{r.paid?"✅ Paid":"❌ Due"}</div>
+                  <div style={{fontSize:11,fontWeight:800,color:NAV}}>₹{Number(b.amount).toLocaleString()}</div>
+                  <div style={{fontSize:9,fontWeight:800,padding:"2px 6px",borderRadius:5,background:b.paid?TEAL:"#FFF0EC",color:b.paid?TEALTEXT:"#9B3A22"}}>{b.paid?"✅ Paid":"❌ Due"}</div>
                 </div>
               </div>
             ))}
@@ -2538,7 +2536,7 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
           const hasJoined=linkedIds===null||linkedIds.has(m.id);
           return(
           <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
-            <div style={{width:42,height:42,borderRadius:10,background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
+            <div style={{width:58,height:58,borderRadius:12,background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,overflow:"hidden",flexShrink:0}}>
               {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
             </div>
             <div style={{flex:1}}>
@@ -3018,6 +3016,13 @@ export default function App() {
   const [selectedMember,setSelectedMember]=useState(null);
   const [activeNudge,setActiveNudge]=useState(null);
   const [myMemberId,setMyMemberId]=useState(null);
+  const [aiBtnPos,setAiBtnPos]=useState(()=>{
+    try{const saved=JSON.parse(localStorage.getItem("fn_ai_btn_pos"));if(saved&&typeof saved.bottom==="number"&&typeof saved.right==="number")return saved;}catch(e){}
+    return {bottom:148,right:20};
+  });
+  const [aiBtnDragging,setAiBtnDragging]=useState(false);
+  const aiBtnDragStart=useRef({x:0,y:0,bottom:148,right:20});
+  const aiBtnMoved=useRef(false);
 const [showHeader,setShowHeader]=useState(false);
 
   const [theme,setTheme]=useState(()=>localStorage.getItem("fn_theme")||"earthy");
@@ -3168,6 +3173,32 @@ const [showHeader,setShowHeader]=useState(false);
     setFamily(f=>({...f,points:np}));
   },[family]);
 
+  const aiBtnSize=46;
+  const aiBtnLatestPos=useRef(aiBtnPos);
+  const aiBtnDragMoveStart=(clientX,clientY)=>{
+    setAiBtnDragging(true);
+    aiBtnMoved.current=false;
+    aiBtnDragStart.current={x:clientX,y:clientY,bottom:aiBtnPos.bottom,right:aiBtnPos.right};
+  };
+  const aiBtnDragMove=(clientX,clientY)=>{
+    if(!aiBtnDragging)return;
+    const dx=clientX-aiBtnDragStart.current.x;
+    const dy=clientY-aiBtnDragStart.current.y;
+    if(Math.abs(dx)>4||Math.abs(dy)>4)aiBtnMoved.current=true;
+    const vw=window.innerWidth,vh=window.innerHeight;
+    const newRight=Math.max(8,Math.min(vw-aiBtnSize-8,aiBtnDragStart.current.right-dx));
+    const newBottom=Math.max(8,Math.min(vh-aiBtnSize-8,aiBtnDragStart.current.bottom-dy));
+    const newPos={bottom:newBottom,right:newRight};
+    aiBtnLatestPos.current=newPos;
+    setAiBtnPos(newPos);
+  };
+  const aiBtnDragEnd=()=>{
+    if(aiBtnDragging){
+      setAiBtnDragging(false);
+      try{localStorage.setItem("fn_ai_btn_pos",JSON.stringify(aiBtnLatestPos.current));}catch(e){}
+    }
+  };
+
   const handleSignOut=()=>{sb.auth.signOut();setUser(null);setFamily(null);setMembers([]);setTab("home");setShowMore(false);setSelectedMember(null);};
   const handleTabChange=(id)=>{
   setTab(id);setShowMore(false);setSelectedMember(null);
@@ -3296,7 +3327,16 @@ useEffect(()=>{
 
         {/* FLOATING AI BUTTON */}
         {tab!=="concierge"&&(
-          <button onClick={()=>handleTabChange("concierge")} style={{position:"fixed",bottom:148,right:20,zIndex:150,width:46,height:46,borderRadius:"50%",background:`linear-gradient(135deg,${T.lav},${T.blue})`,border:"none",boxShadow:"0 4px 16px rgba(0,0,0,0.18)",cursor:"pointer",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center"}}>🤖</button>
+          <button
+            onClick={()=>{if(!aiBtnMoved.current)handleTabChange("concierge");}}
+            onMouseDown={e=>aiBtnDragMoveStart(e.clientX,e.clientY)}
+            onMouseMove={e=>aiBtnDragMove(e.clientX,e.clientY)}
+            onMouseUp={aiBtnDragEnd}
+            onMouseLeave={()=>{if(aiBtnDragging)aiBtnDragEnd();}}
+            onTouchStart={e=>aiBtnDragMoveStart(e.touches[0].clientX,e.touches[0].clientY)}
+            onTouchMove={e=>{e.preventDefault();aiBtnDragMove(e.touches[0].clientX,e.touches[0].clientY);}}
+            onTouchEnd={aiBtnDragEnd}
+            style={{position:"fixed",bottom:aiBtnPos.bottom,right:aiBtnPos.right,zIndex:150,width:46,height:46,borderRadius:"50%",background:`linear-gradient(135deg,${T.lav},${T.blue})`,border:"none",boxShadow:aiBtnDragging?"0 6px 22px rgba(0,0,0,0.3)":"0 4px 16px rgba(0,0,0,0.18)",cursor:aiBtnDragging?"grabbing":"pointer",fontSize:22,display:"flex",alignItems:"center",justifyContent:"center",touchAction:"none",transition:aiBtnDragging?"none":"box-shadow 0.15s"}}>🤖</button>
         )}
 
         {/* MORE DRAWER */}
