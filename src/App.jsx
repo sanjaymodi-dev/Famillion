@@ -737,7 +737,7 @@ const COLLAGES=[
   {photos:[0,6,18]},
 ];
 
-function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges, currentUserName, onOpenNudge }) {
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges, currentUserName, onOpenNudge, joinedMemberIds }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
@@ -777,28 +777,36 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
               {(members||[]).length<=3?(
                 <>
-                  {(members||[]).map(m=>(
+                  {(members||[]).map(m=>{
+                    const joined=joinedMemberIds===null||joinedMemberIds.has(m.id);
+                    return(
                     <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                      <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
+                      <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:joined?`1.5px solid ${SAF}`:"1.5px dashed rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0,position:"relative",opacity:joined?1:0.6}}>
                         {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+                        {!joined&&<div style={{position:"absolute",bottom:1,right:1,fontSize:9,background:"#1A2F52",borderRadius:4,padding:"0px 2px"}}>⏳</div>}
                       </div>
-                      <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
+                      <div style={{fontSize:8,color:joined?"rgba(255,255,255,0.55)":"rgba(255,255,255,0.3)"}}>{m.name.split(" ")[0]}</div>
                     </div>
-                  ))}
+                    );
+                  })}
                   <div onClick={()=>onTabChange&&onTabChange("profile")} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
                     <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>➕</div>
                     <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
                   </div>
                 </>
               ):(
-                (members||[]).slice(0,4).map(m=>(
+                (members||[]).slice(0,4).map(m=>{
+                  const joined=joinedMemberIds===null||joinedMemberIds.has(m.id);
+                  return(
                   <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
+                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:joined?`1.5px solid ${SAF}`:"1.5px dashed rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0,position:"relative",opacity:joined?1:0.6}}>
                       {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+                      {!joined&&<div style={{position:"absolute",bottom:1,right:1,fontSize:9,background:"#1A2F52",borderRadius:4,padding:"0px 2px"}}>⏳</div>}
                     </div>
-                    <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
+                    <div style={{fontSize:8,color:joined?"rgba(255,255,255,0.55)":"rgba(255,255,255,0.3)"}}>{m.name.split(" ")[0]}</div>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
             {(members||[]).length>=4&&!hideAddMemberBtn&&(
@@ -2513,14 +2521,8 @@ function ConciergeScreen({ family, members }) {
   );
 }
 
-function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme }) {
-  const [linkedIds,setLinkedIds]=useState(null); // null = loading, Set = loaded
-  useEffect(()=>{
-    if(!family?.id)return;
-    sb.from("user_profiles").select("member_id").eq("family_id",family.id).then(({data})=>{
-      setLinkedIds(new Set((data||[]).map(p=>p.member_id).filter(Boolean)));
-    });
-  },[family?.id]);
+function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme, joinedMemberIds }) {
+  const linkedIds=joinedMemberIds;
   const score=computeScore(family);
   const [copied,setCopied]=useState(false);
   const [activeTab,setActiveTab]=useState("profile");
@@ -3083,6 +3085,13 @@ export default function App() {
   const [selectedMember,setSelectedMember]=useState(null);
   const [activeNudge,setActiveNudge]=useState(null);
   const [myMemberId,setMyMemberId]=useState(null);
+  const [joinedMemberIds,setJoinedMemberIds]=useState(null); // null = loading, Set = loaded
+  useEffect(()=>{
+    if(!family?.id)return;
+    sb.from("user_profiles").select("member_id").eq("family_id",family.id).then(({data})=>{
+      setJoinedMemberIds(new Set((data||[]).map(p=>p.member_id).filter(Boolean)));
+    });
+  },[family?.id,members?.length]);
   const [aiBtnPos,setAiBtnPos]=useState(()=>{
     try{const saved=JSON.parse(localStorage.getItem("fn_ai_btn_pos"));if(saved&&typeof saved.bottom==="number"&&typeof saved.right==="number")return saved;}catch(e){}
     return {bottom:148,right:20};
@@ -3306,7 +3315,7 @@ useEffect(()=>{
 
   const screens={
     
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} currentUserName={currentUserName} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)} onOpenNudge={(n)=>setActiveNudge(n)}/>,
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} currentUserName={currentUserName} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)} onOpenNudge={(n)=>setActiveNudge(n)} joinedMemberIds={joinedMemberIds}/>,
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
@@ -3320,7 +3329,7 @@ useEffect(()=>{
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
     settings: <SettingsScreen  family={family} onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
-    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
+    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme} joinedMemberIds={joinedMemberIds}/>,
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
