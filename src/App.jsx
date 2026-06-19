@@ -743,6 +743,11 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
   const unseenNudges=(nudges||[]).filter(n=>!n.seen&&n.to_member===currentUserName).slice(0,1);
+  const [showAddMemberPrompt,setShowAddMemberPrompt]=useState(false);
+  const hideAddMemberKey=`fn_hide_add_member_${family?.id||""}`;
+  const [hideAddMemberBtn,setHideAddMemberBtn]=useState(()=>{
+    try{return localStorage.getItem(hideAddMemberKey)==="true";}catch(e){return false;}
+  });
   const [slide,setSlide]=useState(0);
   const totalSlides=COLLAGES.length;
   const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
@@ -757,6 +762,7 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   },[]);
 
   return (
+    <>
     <div style={{padding:"0 0 86px",background:"#EDE8DF",minHeight:"100vh"}}>
       <div style={{padding:"8px 8px 0",display:"flex",flexDirection:"column",gap:6}}>
 
@@ -767,21 +773,40 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
             <div style={{fontSize:15,fontWeight:700,color:SAF,lineHeight:1.35}}>{greeting}</div>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginTop:5}}>{family?.name||"My Family"}</div>
           </div>
-          <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",alignItems:"center",justifyContent:"center"}}>
+          <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",flexDirection:"column",justifyContent:"center",gap:6}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
-              {(members||[]).slice(0,3).map(m=>(
-                <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                  <div style={{width:"100%",aspectRatio:"1",borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
-                    {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+              {(members||[]).length<=3?(
+                <>
+                  {(members||[]).map(m=>(
+                    <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
+                      <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
+                        {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+                      </div>
+                      <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
+                    </div>
+                  ))}
+                  <div onClick={()=>onTabChange&&onTabChange("profile")} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
+                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>➕</div>
+                    <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
                   </div>
-                  <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
-                </div>
-              ))}
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
-                <div style={{width:"100%",aspectRatio:"1",borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>➕</div>
-                <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
-              </div>
+                </>
+              ):(
+                (members||[]).slice(0,4).map(m=>(
+                  <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
+                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
+                      {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
+                    </div>
+                    <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
+                  </div>
+                ))
+              )}
             </div>
+            {(members||[]).length>=4&&!hideAddMemberBtn&&(
+              <div onClick={()=>setShowAddMemberPrompt(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5,padding:"4px 0",cursor:"pointer"}}>
+                <span style={{fontSize:9,fontWeight:700,color:SAF}}>{(members||[]).length>4?`+${(members||[]).length-4} more`:"+ Add member"}</span>
+                <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>›</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -878,6 +903,28 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
 
       </div>
     </div>
+
+    {showAddMemberPrompt&&(
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
+        <div onClick={()=>setShowAddMemberPrompt(false)} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:20,padding:"24px 20px",width:"100%",maxWidth:320,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
+          <div style={{textAlign:"center",fontSize:30,marginBottom:8}}>👨‍👩‍👧‍👦</div>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:HL,marginBottom:16,textAlign:"center"}}>Add another family member?</div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <button onClick={()=>{setShowAddMemberPrompt(false);onTabChange&&onTabChange("profile");}}
+              style={{padding:13,borderRadius:14,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Add a member</button>
+            <button onClick={()=>setShowAddMemberPrompt(false)}
+              style={{padding:13,borderRadius:14,border:"1.5px solid #E8DDD0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>I'll add later</button>
+            <button onClick={()=>{
+                setShowAddMemberPrompt(false);setHideAddMemberBtn(true);
+                try{localStorage.setItem(hideAddMemberKey,"true");}catch(e){}
+              }}
+              style={{padding:11,borderRadius:14,border:"none",background:"transparent",color:"#999",fontWeight:600,cursor:"pointer",fontSize:12}}>No more members for now</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
 
@@ -2622,8 +2669,12 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
 }
 
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPauseOnHide, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile, onBgmPauseOnHide }) {
+function SettingsScreen({ family, onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPauseOnHide, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile, onBgmPauseOnHide }) {
   const [activeTab,setActiveTab]=useState("privacy");
+  const hideAddMemberKey=`fn_hide_add_member_${family?.id||""}`;
+  const [hideAddMemberBtn,setHideAddMemberBtn]=useState(()=>{
+    try{return localStorage.getItem(hideAddMemberKey)==="true";}catch(e){return false;}
+  });
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Settings</div>
@@ -2675,6 +2726,22 @@ function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPause
           </div>
           <div onClick={()=>onBgmPauseOnHide(!bgmPauseOnHide)} style={{width:40,height:24,borderRadius:99,background:bgmPauseOnHide?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
             <div style={{position:"absolute",top:2,left:bgmPauseOnHide?18:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
+          </div>
+        </div>
+      </Card>
+      <Card style={{marginBottom:16}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <div style={{flex:1,paddingRight:10}}>
+            <div style={{fontWeight:700,fontSize:14,color:T.dark}}>👨‍👩‍👧‍👦 Add member prompt</div>
+            <div style={{fontSize:12,color:T.muted,marginTop:2}}>Show a quick "Add another member?" option on Home</div>
+          </div>
+          <div onClick={()=>{
+              const next=!hideAddMemberBtn;
+              setHideAddMemberBtn(next);
+              try{localStorage.setItem(hideAddMemberKey,next.toString());}catch(e){}
+            }}
+            style={{width:48,height:28,borderRadius:99,background:!hideAddMemberBtn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
+            <div style={{position:"absolute",top:3,left:!hideAddMemberBtn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
           </div>
         </div>
       </Card>
@@ -3252,7 +3319,7 @@ useEffect(()=>{
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
-    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
+    settings: <SettingsScreen  family={family} onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
     profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
