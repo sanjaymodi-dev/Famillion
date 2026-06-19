@@ -774,47 +774,47 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
             <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginTop:5}}>{family?.name||"My Family"}</div>
           </div>
           <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",flexDirection:"column",justifyContent:"center",gap:6}}>
+            {(()=>{
+              const joinedMembers=(members||[]).filter(m=>joinedMemberIds===null||joinedMemberIds.has(m.id));
+              return(
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
-              {(members||[]).length<=3?(
+              {joinedMembers.length<=3?(
                 <>
-                  {(members||[]).map(m=>{
-                    const joined=joinedMemberIds===null||joinedMemberIds.has(m.id);
-                    return(
+                  {joinedMembers.map(m=>(
                     <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                      <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:joined?`1.5px solid ${SAF}`:"1.5px dashed rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0,position:"relative",opacity:joined?1:0.6}}>
+                      <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
                         {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
-                        {!joined&&<div style={{position:"absolute",bottom:1,right:1,fontSize:9,background:"#1A2F52",borderRadius:4,padding:"0px 2px"}}>⏳</div>}
                       </div>
-                      <div style={{fontSize:8,color:joined?"rgba(255,255,255,0.55)":"rgba(255,255,255,0.3)"}}>{m.name.split(" ")[0]}</div>
+                      <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
                     </div>
-                    );
-                  })}
+                  ))}
                   <div onClick={()=>onTabChange&&onTabChange("profile")} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
                     <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>➕</div>
                     <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
                   </div>
                 </>
               ):(
-                (members||[]).slice(0,4).map(m=>{
-                  const joined=joinedMemberIds===null||joinedMemberIds.has(m.id);
-                  return(
+                joinedMembers.slice(0,4).map(m=>(
                   <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:joined?`1.5px solid ${SAF}`:"1.5px dashed rgba(244,167,36,0.5)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0,position:"relative",opacity:joined?1:0.6}}>
+                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
                       {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
-                      {!joined&&<div style={{position:"absolute",bottom:1,right:1,fontSize:9,background:"#1A2F52",borderRadius:4,padding:"0px 2px"}}>⏳</div>}
                     </div>
-                    <div style={{fontSize:8,color:joined?"rgba(255,255,255,0.55)":"rgba(255,255,255,0.3)"}}>{m.name.split(" ")[0]}</div>
+                    <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
                   </div>
-                  );
-                })
+                ))
               )}
             </div>
-            {(members||[]).length>=4&&!hideAddMemberBtn&&(
+              );
+            })()}
+            {(()=>{
+              const joinedCount=(members||[]).filter(m=>joinedMemberIds===null||joinedMemberIds.has(m.id)).length;
+              return joinedCount>=4&&!hideAddMemberBtn&&(
               <div onClick={()=>setShowAddMemberPrompt(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5,padding:"4px 0",cursor:"pointer"}}>
-                <span style={{fontSize:9,fontWeight:700,color:SAF}}>{(members||[]).length>4?`+${(members||[]).length-4} more`:"+ Add member"}</span>
+                <span style={{fontSize:9,fontWeight:700,color:SAF}}>{joinedCount>4?`+${joinedCount-4} more`:"+ Add member"}</span>
                 <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>›</span>
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
 
@@ -2895,17 +2895,19 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
     <div style={{padding:"0 16px 16px"}}>
       <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
       <div style={{textAlign:"center",marginBottom:20}}>
-        <label style={{cursor:"pointer",display:"inline-block",position:"relative"}}>
+        <div style={{display:"inline-block",position:"relative"}}>
           <div style={{width:80,height:80,borderRadius:18,background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
             {avatarUrl?<img src={avatarUrl} alt={member.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
           </div>
-          <div style={{position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{uploading?"⏳":"📷"}</div>
-          <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
-        </label>
+          <label style={{cursor:"pointer",position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>
+            {uploading?"⏳":"📷"}
+            <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
+          </label>
+        </div>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{member.name}</div>
         {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}{member.dob?" · Born "+new Date(member.dob).getFullYear():""}</div>}
         {member.occupation&&<div style={{fontSize:12,color:T.brown,marginTop:4,background:T.warm,borderRadius:99,padding:"4px 12px",display:"inline-block"}}>{member.occupation}</div>}
-        <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap photo to change picture</div>
+        <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap the camera icon to change picture</div>
       </div>
 
       {/* NUDGE BUTTON — hide if viewing own profile */}
