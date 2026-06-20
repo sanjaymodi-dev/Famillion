@@ -2464,6 +2464,8 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           </div>
         </div>
       )}
+
+      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4}}>
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
         {CHAPTERS.filter(c=>journey.data.some(j=>j.chapter===c.id)).map(c=>(<Pill key={c.id} label={`${c.emoji} ${c.label}`} active={filter===c.id} onClick={()=>setFilter(c.id)} color={c.color}/>))}
       </div>
