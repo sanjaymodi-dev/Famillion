@@ -737,17 +737,12 @@ const COLLAGES=[
   {photos:[0,6,18]},
 ];
 
-function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges, currentUserName, onOpenNudge, joinedMemberIds }) {
+function HomeScreen({ family, members, expenses, events, onMemberClick, onTabChange, onShowWalkthrough, nudges, currentUserName, onOpenNudge }) {
   const score=computeScore(family);
   const month=new Date().getMonth();
   const spent=(expenses||[]).filter(e=>new Date(e.date||e.created_at).getMonth()===month).reduce((s,e)=>s+Number(e.amount),0);
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=new Date()).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
   const unseenNudges=(nudges||[]).filter(n=>!n.seen&&n.to_member===currentUserName).slice(0,1);
-  const [showAddMemberPrompt,setShowAddMemberPrompt]=useState(false);
-  const hideAddMemberKey=`fn_hide_add_member_${family?.id||""}`;
-  const [hideAddMemberBtn,setHideAddMemberBtn]=useState(()=>{
-    try{return localStorage.getItem(hideAddMemberKey)==="true";}catch(e){return false;}
-  });
   const [slide,setSlide]=useState(0);
   const totalSlides=COLLAGES.length;
   const dateStr=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
@@ -762,7 +757,6 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   },[]);
 
   return (
-    <>
     <div style={{padding:"0 0 86px",background:"#EDE8DF",minHeight:"100vh"}}>
       <div style={{padding:"8px 8px 0",display:"flex",flexDirection:"column",gap:6}}>
 
@@ -773,48 +767,21 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
             <div style={{fontSize:15,fontWeight:700,color:SAF,lineHeight:1.35}}>{greeting}</div>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.6)",marginTop:5}}>{family?.name||"My Family"}</div>
           </div>
-          <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",flexDirection:"column",justifyContent:"center",gap:6}}>
-            {(()=>{
-              const joinedMembers=(members||[]).filter(m=>joinedMemberIds===null||joinedMemberIds.has(m.id));
-              return(
+          <div style={{background:"#1A2F52",borderRadius:12,padding:"10px 8px",minHeight:90,display:"flex",alignItems:"center",justifyContent:"center"}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,width:"100%"}}>
-              {joinedMembers.length<=3?(
-                <>
-                  {joinedMembers.map(m=>(
-                    <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                      <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
-                        {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
-                      </div>
-                      <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
-                    </div>
-                  ))}
-                  <div onClick={()=>onTabChange&&onTabChange("profile")} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0}}>➕</div>
-                    <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
+              {(members||[]).slice(0,3).map(m=>(
+                <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
+                  <div style={{width:"100%",aspectRatio:"1",borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden"}}>
+                    {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
                   </div>
-                </>
-              ):(
-                joinedMembers.slice(0,4).map(m=>(
-                  <div key={m.id} onClick={()=>onMemberClick(m)} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,cursor:"pointer"}}>
-                    <div style={{width:52,height:52,borderRadius:10,background:"rgba(244,167,36,0.18)",border:`1.5px solid ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,overflow:"hidden",flexShrink:0}}>
-                      {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
-                    </div>
-                    <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
-                  </div>
-                ))
-              )}
-            </div>
-              );
-            })()}
-            {(()=>{
-              const joinedCount=(members||[]).filter(m=>joinedMemberIds===null||joinedMemberIds.has(m.id)).length;
-              return joinedCount>=4&&!hideAddMemberBtn&&(
-              <div onClick={()=>setShowAddMemberPrompt(true)} style={{display:"flex",alignItems:"center",justifyContent:"center",gap:5,padding:"4px 0",cursor:"pointer"}}>
-                <span style={{fontSize:9,fontWeight:700,color:SAF}}>{joinedCount>4?`+${joinedCount-4} more`:"+ Add member"}</span>
-                <span style={{fontSize:9,color:"rgba(255,255,255,0.4)"}}>›</span>
+                  <div style={{fontSize:8,color:"rgba(255,255,255,0.55)"}}>{m.name.split(" ")[0]}</div>
+                </div>
+              ))}
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+                <div style={{width:"100%",aspectRatio:"1",borderRadius:10,background:"rgba(244,167,36,0.06)",border:`1.5px dashed ${SAF}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>➕</div>
+                <div style={{fontSize:8,color:"rgba(255,255,255,0.3)"}}>Add</div>
               </div>
-              );
-            })()}
+            </div>
           </div>
         </div>
 
@@ -911,28 +878,6 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
 
       </div>
     </div>
-
-    {showAddMemberPrompt&&(
-      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:24}}>
-        <div onClick={()=>setShowAddMemberPrompt(false)} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-        <div style={{background:"#fff",borderRadius:20,padding:"24px 20px",width:"100%",maxWidth:320,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)"}}>
-          <div style={{textAlign:"center",fontSize:30,marginBottom:8}}>👨‍👩‍👧‍👦</div>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:HL,marginBottom:16,textAlign:"center"}}>Add another family member?</div>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <button onClick={()=>{setShowAddMemberPrompt(false);onTabChange&&onTabChange("profile");}}
-              style={{padding:13,borderRadius:14,border:"none",background:SAF,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Add a member</button>
-            <button onClick={()=>setShowAddMemberPrompt(false)}
-              style={{padding:13,borderRadius:14,border:"1.5px solid #E8DDD0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>I'll add later</button>
-            <button onClick={()=>{
-                setShowAddMemberPrompt(false);setHideAddMemberBtn(true);
-                try{localStorage.setItem(hideAddMemberKey,"true");}catch(e){}
-              }}
-              style={{padding:11,borderRadius:14,border:"none",background:"transparent",color:"#999",fontWeight:600,cursor:"pointer",fontSize:12}}>No more members for now</button>
-          </div>
-        </div>
-      </div>
-    )}
-    </>
   );
 }
 
@@ -2291,17 +2236,170 @@ function JournalScreen({ familyId, members, userId }) {
 
 const CHAPTERS=[{id:"childhood",label:"Childhood",emoji:"👶",color:T.lav},{id:"school",label:"School Days",emoji:"🎒",color:T.blue},{id:"college",label:"College",emoji:"🎓",color:T.teal},{id:"work",label:"First Job",emoji:"💼",color:T.green},{id:"wedding",label:"Wedding",emoji:"💍",color:T.rose},{id:"parenthood",label:"Parenthood",emoji:"👨‍👩‍👧",color:T.amber},{id:"home",label:"New Home",emoji:"🏠",color:T.brown},{id:"travel",label:"Adventures",emoji:"✈️",color:T.orange},{id:"milestones",label:"Milestones",emoji:"🏆",color:T.green}];
 
-function PhotoJourneyScreen({ familyId }) {
+function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const journey=useTable("photo_journey",familyId);
+  const photos=useTable("photos",familyId);
+  const albums=useTable("albums",familyId);
   const [showAdd,setShowAdd]=useState(false);
+  const [showAddPhoto,setShowAddPhoto]=useState(false);
   const [filter,setFilter]=useState("all");
   const [nj,setNj]=useState({title:"",year:new Date().getFullYear().toString(),chapter:"milestones",caption:"",emoji:"⭐"});
+  const [uploadingPhoto,setUploadingPhoto]=useState(false);
+  const [photoErr,setPhotoErr]=useState("");
+  const [pf,setPf]=useState({caption:"",chapter:"",album_id:"",tagged:[]});
+  const [showNewAlbum,setShowNewAlbum]=useState(false);
+  const [newAlbumName,setNewAlbumName]=useState("");
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
+  const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId).length;
+  const remaining=50-myPhotoCount;
+  const capReached=myPhotoCount>=50;
+
+  const compressImage=(file)=>new Promise((resolve,reject)=>{
+    const img=new Image();
+    const reader=new FileReader();
+    reader.onload=()=>{img.src=reader.result;};
+    reader.onerror=reject;
+    img.onload=()=>{
+      const maxDim=1280;
+      let w=img.width,h=img.height;
+      if(w>h&&w>maxDim){h=Math.round(h*(maxDim/w));w=maxDim;}
+      else if(h>maxDim){w=Math.round(w*(maxDim/h));h=maxDim;}
+      const canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext("2d");ctx.drawImage(img,0,0,w,h);
+      let quality=0.8;
+      const tryCompress=()=>{
+        canvas.toBlob((blob)=>{
+          if(blob.size>500*1024&&quality>0.3){quality-=0.1;tryCompress();}
+          else resolve(blob);
+        },"image/jpeg",quality);
+      };
+      tryCompress();
+    };
+    img.onerror=reject;
+    reader.readAsDataURL(file);
+  });
+
+  const handlePhotoUpload=async(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
+    if(capReached){setPhotoErr("You've reached the 50-photo limit. Delete some photos first to add more.");return;}
+    setUploadingPhoto(true);setPhotoErr("");
+    try{
+      const blob=await compressImage(file);
+      const token=sb._token||localStorage.getItem("fn_token");
+      if(!token){setPhotoErr("Not logged in — please sign out and sign back in.");setUploadingPhoto(false);return;}
+      const fileName=`${familyId}/${myMemberId||"unknown"}_${Date.now()}.jpg`;
+      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/memories/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
+      if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
+      const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/memories/${fileName}`;
+      await photos.add({member_id:myMemberId||null,url:publicUrl,caption:pf.caption||null,tagged_members:pf.tagged.length?pf.tagged:null,chapter:pf.chapter||null,album_id:pf.album_id||null});
+      setPf({caption:"",chapter:"",album_id:"",tagged:[]});
+      setShowAddPhoto(false);
+    }catch(err){setPhotoErr("Upload error: "+err.message);}
+    setUploadingPhoto(false);
+  };
+
+  const createAlbum=async()=>{
+    if(!newAlbumName.trim())return;
+    await albums.add({name:newAlbumName.trim()});
+    setNewAlbumName("");
+    setShowNewAlbum(false);
+  };
+
+  const toggleTag=(name)=>{
+    setPf(p=>({...p,tagged:p.tagged.includes(name)?p.tagged.filter(n=>n!==name):[...p.tagged,name]}));
+  };
+
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Journey</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Your family's story, chapter by chapter</div>
+
+      {/* PHOTOS — Phase A scaffold (grid + upload + tagging) */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <div style={{fontWeight:700,fontSize:14,color:T.dark}}>📸 Photos</div>
+        <div style={{fontSize:11,color:capReached?"#C97B84":T.muted,fontWeight:700}}>{myPhotoCount}/50</div>
+      </div>
+      <div style={{height:5,background:T.border,borderRadius:99,marginBottom:10,overflow:"hidden"}}>
+        <div style={{height:"100%",width:`${Math.min(100,(myPhotoCount/50)*100)}%`,background:capReached?"#C97B84":T.brown,borderRadius:99}}/>
+      </div>
+      {!capReached&&myPhotoCount<40&&(
+        <div onClick={()=>setShowAddPhoto(true)} style={{background:T.warm,border:`1px dashed ${T.brown}40`,borderRadius:12,padding:"8px 12px",marginBottom:10,fontSize:12,color:T.brown,fontWeight:600,cursor:"pointer"}}>
+          ✨ You can add {remaining} more photo{remaining===1?"":"s"} — tap to add one now
+        </div>
+      )}
+      {capReached&&(
+        <div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:12,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84",fontWeight:600}}>
+          You've used all 50 photos. Delete some to add more.
+        </div>
+      )}
+      {photos.loading&&<Spinner/>}
+      {!photos.loading&&photos.data.length>0&&(
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+          {photos.data.map(p=>(
+            <div key={p.id} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:T.border}}>
+              <img src={p.url} alt={p.caption||"memory"} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+              <button onClick={()=>photos.remove(p.id)} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      {!photos.loading&&photos.data.length===0&&!capReached&&(
+        <div style={{textAlign:"center",padding:"20px 12px",background:T.warm,borderRadius:12,marginBottom:10}}>
+          <div style={{fontSize:28,marginBottom:6}}>📷</div>
+          <div style={{fontSize:12,color:T.brown,fontWeight:600}}>You have all 50 slots free — add your first photo!</div>
+        </div>
+      )}
+      {showAddPhoto?(
+        <Card style={{marginBottom:12}}>
+          <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add a Photo</div>
+          {photoErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{photoErr}</div>}
+          <div style={{marginBottom:10}}>
+            <label style={lbl}>Caption (optional)</label>
+            <input style={inp} placeholder="A few words..." value={pf.caption} onChange={e=>setPf(p=>({...p,caption:e.target.value}))}/>
+          </div>
+          <div style={{marginBottom:10}}>
+            <label style={lbl}>Chapter (optional)</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              <button onClick={()=>setPf(p=>({...p,chapter:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.chapter===""?T.brown:T.border}`,background:pf.chapter===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+              {CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setPf(p=>({...p,chapter:c.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.chapter===c.id?c.color:T.border}`,background:pf.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{c.emoji} {c.label}</button>))}
+            </div>
+          </div>
+          <div style={{marginBottom:10}}>
+            <label style={lbl}>Album (optional)</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+              <button onClick={()=>setPf(p=>({...p,album_id:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.album_id===""?T.brown:T.border}`,background:pf.album_id===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+              {albums.data.map(a=>(<button key={a.id} onClick={()=>setPf(p=>({...p,album_id:a.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.album_id===a.id?T.brown:T.border}`,background:pf.album_id===a.id?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>🗂️ {a.name}</button>))}
+            </div>
+            {showNewAlbum?(
+              <div style={{display:"flex",gap:6}}>
+                <input style={{...inp,flex:1}} placeholder="Album name e.g. Goa Trip 2026" value={newAlbumName} onChange={e=>setNewAlbumName(e.target.value)}/>
+                <button onClick={createAlbum} style={{padding:"0 14px",borderRadius:8,border:"none",background:T.brown,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>Create</button>
+                <button onClick={()=>{setShowNewAlbum(false);setNewAlbumName("");}} style={{padding:"0 10px",borderRadius:8,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+            ):(
+              <button onClick={()=>setShowNewAlbum(true)} style={{fontSize:11,color:T.brown,fontWeight:700,background:"none",border:"none",cursor:"pointer",padding:0}}>+ New album</button>
+            )}
+          </div>
+          <div style={{marginBottom:14}}>
+            <label style={lbl}>Tag family members (optional)</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+              {(members||[]).map(m=>(<button key={m.id} onClick={()=>toggleTag(m.name)} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.tagged.includes(m.name)?T.brown:T.border}`,background:pf.tagged.includes(m.name)?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{m.emoji||"👤"} {m.name.split(" ")[0]}</button>))}
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>{setShowAddPhoto(false);setPhotoErr("");}} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+            <label style={{flex:2,padding:12,borderRadius:12,border:"none",background:uploadingPhoto?T.muted:T.brown,color:"#fff",fontWeight:700,cursor:uploadingPhoto?"default":"pointer",textAlign:"center",display:"block"}}>
+              {uploadingPhoto?"Uploading...":"Choose Photo 📸"}
+              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{display:"none"}} disabled={uploadingPhoto}/>
+            </label>
+          </div>
+        </Card>
+      ):(
+        <button onClick={()=>{if(capReached){setPhotoErr("You've reached the 50-photo limit. Delete some photos first to add more.");setShowAddPhoto(true);}else{setShowAddPhoto(true);}}} style={{width:"100%",padding:12,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:18}}>+ Add Photo</button>
+      )}
+
       <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4}}>
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
         {CHAPTERS.filter(c=>journey.data.some(j=>j.chapter===c.id)).map(c=>(<Pill key={c.id} label={`${c.emoji} ${c.label}`} active={filter===c.id} onClick={()=>setFilter(c.id)} color={c.color}/>))}
@@ -2521,8 +2619,14 @@ function ConciergeScreen({ family, members }) {
   );
 }
 
-function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme, joinedMemberIds }) {
-  const linkedIds=joinedMemberIds;
+function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme }) {
+  const [linkedIds,setLinkedIds]=useState(null); // null = loading, Set = loaded
+  useEffect(()=>{
+    if(!family?.id)return;
+    sb.from("user_profiles").select("member_id").eq("family_id",family.id).then(({data})=>{
+      setLinkedIds(new Set((data||[]).map(p=>p.member_id).filter(Boolean)));
+    });
+  },[family?.id]);
   const score=computeScore(family);
   const [copied,setCopied]=useState(false);
   const [activeTab,setActiveTab]=useState("profile");
@@ -2671,12 +2775,8 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
 }
 
 // ── SETTINGS SCREEN ─────────────────────────────────────────────────────────
-function SettingsScreen({ family, onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPauseOnHide, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile, onBgmPauseOnHide }) {
+function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPauseOnHide, toggleBgm, handleBgmPref, handleBgmTrack, onBgmFile, onBgmPauseOnHide }) {
   const [activeTab,setActiveTab]=useState("privacy");
-  const hideAddMemberKey=`fn_hide_add_member_${family?.id||""}`;
-  const [hideAddMemberBtn,setHideAddMemberBtn]=useState(()=>{
-    try{return localStorage.getItem(hideAddMemberKey)==="true";}catch(e){return false;}
-  });
   return (
     <div style={{padding:"0 16px 16px"}}>
       <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:14}}>Settings</div>
@@ -2728,22 +2828,6 @@ function SettingsScreen({ family, onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, 
           </div>
           <div onClick={()=>onBgmPauseOnHide(!bgmPauseOnHide)} style={{width:40,height:24,borderRadius:99,background:bgmPauseOnHide?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
             <div style={{position:"absolute",top:2,left:bgmPauseOnHide?18:2,width:20,height:20,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
-          </div>
-        </div>
-      </Card>
-      <Card style={{marginBottom:16}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-          <div style={{flex:1,paddingRight:10}}>
-            <div style={{fontWeight:700,fontSize:14,color:T.dark}}>👨‍👩‍👧‍👦 Add member prompt</div>
-            <div style={{fontSize:12,color:T.muted,marginTop:2}}>Show a quick "Add another member?" option on Home</div>
-          </div>
-          <div onClick={()=>{
-              const next=!hideAddMemberBtn;
-              setHideAddMemberBtn(next);
-              try{localStorage.setItem(hideAddMemberKey,next.toString());}catch(e){}
-            }}
-            style={{width:48,height:28,borderRadius:99,background:!hideAddMemberBtn?T.brown:T.border,cursor:"pointer",position:"relative",transition:"background 0.2s",flexShrink:0}}>
-            <div style={{position:"absolute",top:3,left:!hideAddMemberBtn?22:3,width:22,height:22,borderRadius:"50%",background:"#fff",boxShadow:"0 1px 4px rgba(0,0,0,0.2)",transition:"left 0.2s"}}/>
           </div>
         </div>
       </Card>
@@ -2895,19 +2979,17 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
     <div style={{padding:"0 16px 16px"}}>
       <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
       <div style={{textAlign:"center",marginBottom:20}}>
-        <div style={{display:"inline-block",position:"relative"}}>
+        <label style={{cursor:"pointer",display:"inline-block",position:"relative"}}>
           <div style={{width:80,height:80,borderRadius:18,background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
             {avatarUrl?<img src={avatarUrl} alt={member.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
           </div>
-          <label style={{cursor:"pointer",position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>
-            {uploading?"⏳":"📷"}
-            <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
-          </label>
-        </div>
+          <div style={{position:"absolute",bottom:12,right:0,width:24,height:24,borderRadius:"50%",background:T.brown,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,boxShadow:"0 2px 6px rgba(0,0,0,0.2)"}}>{uploading?"⏳":"📷"}</div>
+          <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
+        </label>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{member.name}</div>
         {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}{member.dob?" · Born "+new Date(member.dob).getFullYear():""}</div>}
         {member.occupation&&<div style={{fontSize:12,color:T.brown,marginTop:4,background:T.warm,borderRadius:99,padding:"4px 12px",display:"inline-block"}}>{member.occupation}</div>}
-        <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap the camera icon to change picture</div>
+        <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap photo to change picture</div>
       </div>
 
       {/* NUDGE BUTTON — hide if viewing own profile */}
@@ -3087,13 +3169,6 @@ export default function App() {
   const [selectedMember,setSelectedMember]=useState(null);
   const [activeNudge,setActiveNudge]=useState(null);
   const [myMemberId,setMyMemberId]=useState(null);
-  const [joinedMemberIds,setJoinedMemberIds]=useState(null); // null = loading, Set = loaded
-  useEffect(()=>{
-    if(!family?.id)return;
-    sb.from("user_profiles").select("member_id").eq("family_id",family.id).then(({data})=>{
-      setJoinedMemberIds(new Set((data||[]).map(p=>p.member_id).filter(Boolean)));
-    });
-  },[family?.id,members?.length]);
   const [aiBtnPos,setAiBtnPos]=useState(()=>{
     try{const saved=JSON.parse(localStorage.getItem("fn_ai_btn_pos"));if(saved&&typeof saved.bottom==="number"&&typeof saved.right==="number")return saved;}catch(e){}
     return {bottom:148,right:20};
@@ -3290,6 +3365,7 @@ useEffect(()=>{
     if(selectedMember){setSelectedMember(null);return;}
     if(showMore){setShowMore(false);return;}
     if(state?.tab){setTab(state.tab);return;}
+    if(tab!=="home"){setTab("home");return;}
   };
   window.addEventListener("popstate",onBack);
   return()=>window.removeEventListener("popstate",onBack);
@@ -3317,7 +3393,7 @@ useEffect(()=>{
 
   const screens={
     
-    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} currentUserName={currentUserName} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)} onOpenNudge={(n)=>setActiveNudge(n)} joinedMemberIds={joinedMemberIds}/>,
+    home:     <HomeScreen      family={family} members={members} expenses={expenses.data} events={events.data} nudges={nudges.data} currentUserName={currentUserName} onMemberClick={handleMemberClick} onTabChange={handleTabChange} onShowWalkthrough={()=>setShowOnboarding(true)} onOpenNudge={(n)=>setActiveNudge(n)}/>,
     
     wealth:   <WealthScreen    family={family} members={members} familyId={family?.id} onPts={handlePts}/>,
     health:   <HealthScreen    familyId={family?.id} members={members} onPts={handlePts}/>,
@@ -3325,13 +3401,13 @@ useEffect(()=>{
     plan:     <CalendarScreen  familyId={family?.id} members={members}/>,
     chores:   <ChoresScreen    familyId={family?.id} onPts={handlePts}/>,
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
-    journey:  <PhotoJourneyScreen familyId={family?.id}/>,
+    journey:  <PhotoJourneyScreen familyId={family?.id} members={members} myMemberId={myMemberId}/>,
     journal:  <JournalScreen   familyId={family?.id} members={members} userId={user?.id}/>,
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
-    settings: <SettingsScreen  family={family} onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
-    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme} joinedMemberIds={joinedMemberIds}/>,
+    settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
+    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
@@ -3344,6 +3420,7 @@ useEffect(()=>{
       <div style={{width:"100%",maxWidth:420,minHeight:"100vh",display:"flex",flexDirection:"column"}}>
 
         {/* HEADER */}
+        {tab==="home"?(
         <div style={{padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",borderBottom:`1px solid ${T.border}`,background:"rgba(253,246,236,0.97)",backdropFilter:"blur(10px)"}}>
           <div onClick={()=>setShowHeader(s=>!s)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
             <span style={{fontSize:24}}>🏡</span>
@@ -3358,10 +3435,25 @@ useEffect(()=>{
             <span onClick={toggleBgm} style={{background:"transparent",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,cursor:"pointer",border:`1.5px solid ${bgmOn?T.amber:T.border}`}}>{bgmOn?"🎵":"🔕"}</span>
             <span onClick={()=>handleTabChange("rewards")} style={{background:T.amber+"30",borderRadius:99,padding:"3px 9px",fontSize:11,fontWeight:800,color:T.brown,cursor:"pointer"}}>🏆 {family?.points||0}</span>
           </div>
-
-          {/* POINTS MODAL */}
-
         </div>
+        ):(
+        <div style={{padding:"10px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0F1F3D"}}>
+          <div onClick={()=>setShowHeader(s=>!s)} style={{display:"flex",alignItems:"center",gap:8,cursor:"pointer"}}>
+            <span style={{fontSize:24}}>🏡</span>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:17,fontWeight:700,color:"#FDF6EC",lineHeight:1}}>Famillion</div>
+              <div style={{width:"100%",height:2,background:"linear-gradient(90deg,#F4A724,transparent)",borderRadius:99,marginTop:3}}/>
+            </div>
+            <span style={{fontSize:12,color:"rgba(253,246,236,0.5)"}}>▾</span>
+          </div>
+          <div onClick={()=>handleTabChange("profile")} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}>
+            <div style={{width:28,height:28,borderRadius:8,background:"rgba(244,167,36,0.18)",border:"1.5px solid #F4A724",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,overflow:"hidden",flexShrink:0}}>
+              {(()=>{const me=members.find(m=>m.id===myMemberId);return me?.avatar_url?<img src={me.avatar_url} alt={me.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:(me?.emoji||"👤");})()}
+            </div>
+            <span style={{fontSize:12,fontWeight:700,color:"#FDF6EC"}}>{(currentUserName||"").split(" ")[0]}</span>
+          </div>
+        </div>
+        )}
 
        {/* HEADER DRAWER — sliding quarter-pane from left */}
         <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,height:"100vh",zIndex:300,pointerEvents:showHeader?"all":"none"}}>
