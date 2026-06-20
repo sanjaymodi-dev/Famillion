@@ -2249,6 +2249,9 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [pf,setPf]=useState({caption:"",chapter:"",album_id:"",tagged:[]});
   const [showNewAlbum,setShowNewAlbum]=useState(false);
   const [newAlbumName,setNewAlbumName]=useState("");
+  const [editingPhotoId,setEditingPhotoId]=useState(null);
+  const [ef,setEf]=useState({caption:"",chapter:"",album_id:"",tagged:[]});
+  const [uploadProgress,setUploadProgress]=useState(null);
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
   const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId).length;
@@ -2281,22 +2284,31 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   });
 
   const handlePhotoUpload=async(e)=>{
-    const file=e.target.files?.[0];
-    if(!file)return;
+    const files=Array.from(e.target.files||[]);
+    if(!files.length)return;
     if(capReached){setPhotoErr("You've reached the 50-photo limit. Delete some photos first to add more.");return;}
+    const token=sb._token||localStorage.getItem("fn_token");
+    if(!token){setPhotoErr("Not logged in — please sign out and sign back in.");return;}
+    const slotsLeft=50-myPhotoCount;
+    const toUpload=files.slice(0,slotsLeft);
+    const skipped=files.length-toUpload.length;
     setUploadingPhoto(true);setPhotoErr("");
-    try{
-      const blob=await compressImage(file);
-      const token=sb._token||localStorage.getItem("fn_token");
-      if(!token){setPhotoErr("Not logged in — please sign out and sign back in.");setUploadingPhoto(false);return;}
-      const fileName=`${familyId}/${myMemberId||"unknown"}_${Date.now()}.jpg`;
-      const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/memories/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
-      if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
-      const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/memories/${fileName}`;
-      await photos.add({member_id:myMemberId||null,url:publicUrl,caption:pf.caption||null,tagged_members:pf.tagged.length?pf.tagged:null,chapter:pf.chapter||null,album_id:pf.album_id||null});
-      setPf({caption:"",chapter:"",album_id:"",tagged:[]});
-      setShowAddPhoto(false);
-    }catch(err){setPhotoErr("Upload error: "+err.message);}
+    let uploadedCount=0;
+    for(const file of toUpload){
+      setUploadProgress(`Uploading ${uploadedCount+1} of ${toUpload.length}...`);
+      try{
+        const blob=await compressImage(file);
+        const fileName=`${familyId}/${myMemberId||"unknown"}_${Date.now()}_${uploadedCount}.jpg`;
+        const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/memories/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:blob});
+        if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
+        const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/memories/${fileName}`;
+        await photos.add({member_id:myMemberId||null,url:publicUrl,caption:pf.caption||null,tagged_members:pf.tagged.length?pf.tagged:null,chapter:pf.chapter||null,album_id:pf.album_id||null});
+        uploadedCount++;
+      }catch(err){setPhotoErr("Upload error on photo "+(uploadedCount+1)+": "+err.message);break;}
+    }
+    setUploadProgress(null);
+    if(skipped>0){setPhotoErr(`Uploaded ${uploadedCount} photo${uploadedCount===1?"":"s"}. Skipped ${skipped} — that would have gone over your 50-photo limit.`);}
+    else{setPf({caption:"",chapter:"",album_id:"",tagged:[]});setShowAddPhoto(false);}
     setUploadingPhoto(false);
   };
 
@@ -2311,9 +2323,23 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     setPf(p=>({...p,tagged:p.tagged.includes(name)?p.tagged.filter(n=>n!==name):[...p.tagged,name]}));
   };
 
+  const toggleEditTag=(name)=>{
+    setEf(p=>({...p,tagged:p.tagged.includes(name)?p.tagged.filter(n=>n!==name):[...p.tagged,name]}));
+  };
+
+  const startEditPhoto=(p)=>{
+    setEf({caption:p.caption||"",chapter:p.chapter||"",album_id:p.album_id||"",tagged:p.tagged_members||[]});
+    setEditingPhotoId(p.id);
+  };
+
+  const saveEditPhoto=async()=>{
+    await photos.update(editingPhotoId,{caption:ef.caption||null,chapter:ef.chapter||null,album_id:ef.album_id||null,tagged_members:ef.tagged.length?ef.tagged:null});
+    setEditingPhotoId(null);
+  };
+
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Journey</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Memories</div>
       <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Your family's story, chapter by chapter</div>
 
       {/* PHOTOS — Phase A scaffold (grid + upload + tagging) */}
@@ -2338,9 +2364,10 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
       {!photos.loading&&photos.data.length>0&&(
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
           {photos.data.map(p=>(
-            <div key={p.id} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:T.border}}>
+            <div key={p.id} onClick={()=>startEditPhoto(p)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:T.border,cursor:"pointer"}}>
               <img src={p.url} alt={p.caption||"memory"} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-              <button onClick={()=>photos.remove(p.id)} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
+              <button onClick={(e)=>{e.stopPropagation();photos.remove(p.id);}} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
+              {(p.chapter||p.album_id||p.tagged_members?.length)&&<div style={{position:"absolute",bottom:3,left:3,background:"rgba(0,0,0,0.5)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#fff"}}>🏷️</div>}
             </div>
           ))}
         </div>
@@ -2391,16 +2418,52 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>{setShowAddPhoto(false);setPhotoErr("");}} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
             <label style={{flex:2,padding:12,borderRadius:12,border:"none",background:uploadingPhoto?T.muted:T.brown,color:"#fff",fontWeight:700,cursor:uploadingPhoto?"default":"pointer",textAlign:"center",display:"block"}}>
-              {uploadingPhoto?"Uploading...":"Choose Photo 📸"}
-              <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{display:"none"}} disabled={uploadingPhoto}/>
+              {uploadingPhoto?(uploadProgress||"Uploading..."):"Choose Photos 📸"}
+              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{display:"none"}} disabled={uploadingPhoto}/>
             </label>
           </div>
+          <div style={{fontSize:10,color:T.muted,marginTop:6,textAlign:"center"}}>You can select multiple photos at once — same caption/chapter/album/tags will apply to all. Edit individually anytime by tapping a photo.</div>
         </Card>
       ):(
         <button onClick={()=>{if(capReached){setPhotoErr("You've reached the 50-photo limit. Delete some photos first to add more.");setShowAddPhoto(true);}else{setShowAddPhoto(true);}}} style={{width:"100%",padding:12,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:18}}>+ Add Photo</button>
       )}
 
-      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4}}>
+      {editingPhotoId&&(
+        <div onClick={()=>setEditingPhotoId(null)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.card,borderRadius:18,padding:18,maxWidth:340,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+            <div style={{fontWeight:700,color:T.dark,marginBottom:12,fontSize:16}}>Edit Photo</div>
+            <img src={photos.data.find(p=>p.id===editingPhotoId)?.url} alt="memory" style={{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:12,marginBottom:12}}/>
+            <div style={{marginBottom:10}}>
+              <label style={lbl}>Caption</label>
+              <input style={inp} placeholder="A few words..." value={ef.caption} onChange={e=>setEf(p=>({...p,caption:e.target.value}))}/>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={lbl}>Chapter</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                <button onClick={()=>setEf(p=>({...p,chapter:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.chapter===""?T.brown:T.border}`,background:ef.chapter===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+                {CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setEf(p=>({...p,chapter:c.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.chapter===c.id?c.color:T.border}`,background:ef.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{c.emoji} {c.label}</button>))}
+              </div>
+            </div>
+            <div style={{marginBottom:10}}>
+              <label style={lbl}>Album</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                <button onClick={()=>setEf(p=>({...p,album_id:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.album_id===""?T.brown:T.border}`,background:ef.album_id===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+                {albums.data.map(a=>(<button key={a.id} onClick={()=>setEf(p=>({...p,album_id:a.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.album_id===a.id?T.brown:T.border}`,background:ef.album_id===a.id?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>🗂️ {a.name}</button>))}
+              </div>
+            </div>
+            <div style={{marginBottom:16}}>
+              <label style={lbl}>Tag family members</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                {(members||[]).map(m=>(<button key={m.id} onClick={()=>toggleEditTag(m.name)} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.tagged.includes(m.name)?T.brown:T.border}`,background:ef.tagged.includes(m.name)?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{m.emoji||"👤"} {m.name.split(" ")[0]}</button>))}
+              </div>
+            </div>
+            <div style={{display:"flex",gap:8}}>
+              <button onClick={()=>setEditingPhotoId(null)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+              <button onClick={saveEditPhoto} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
         <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
         {CHAPTERS.filter(c=>journey.data.some(j=>j.chapter===c.id)).map(c=>(<Pill key={c.id} label={`${c.emoji} ${c.label}`} active={filter===c.id} onClick={()=>setFilter(c.id)} color={c.color}/>))}
       </div>
@@ -3411,7 +3474,7 @@ useEffect(()=>{
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Memories"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif",overscrollBehavior:"none"}}>
@@ -3471,7 +3534,7 @@ useEffect(()=>{
             </div>
             {/* Nav list */}
             <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
-              {[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Journey"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"}].map(n=>(
+              {[{id:"home",icon:"🏠",label:"Home"},{id:"wealth",icon:"💎",label:"Money"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Memories"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI Concierge"}].map(n=>(
                 <button key={n.id} onClick={()=>{handleTabChange(n.id);setShowHeader(false);}} style={{width:"100%",display:"flex",alignItems:"center",gap:10,padding:"10px 14px",background:tab===n.id?T.brown+"14":"transparent",border:"none",cursor:"pointer",textAlign:"left",borderLeft:tab===n.id?`3px solid ${T.brown}`:"3px solid transparent",transition:"background 0.15s",boxSizing:"border-box"}}>
                   <span style={{fontSize:17,width:22,textAlign:"center",flexShrink:0}}>{n.icon}</span>
                   <span style={{fontSize:12,fontWeight:tab===n.id?700:600,color:tab===n.id?T.brown:T.dark,letterSpacing:0.1,whiteSpace:"nowrap"}}>{n.label}</span>
