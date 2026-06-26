@@ -2265,6 +2265,11 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [framesSaveTagged,setFramesSaveTagged]=useState([]);
   const [framesSaveAlbumId,setFramesSaveAlbumId]=useState("");
   const framesCanvasRef=useRef(null);
+  const [framesLivePreview,setFramesLivePreview]=useState(null); // {url,width,height}
+  const [framesRendering,setFramesRendering]=useState(false);
+  const [showFramesDebugGrid,setShowFramesDebugGrid]=useState(false);
+  const [debugGridResults,setDebugGridResults]=useState([]);
+  const [debugGridLoading,setDebugGridLoading]=useState(false);
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
   const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId&&!p.is_created).length;
@@ -2310,6 +2315,7 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   // ── BACK BUTTON (Memories tab overlays) ──
   useEffect(()=>{
     const onBack=(e)=>{
+      if(showFramesDebugGrid){setShowFramesDebugGrid(false);return;}
       if(showFrames){setShowFrames(false);return;}
       if(editingPhotoId){setEditingPhotoId(null);return;}
       if(showAddPhoto){setShowAddPhoto(false);setPhotoErr("");return;}
@@ -2318,13 +2324,13 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
-  },[showFrames,editingPhotoId,showAddPhoto,showAdd]);
+  },[showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
 
   useEffect(()=>{
-    if(showFrames||editingPhotoId||showAddPhoto||showAdd){
+    if(showFramesDebugGrid||showFrames||editingPhotoId||showAddPhoto||showAdd){
       window.history.pushState({memories:true},"");
     }
-  },[showFrames,editingPhotoId,showAddPhoto,showAdd]);
+  },[showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
 
   const heroCardClass=(idx,current,total)=>{
     if(idx===current)return"active";
@@ -2509,8 +2515,26 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
 
     applyBW(drawX,drawY,w,h);
 
-    canvas.toBlob((blob)=>resolve(blob),"image/jpeg",0.85);
+    canvas.toBlob((blob)=>resolve({blob,width:cw,height:ch}),"image/jpeg",0.85);
   });
+
+  useEffect(()=>{
+    if(!showFrames||framesStep!=="style")return;
+    const sourcePhotoUrl=framesSource==="gallery"?photos.data.find(p=>p.id===framesSourcePhotoId)?.url:null;
+    const source=framesSource==="gallery"?sourcePhotoUrl:framesCapturedFile;
+    if(!source){setFramesLivePreview(null);return;}
+    let cancelled=false;
+    setFramesRendering(true);
+    const timer=setTimeout(()=>{
+      loadImageFromSource(source).then(img=>drawFrame(img,framesStyle,{navy:"#0F1F3D",saffron:"#F4A724",pink:"#F2A6B8",cream:"#FDF6EC",sage:"#8FAE8B",dustyblue:"#7FA8C9"}[framesColor])).then(({blob,width,height})=>{
+        if(cancelled)return;
+        const url=URL.createObjectURL(blob);
+        setFramesLivePreview(prev=>{if(prev?.url)URL.revokeObjectURL(prev.url);return{url,width,height,blob};});
+        setFramesRendering(false);
+      }).catch(()=>{if(!cancelled)setFramesRendering(false);});
+    },250);
+    return()=>{cancelled=true;clearTimeout(timer);};
+  },[showFrames,framesStep,framesSource,framesSourcePhotoId,framesCapturedFile,framesStyle,framesColor]);
 
   const handlePhotoUpload=async(e)=>{
     const files=Array.from(e.target.files||[]);
@@ -2822,21 +2846,17 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           const framesCount=photos.data.filter(p=>p.is_created).length;
 
           const closeFrames=()=>{
+            if(framesLivePreview?.url)URL.revokeObjectURL(framesLivePreview.url);
             setShowFrames(false);setFramesStep("style");setFramesErr("");
             setFramesName("");setFramesSaveTagged([]);setFramesSaveAlbumId("");
+            setFramesLivePreview(null);setFramesSourcePhotoId(null);setFramesCapturedFile(null);
           };
 
-          const goToSaveStep=async()=>{
-            if(!previewSrc){setFramesErr("Pick a photo first.");return;}
-            setFramesErr("");setFramesSaving(true);
-            try{
-              const img=await loadImageFromSource(previewSrc);
-              const blob=await drawFrame(img,framesStyle,FRAME_COLORS[framesColor]);
-              const url=URL.createObjectURL(blob);
-              framesCanvasRef.current={blob,previewUrl:url};
-              setFramesStep("save");
-            }catch(err){setFramesErr("Couldn't render that frame: "+err.message);}
-            setFramesSaving(false);
+          const goToSaveStep=()=>{
+            if(!framesLivePreview){setFramesErr("Please wait for the preview to finish rendering.");return;}
+            setFramesErr("");
+            framesCanvasRef.current={blob:framesLivePreview.blob,previewUrl:framesLivePreview.url};
+            setFramesStep("save");
           };
 
           const doSaveFrame=async()=>{
@@ -2893,12 +2913,15 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
                       </div>
                     )}
 
-                    <div style={{borderRadius:18,overflow:"hidden",position:"relative",aspectRatio:"1",background:"#000",marginBottom:18}}>
-                      {previewSrc?(
-                        <img src={typeof previewSrc==="string"?previewSrc:URL.createObjectURL(previewSrc)} alt="preview" style={{width:"100%",height:"100%",objectFit:"cover",filter:framesStyle==="bw"?"grayscale(100%)":"none"}}/>
+                    <div style={{borderRadius:18,overflow:"hidden",position:"relative",background:"#000",marginBottom:18,aspectRatio:framesLivePreview?`${framesLivePreview.width} / ${framesLivePreview.height}`:"1"}}>
+                      {framesLivePreview?(
+                        <img src={framesLivePreview.url} alt="preview" style={{width:"100%",height:"100%",objectFit:"contain"}}/>
+                      ):previewSrc?(
+                        <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12,aspectRatio:"1"}}>Rendering preview...</div>
                       ):(
-                        <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13}}>Pick a photo to preview</div>
+                        <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13,aspectRatio:"1"}}>Pick a photo to preview</div>
                       )}
+                      {framesRendering&&framesLivePreview&&<div style={{position:"absolute",top:8,right:8,background:"rgba(0,0,0,0.6)",borderRadius:8,padding:"3px 8px",fontSize:9,color:"#fff"}}>Updating...</div>}
                     </div>
 
                     <div style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:10}}>CHOOSE A STYLE</div>
@@ -2920,9 +2943,30 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
 
                     {framesErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{framesErr}</div>}
 
-                    <button disabled={!previewSrc||framesSaving} onClick={goToSaveStep} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:!previewSrc?T.muted:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:!previewSrc?"default":"pointer"}}>
-                      {framesSaving?"Rendering...":"Continue →"}
+                    <button disabled={!framesLivePreview} onClick={goToSaveStep} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:!framesLivePreview?T.muted:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:!framesLivePreview?"default":"pointer"}}>
+                      {!previewSrc?"Pick a photo first":framesRendering&&!framesLivePreview?"Rendering...":"✓ Looks good — Name & Save"}
                     </button>
+                    {previewSrc&&(
+                      <div onClick={async()=>{
+                        setDebugGridLoading(true);setDebugGridResults([]);setShowFramesDebugGrid(true);
+                        const allStyles=FRAME_STYLES.map(s=>s.id);
+                        const out=[];
+                        try{
+                          const img=await loadImageFromSource(previewSrc);
+                          for(const sid of allStyles){
+                            const styleDef=FRAME_STYLES.find(s=>s.id===sid);
+                            const col=FRAME_COLORS[styleDef?.colorable?(styleDef.defaultColor||"navy"):"navy"];
+                            try{
+                              const res=await drawFrame(img,sid,col);
+                              out.push({id:sid,url:URL.createObjectURL(res.blob),w:res.width,h:res.height,ok:true});
+                            }catch(err){out.push({id:sid,ok:false,error:err.message});}
+                          }
+                        }catch(err){out.push({id:"LOAD_ERROR",ok:false,error:err.message});}
+                        setDebugGridResults(out);setDebugGridLoading(false);
+                      }} style={{textAlign:"center",fontSize:10,color:T.muted,marginTop:10,textDecoration:"underline",cursor:"pointer"}}>
+                        🔧 Debug: view all 11 styles on this photo
+                      </div>
+                    )}
                   </>
                 )}
 
@@ -2965,6 +3009,28 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
             </div>
           );
         })()}
+
+        {showFramesDebugGrid&&(
+          <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"#0F1F3D",zIndex:400,overflowY:"auto",padding:16}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+              <span onClick={()=>setShowFramesDebugGrid(false)} style={{fontSize:20,color:"#FDF6EC",cursor:"pointer"}}>←</span>
+              <span style={{fontSize:16,fontWeight:700,color:"#FDF6EC"}}>Debug: All 11 Styles</span>
+            </div>
+            {debugGridLoading&&<div style={{color:"#FDF6EC",fontSize:13,textAlign:"center",padding:20}}>Rendering all styles...</div>}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              {debugGridResults.map(r=>(
+                <div key={r.id} style={{background:"#1A2F52",borderRadius:12,padding:8}}>
+                  <div style={{fontSize:11,color:"#F4A724",fontWeight:700,marginBottom:6}}>{r.id}{r.ok?` (${r.w}×${r.h})`:""}</div>
+                  {r.ok?(
+                    <img src={r.url} alt={r.id} style={{width:"100%",display:"block",borderRadius:6,background:"#000"}}/>
+                  ):(
+                    <div style={{color:"#F2A6B8",fontSize:11,padding:10,background:"rgba(244,167,36,0.1)",borderRadius:6}}>ERROR: {r.error}</div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ===== SECTION 3: CHAPTER TIMELINE (unchanged) ===== */}
         <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4,marginTop:8}}>
