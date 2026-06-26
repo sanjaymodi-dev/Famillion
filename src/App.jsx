@@ -2254,9 +2254,59 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [uploadProgress,setUploadProgress]=useState(null);
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
-  const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId).length;
+  const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId&&!p.is_created).length;
   const remaining=50-myPhotoCount;
   const capReached=myPhotoCount>=50;
+
+  // HERO 1: Memories (Albums + Chapters) — only items that actually have a cover image
+  const memHeroItems=[
+    ...albums.data.filter(a=>photos.data.some(p=>p.album_id===a.id)).map(a=>{
+      const cover=photos.data.find(p=>p.album_id===a.id);
+      const count=photos.data.filter(p=>p.album_id===a.id).length;
+      return {kind:"album",id:a.id,img:cover?.url,title:a.name,meta:`🗂️ Album · ${count} photo${count===1?"":"s"}`};
+    }),
+    ...journey.data.filter(j=>photos.data.some(p=>p.chapter===j.chapter)).map(j=>{
+      const ch=CHAPTERS.find(c=>c.id===j.chapter)||CHAPTERS[8];
+      const cover=photos.data.find(p=>p.chapter===j.chapter);
+      const count=photos.data.filter(p=>p.chapter===j.chapter).length;
+      return {kind:"chapter",id:j.id,img:cover?.url,title:j.title,meta:`${ch.emoji} ${ch.label} · ${count} photo${count===1?"":"s"}`};
+    }),
+  ].filter(it=>it.img);
+  const [memCurrent,setMemCurrent]=useState(0);
+  const memTimerRef=useRef(null);
+
+  // HERO 2: Photos (individual uploads only, not is_created)
+  const photoHeroItems=photos.data.filter(p=>!p.is_created);
+  const [photoCurrent,setPhotoCurrent]=useState(0);
+  const photoTimerRef=useRef(null);
+
+  useEffect(()=>{
+    if(memHeroItems.length<2)return;
+    clearInterval(memTimerRef.current);
+    memTimerRef.current=setInterval(()=>setMemCurrent(c=>(c+1)%memHeroItems.length),3400);
+    return()=>clearInterval(memTimerRef.current);
+  },[memHeroItems.length]);
+
+  useEffect(()=>{
+    if(photoHeroItems.length<2)return;
+    clearInterval(photoTimerRef.current);
+    photoTimerRef.current=setInterval(()=>setPhotoCurrent(c=>(c+1)%photoHeroItems.length),3000);
+    return()=>clearInterval(photoTimerRef.current);
+  },[photoHeroItems.length]);
+
+  const heroCardClass=(idx,current,total)=>{
+    if(idx===current)return"active";
+    if(idx===(current+1)%total)return"next";
+    if(idx===(current-1+total)%total)return"prev";
+    return"hidden";
+  };
+  const heroCardStyle=(cls)=>{
+    const base={position:"absolute",top:0,left:0,width:"100%",height:"100%",borderRadius:20,overflow:"hidden",transition:"transform 0.6s cubic-bezier(.22,1,.36,1), opacity 0.6s ease, box-shadow 0.6s ease",cursor:"pointer"};
+    if(cls==="active")return{...base,transform:"translateX(0) scale(1)",opacity:1,zIndex:3,boxShadow:"0 0 40px rgba(244,167,36,0.32), 0 12px 30px rgba(0,0,0,0.5)"};
+    if(cls==="next")return{...base,transform:"translateX(60%) scale(0.82)",opacity:0.4,zIndex:2};
+    if(cls==="prev")return{...base,transform:"translateX(-60%) scale(0.82)",opacity:0.4,zIndex:2};
+    return{...base,transform:"translateX(0) scale(0.65)",opacity:0,zIndex:1};
+  };
 
   const compressImage=(file)=>new Promise((resolve,reject)=>{
     const img=new Image();
@@ -2338,144 +2388,246 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   };
 
   return (
-    <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Memories</div>
-      <div style={{fontSize:13,color:T.muted,marginBottom:14}}>Your family's story, chapter by chapter</div>
+    <div style={{padding:0}}>
+      {/* ===== SECTION 1: MEMORIES HERO (Albums + Chapters) ===== */}
+      <div style={{background:"#0F1F3D",minHeight:"82vh",display:"flex",flexDirection:"column",padding:"16px 16px 0",borderRadius:"0 0 24px 24px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:"#FDF6EC"}}>Memories</div>
+            <div style={{fontSize:10.5,color:"#F4A724",marginTop:2}}>Your family's story, beautifully kept</div>
+          </div>
+          <div onClick={()=>setEditingPhotoId("__counter__")} style={{background:"rgba(244,167,36,0.15)",border:"1.5px solid #F4A724",borderRadius:13,width:46,height:46,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",flexShrink:0}}>
+            <div style={{fontSize:13,fontWeight:800,color:"#F4A724",lineHeight:1}}>{myPhotoCount}</div>
+            <div style={{fontSize:6.5,color:"rgba(253,246,236,0.65)",fontWeight:600}}>of 50</div>
+          </div>
+        </div>
 
-      {/* PHOTOS — Phase A scaffold (grid + upload + tagging) */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
-        <div style={{fontWeight:700,fontSize:14,color:T.dark}}>📸 Photos</div>
-        <div style={{fontSize:11,color:capReached?"#C97B84":T.muted,fontWeight:700}}>{myPhotoCount}/50</div>
+        {memHeroItems.length===0?(
+          <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",textAlign:"center",padding:24}}>
+            <div>
+              <div style={{fontSize:40,marginBottom:10}}>✨</div>
+              <div style={{color:"#FDF6EC",fontWeight:700,fontSize:15,marginBottom:4}}>No memories yet</div>
+              <div style={{color:"rgba(253,246,236,0.5)",fontSize:12}}>Create an album or chapter below to see it here</div>
+            </div>
+          </div>
+        ):(
+          <>
+            <div style={{flex:1,position:"relative",minHeight:320,marginTop:6}}>
+              {memHeroItems.map((item,i)=>{
+                const cls=heroCardClass(i,memCurrent,memHeroItems.length);
+                return(
+                  <div key={item.kind+item.id} style={heroCardStyle(cls)} onClick={()=>{if(cls==="next")setMemCurrent((memCurrent+1)%memHeroItems.length);else if(cls==="prev")setMemCurrent((memCurrent-1+memHeroItems.length)%memHeroItems.length);}}>
+                    <img src={item.img} alt={item.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                    <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg, rgba(15,31,61,0) 42%, rgba(15,31,61,0.93) 100%)"}}/>
+                    <div style={{position:"absolute",top:12,left:12,background:"rgba(244,167,36,0.88)",borderRadius:9,padding:"4px 10px",fontSize:9.5,color:"#0F1F3D",fontWeight:800}}>{item.kind==="album"?"ALBUM":"CHAPTER"}</div>
+                    <div style={{position:"absolute",bottom:16,left:18,right:18}}>
+                      <div style={{fontSize:18,fontWeight:700,color:"#FDF6EC"}}>{item.title}</div>
+                      <div style={{fontSize:11,color:"#F4A724",marginTop:4,fontWeight:600}}>{item.meta}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",justifyContent:"center",gap:6,margin:"12px 0 2px"}}>
+              {memHeroItems.map((_,i)=>(<div key={i} onClick={()=>setMemCurrent(i)} style={{width:i===memCurrent?18:6,height:6,borderRadius:99,background:i===memCurrent?"#F4A724":"rgba(244,167,36,0.3)",transition:"all 0.35s ease",cursor:"pointer"}}/>))}
+            </div>
+            <div style={{textAlign:"center",fontSize:9.5,color:"rgba(253,246,236,0.4)",marginBottom:6}}>albums & chapters you've created</div>
+          </>
+        )}
+        <div style={{textAlign:"center",fontSize:9,color:"rgba(244,167,36,0.6)",padding:"4px 0 10px",animation:"bouncehero 1.6s ease-in-out infinite"}}>▾ scroll for photos</div>
+        <style>{`@keyframes bouncehero{0%,100%{transform:translateY(0);opacity:0.5;}50%{transform:translateY(4px);opacity:1;}}`}</style>
       </div>
-      <div style={{height:5,background:T.border,borderRadius:99,marginBottom:10,overflow:"hidden"}}>
-        <div style={{height:"100%",width:`${Math.min(100,(myPhotoCount/50)*100)}%`,background:capReached?"#C97B84":T.brown,borderRadius:99}}/>
+
+      {/* ===== DIVIDER ===== */}
+      <div style={{padding:"14px 16px 4px"}}>
+        <div style={{fontSize:11,color:T.brown,fontWeight:700,letterSpacing:0.5}}>📷 PHOTOS & MORE</div>
+        <div style={{fontSize:10,color:T.muted,marginTop:2}}>your uploads, and tools to turn them into memories</div>
       </div>
-      {!capReached&&myPhotoCount<40&&(
-        <div onClick={()=>setShowAddPhoto(true)} style={{background:T.warm,border:`1px dashed ${T.brown}40`,borderRadius:12,padding:"8px 12px",marginBottom:10,fontSize:12,color:T.brown,fontWeight:600,cursor:"pointer"}}>
-          ✨ You can add {remaining} more photo{remaining===1?"":"s"} — tap to add one now
-        </div>
-      )}
-      {capReached&&(
-        <div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:12,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84",fontWeight:600}}>
-          You've used all 50 photos. Delete some to add more.
-        </div>
-      )}
-      {photos.loading&&<Spinner/>}
-      {!photos.loading&&photos.data.length>0&&(
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
-          {photos.data.map(p=>(
-            <div key={p.id} onClick={()=>startEditPhoto(p)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:T.border,cursor:"pointer"}}>
-              <img src={p.url} alt={p.caption||"memory"} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-              <button onClick={(e)=>{e.stopPropagation();photos.remove(p.id);}} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
-              {(p.chapter||p.album_id||p.tagged_members?.length)&&<div style={{position:"absolute",bottom:3,left:3,background:"rgba(0,0,0,0.5)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#fff"}}>🏷️</div>}
+
+      <div style={{padding:"0 16px 16px"}}>
+        {/* ===== SECTION 2: PHOTOS HERO (individual uploads, ~72% size) ===== */}
+        {photoHeroItems.length>0&&(
+          <>
+            <div style={{position:"relative",width:"72%",margin:"6px auto 0",paddingBottom:"62%"}}>
+              {photoHeroItems.map((item,i)=>{
+                const cls=heroCardClass(i,photoCurrent,photoHeroItems.length);
+                return(
+                  <div key={item.id} style={{...heroCardStyle(cls),borderRadius:18}} onClick={()=>{if(cls==="active")startEditPhoto(item);else if(cls==="next")setPhotoCurrent((photoCurrent+1)%photoHeroItems.length);else if(cls==="prev")setPhotoCurrent((photoCurrent-1+photoHeroItems.length)%photoHeroItems.length);}}>
+                    <img src={item.url} alt={item.caption||"photo"} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
+                    <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg, rgba(15,31,61,0) 45%, rgba(15,31,61,0.9) 100%)"}}/>
+                    {item.caption&&<div style={{position:"absolute",bottom:12,left:14,right:14,fontSize:13,fontWeight:700,color:"#FDF6EC"}}>{item.caption}</div>}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{display:"flex",justifyContent:"center",gap:6,margin:"10px 0 14px"}}>
+              {photoHeroItems.map((_,i)=>(<div key={i} onClick={()=>setPhotoCurrent(i)} style={{width:i===photoCurrent?16:6,height:6,borderRadius:99,background:i===photoCurrent?T.brown:T.border,transition:"all 0.35s ease",cursor:"pointer"}}/>))}
+            </div>
+          </>
+        )}
+
+        {/* ===== CREATE STRIP ===== */}
+        <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>CREATE SOMETHING</div>
+        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
+          {[{lbl:"Frames",ic:"🖼️"},{lbl:"Collage",ic:"🧩"},{lbl:"Reel",ic:"🎬"},{lbl:"Roll",ic:"🎞️"}].map(c=>(
+            <div key={c.lbl} onClick={()=>alert(c.lbl+" coming soon")} style={{flexShrink:0,width:64,background:T.warm,border:`1px solid ${T.brown}40`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
+              <div style={{fontSize:20}}>{c.ic}</div>
+              <div style={{fontSize:9.5,color:T.brown,fontWeight:600,marginTop:4}}>{c.lbl}</div>
             </div>
           ))}
         </div>
-      )}
-      {!photos.loading&&photos.data.length===0&&!capReached&&(
-        <div style={{textAlign:"center",padding:"20px 12px",background:T.warm,borderRadius:12,marginBottom:10}}>
-          <div style={{fontSize:28,marginBottom:6}}>📷</div>
-          <div style={{fontSize:12,color:T.brown,fontWeight:600}}>You have all 50 slots free — add your first photo!</div>
-        </div>
-      )}
-      {showAddPhoto?(
-        <Card style={{marginBottom:12}}>
-          <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add a Photo</div>
-          {photoErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{photoErr}</div>}
-          <div style={{marginBottom:10}}>
-            <label style={lbl}>Caption (optional)</label>
-            <input style={inp} placeholder="A few words..." value={pf.caption} onChange={e=>setPf(p=>({...p,caption:e.target.value}))}/>
-          </div>
-          <div style={{marginBottom:10}}>
-            <label style={lbl}>Chapter (optional)</label>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              <button onClick={()=>setPf(p=>({...p,chapter:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.chapter===""?T.brown:T.border}`,background:pf.chapter===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
-              {CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setPf(p=>({...p,chapter:c.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.chapter===c.id?c.color:T.border}`,background:pf.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{c.emoji} {c.label}</button>))}
-            </div>
-          </div>
-          <div style={{marginBottom:10}}>
-            <label style={lbl}>Album (optional)</label>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
-              <button onClick={()=>setPf(p=>({...p,album_id:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.album_id===""?T.brown:T.border}`,background:pf.album_id===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
-              {albums.data.map(a=>(<button key={a.id} onClick={()=>setPf(p=>({...p,album_id:a.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.album_id===a.id?T.brown:T.border}`,background:pf.album_id===a.id?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>🗂️ {a.name}</button>))}
-            </div>
-            {showNewAlbum?(
-              <div style={{display:"flex",gap:6}}>
-                <input style={{...inp,flex:1}} placeholder="Album name e.g. Goa Trip 2026" value={newAlbumName} onChange={e=>setNewAlbumName(e.target.value)}/>
-                <button onClick={createAlbum} style={{padding:"0 14px",borderRadius:8,border:"none",background:T.brown,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>Create</button>
-                <button onClick={()=>{setShowNewAlbum(false);setNewAlbumName("");}} style={{padding:"0 10px",borderRadius:8,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontSize:12}}>✕</button>
-              </div>
-            ):(
-              <button onClick={()=>setShowNewAlbum(true)} style={{fontSize:11,color:T.brown,fontWeight:700,background:"none",border:"none",cursor:"pointer",padding:0}}>+ New album</button>
-            )}
-          </div>
-          <div style={{marginBottom:14}}>
-            <label style={lbl}>Tag family members (optional)</label>
-            <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-              {(members||[]).map(m=>(<button key={m.id} onClick={()=>toggleTag(m.name)} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.tagged.includes(m.name)?T.brown:T.border}`,background:pf.tagged.includes(m.name)?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{m.emoji||"👤"} {m.name.split(" ")[0]}</button>))}
-            </div>
-          </div>
-          <div style={{display:"flex",gap:8}}>
-            <button onClick={()=>{setShowAddPhoto(false);setPhotoErr("");}} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
-            <label style={{flex:2,padding:12,borderRadius:12,border:"none",background:uploadingPhoto?T.muted:T.brown,color:"#fff",fontWeight:700,cursor:uploadingPhoto?"default":"pointer",textAlign:"center",display:"block"}}>
-              {uploadingPhoto?(uploadProgress||"Uploading..."):"Choose Photos 📸"}
-              <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{display:"none"}} disabled={uploadingPhoto}/>
-            </label>
-          </div>
-          <div style={{fontSize:10,color:T.muted,marginTop:6,textAlign:"center"}}>You can select multiple photos at once — same caption/chapter/album/tags will apply to all. Edit individually anytime by tapping a photo.</div>
-        </Card>
-      ):(
-        <button onClick={()=>{if(capReached){setPhotoErr("You've reached the 50-photo limit. Delete some photos first to add more.");setShowAddPhoto(true);}else{setShowAddPhoto(true);}}} style={{width:"100%",padding:12,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:18}}>+ Add Photo</button>
-      )}
 
-      {editingPhotoId&&(
-        <div onClick={()=>setEditingPhotoId(null)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:T.card,borderRadius:18,padding:18,maxWidth:340,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
-            <div style={{fontWeight:700,color:T.dark,marginBottom:12,fontSize:16}}>Edit Photo</div>
-            <img src={photos.data.find(p=>p.id===editingPhotoId)?.url} alt="memory" style={{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:12,marginBottom:12}}/>
+        {/* PHOTOS — counter, nudge banner, grid, upload form */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:14,color:T.dark}}>📸 All Photos</div>
+          <div style={{fontSize:11,color:capReached?"#C97B84":T.muted,fontWeight:700}}>{myPhotoCount}/50</div>
+        </div>
+        <div style={{height:5,background:T.border,borderRadius:99,marginBottom:10,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${Math.min(100,(myPhotoCount/50)*100)}%`,background:capReached?"#C97B84":T.brown,borderRadius:99}}/>
+        </div>
+        {!capReached&&myPhotoCount<40&&(
+          <div onClick={()=>setShowAddPhoto(true)} style={{background:T.warm,border:`1px dashed ${T.brown}40`,borderRadius:12,padding:"8px 12px",marginBottom:10,fontSize:12,color:T.brown,fontWeight:600,cursor:"pointer"}}>
+            ✨ You can add {remaining} more photo{remaining===1?"":"s"} — tap to add one now
+          </div>
+        )}
+        {capReached&&(
+          <div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:12,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84",fontWeight:600}}>
+            You've used all 50 photos. Delete some to add more.
+          </div>
+        )}
+        {photos.loading&&<Spinner/>}
+        {!photos.loading&&photos.data.length>0&&(
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
+            {photos.data.map(p=>(
+              <div key={p.id} onClick={()=>startEditPhoto(p)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:T.border,cursor:"pointer"}}>
+                <img src={p.url} alt={p.caption||"memory"} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <button onClick={(e)=>{e.stopPropagation();photos.remove(p.id);}} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
+                {(p.chapter||p.album_id||p.tagged_members?.length)&&<div style={{position:"absolute",bottom:3,left:3,background:"rgba(0,0,0,0.5)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#fff"}}>🏷️</div>}
+                {p.is_created&&<div style={{position:"absolute",top:3,left:3,background:"rgba(244,167,36,0.9)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#0F1F3D",fontWeight:700}}>✨</div>}
+              </div>
+            ))}
+          </div>
+        )}
+        {!photos.loading&&photos.data.length===0&&!capReached&&(
+          <div style={{textAlign:"center",padding:"20px 12px",background:T.warm,borderRadius:12,marginBottom:10}}>
+            <div style={{fontSize:28,marginBottom:6}}>📷</div>
+            <div style={{fontSize:12,color:T.brown,fontWeight:600}}>You have all 50 slots free — add your first photo!</div>
+          </div>
+        )}
+        {showAddPhoto?(
+          <Card style={{marginBottom:12}}>
+            <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add a Photo</div>
+            {photoErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{photoErr}</div>}
             <div style={{marginBottom:10}}>
-              <label style={lbl}>Caption</label>
-              <input style={inp} placeholder="A few words..." value={ef.caption} onChange={e=>setEf(p=>({...p,caption:e.target.value}))}/>
+              <label style={lbl}>Caption (optional)</label>
+              <input style={inp} placeholder="A few words..." value={pf.caption} onChange={e=>setPf(p=>({...p,caption:e.target.value}))}/>
             </div>
             <div style={{marginBottom:10}}>
-              <label style={lbl}>Chapter</label>
+              <label style={lbl}>Chapter (optional)</label>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                <button onClick={()=>setEf(p=>({...p,chapter:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.chapter===""?T.brown:T.border}`,background:ef.chapter===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
-                {CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setEf(p=>({...p,chapter:c.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.chapter===c.id?c.color:T.border}`,background:ef.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{c.emoji} {c.label}</button>))}
+                <button onClick={()=>setPf(p=>({...p,chapter:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.chapter===""?T.brown:T.border}`,background:pf.chapter===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+                {CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setPf(p=>({...p,chapter:c.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.chapter===c.id?c.color:T.border}`,background:pf.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{c.emoji} {c.label}</button>))}
               </div>
             </div>
             <div style={{marginBottom:10}}>
-              <label style={lbl}>Album</label>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                <button onClick={()=>setEf(p=>({...p,album_id:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.album_id===""?T.brown:T.border}`,background:ef.album_id===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
-                {albums.data.map(a=>(<button key={a.id} onClick={()=>setEf(p=>({...p,album_id:a.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.album_id===a.id?T.brown:T.border}`,background:ef.album_id===a.id?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>🗂️ {a.name}</button>))}
+              <label style={lbl}>Album (optional)</label>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                <button onClick={()=>setPf(p=>({...p,album_id:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.album_id===""?T.brown:T.border}`,background:pf.album_id===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+                {albums.data.map(a=>(<button key={a.id} onClick={()=>setPf(p=>({...p,album_id:a.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.album_id===a.id?T.brown:T.border}`,background:pf.album_id===a.id?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>🗂️ {a.name}</button>))}
               </div>
+              {showNewAlbum?(
+                <div style={{display:"flex",gap:6}}>
+                  <input style={{...inp,flex:1}} placeholder="Album name e.g. Goa Trip 2026" value={newAlbumName} onChange={e=>setNewAlbumName(e.target.value)}/>
+                  <button onClick={createAlbum} style={{padding:"0 14px",borderRadius:8,border:"none",background:T.brown,color:"#fff",fontWeight:700,fontSize:12,cursor:"pointer"}}>Create</button>
+                  <button onClick={()=>{setShowNewAlbum(false);setNewAlbumName("");}} style={{padding:"0 10px",borderRadius:8,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
+              ):(
+                <button onClick={()=>setShowNewAlbum(true)} style={{fontSize:11,color:T.brown,fontWeight:700,background:"none",border:"none",cursor:"pointer",padding:0}}>+ New album</button>
+              )}
             </div>
-            <div style={{marginBottom:16}}>
-              <label style={lbl}>Tag family members</label>
+            <div style={{marginBottom:14}}>
+              <label style={lbl}>Tag family members (optional)</label>
               <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-                {(members||[]).map(m=>(<button key={m.id} onClick={()=>toggleEditTag(m.name)} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.tagged.includes(m.name)?T.brown:T.border}`,background:ef.tagged.includes(m.name)?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{m.emoji||"👤"} {m.name.split(" ")[0]}</button>))}
+                {(members||[]).map(m=>(<button key={m.id} onClick={()=>toggleTag(m.name)} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${pf.tagged.includes(m.name)?T.brown:T.border}`,background:pf.tagged.includes(m.name)?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{m.emoji||"👤"} {m.name.split(" ")[0]}</button>))}
               </div>
             </div>
             <div style={{display:"flex",gap:8}}>
-              <button onClick={()=>setEditingPhotoId(null)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
-              <button onClick={saveEditPhoto} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button>
+              <button onClick={()=>{setShowAddPhoto(false);setPhotoErr("");}} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+              <label style={{flex:2,padding:12,borderRadius:12,border:"none",background:uploadingPhoto?T.muted:T.brown,color:"#fff",fontWeight:700,cursor:uploadingPhoto?"default":"pointer",textAlign:"center",display:"block"}}>
+                {uploadingPhoto?(uploadProgress||"Uploading..."):"Choose Photos 📸"}
+                <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} style={{display:"none"}} disabled={uploadingPhoto}/>
+              </label>
+            </div>
+            <div style={{fontSize:10,color:T.muted,marginTop:6,textAlign:"center"}}>You can select multiple photos at once — same caption/chapter/album/tags will apply to all. Edit individually anytime by tapping a photo.</div>
+          </Card>
+        ):(
+          <button onClick={()=>{if(capReached){setPhotoErr("You've reached the 50-photo limit. Delete some photos first to add more.");setShowAddPhoto(true);}else{setShowAddPhoto(true);}}} style={{width:"100%",padding:12,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:18}}>+ Add Photo</button>
+        )}
+
+        {editingPhotoId&&editingPhotoId!=="__counter__"&&(
+          <div onClick={()=>setEditingPhotoId(null)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:T.card,borderRadius:18,padding:18,maxWidth:340,width:"100%",maxHeight:"85vh",overflowY:"auto"}}>
+              <div style={{fontWeight:700,color:T.dark,marginBottom:12,fontSize:16}}>Edit Photo</div>
+              <img src={photos.data.find(p=>p.id===editingPhotoId)?.url} alt="memory" style={{width:"100%",aspectRatio:"1",objectFit:"cover",borderRadius:12,marginBottom:12}}/>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>Caption</label>
+                <input style={inp} placeholder="A few words..." value={ef.caption} onChange={e=>setEf(p=>({...p,caption:e.target.value}))}/>
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>Chapter</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  <button onClick={()=>setEf(p=>({...p,chapter:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.chapter===""?T.brown:T.border}`,background:ef.chapter===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+                  {CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setEf(p=>({...p,chapter:c.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.chapter===c.id?c.color:T.border}`,background:ef.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{c.emoji} {c.label}</button>))}
+                </div>
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>Album</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  <button onClick={()=>setEf(p=>({...p,album_id:""}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.album_id===""?T.brown:T.border}`,background:ef.album_id===""?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>None</button>
+                  {albums.data.map(a=>(<button key={a.id} onClick={()=>setEf(p=>({...p,album_id:a.id}))} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.album_id===a.id?T.brown:T.border}`,background:ef.album_id===a.id?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>🗂️ {a.name}</button>))}
+                </div>
+              </div>
+              <div style={{marginBottom:16}}>
+                <label style={lbl}>Tag family members</label>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                  {(members||[]).map(m=>(<button key={m.id} onClick={()=>toggleEditTag(m.name)} style={{padding:"5px 10px",borderRadius:8,border:`2px solid ${ef.tagged.includes(m.name)?T.brown:T.border}`,background:ef.tagged.includes(m.name)?T.warm:"#fff",cursor:"pointer",fontSize:11,fontWeight:600}}>{m.emoji||"👤"} {m.name.split(" ")[0]}</button>))}
+                </div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setEditingPhotoId(null)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
+                <button onClick={saveEditPhoto} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4}}>
-        <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
-        {CHAPTERS.filter(c=>journey.data.some(j=>j.chapter===c.id)).map(c=>(<Pill key={c.id} label={`${c.emoji} ${c.label}`} active={filter===c.id} onClick={()=>setFilter(c.id)} color={c.color}/>))}
+        {editingPhotoId==="__counter__"&&(
+          <div onClick={()=>setEditingPhotoId(null)} style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.5)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+            <div onClick={e=>e.stopPropagation()} style={{background:T.card,borderRadius:18,padding:20,maxWidth:320,width:"100%",textAlign:"center"}}>
+              <div style={{fontSize:32,marginBottom:8}}>📸</div>
+              <div style={{fontWeight:700,color:T.dark,fontSize:16,marginBottom:4}}>{myPhotoCount} of 50 used</div>
+              <div style={{fontSize:12,color:T.muted,marginBottom:16}}>{remaining>0?`${remaining} slots remaining`:"No slots remaining — delete some to add more"}</div>
+              <div style={{display:"flex",gap:8}}>
+                <button onClick={()=>setEditingPhotoId(null)} style={{flex:1,padding:11,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700,fontSize:13}}>Close</button>
+                <button onClick={()=>{setEditingPhotoId(null);setShowAddPhoto(true);}} style={{flex:1,padding:11,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>+ Add</button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ===== SECTION 3: CHAPTER TIMELINE (unchanged) ===== */}
+        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4,marginTop:8}}>
+          <Pill label="All" active={filter==="all"} onClick={()=>setFilter("all")}/>
+          {CHAPTERS.filter(c=>journey.data.some(j=>j.chapter===c.id)).map(c=>(<Pill key={c.id} label={`${c.emoji} ${c.label}`} active={filter===c.id} onClick={()=>setFilter(c.id)} color={c.color}/>))}
+        </div>
+        {journey.loading&&<Spinner/>}
+        {!journey.loading&&sorted.length===0&&(<Card style={{textAlign:"center",padding:36}}><div style={{fontSize:48,marginBottom:12}}>📸</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:T.dark,marginBottom:8}}>Begin your story</div><div style={{fontSize:13,color:T.muted,lineHeight:1.7}}>Add memories from childhood to today.</div></Card>)}
+        <div style={{position:"relative"}}>
+          {sorted.length>0&&<div style={{position:"absolute",left:20,top:0,bottom:0,width:2,background:T.border}}/>}
+          {sorted.map(item=>{const ch=CHAPTERS.find(c=>c.id===item.chapter)||CHAPTERS[8];return(<div key={item.id} style={{display:"flex",gap:16,marginBottom:16,position:"relative"}}><div style={{width:40,height:40,borderRadius:"50%",background:ch.color+"20",border:`3px solid ${ch.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,zIndex:1,marginTop:4}}>{item.emoji||ch.emoji}</div><div style={{flex:1,background:T.card,borderRadius:16,padding:14,boxShadow:"0 2px 12px rgba(0,0,0,0.07)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}><div><div style={{fontWeight:700,fontSize:15,color:T.dark}}>{item.title}</div><div style={{fontSize:11,color:ch.color,fontWeight:700}}>{ch.emoji} {ch.label} · {item.year}</div></div><button onClick={()=>journey.remove(item.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:15}}>×</button></div>{item.caption&&<div style={{fontSize:13,color:T.muted,marginTop:4,lineHeight:1.6,fontStyle:"italic"}}>"{item.caption}"</div>}</div></div>);})}
+        </div>
+        {showAdd?(<Card style={{marginTop:8}}><div style={{fontWeight:700,color:T.dark,marginBottom:14}}>Add a Memory</div><div style={{marginBottom:12}}><label style={lbl}>Chapter</label><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setNj(p=>({...p,chapter:c.id}))} style={{padding:"6px 10px",borderRadius:8,border:`2px solid ${nj.chapter===c.id?c.color:T.border}`,background:nj.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:12,fontWeight:600}}>{c.emoji} {c.label}</button>))}</div></div><div style={{display:"flex",gap:10,marginBottom:12}}><div style={{flex:2}}><label style={lbl}>Memory Title</label><input style={inp} placeholder="e.g. First day at school" value={nj.title} onChange={e=>setNj(p=>({...p,title:e.target.value}))}/></div><div style={{flex:1}}><label style={lbl}>Year</label><input style={inp} type="number" placeholder="2018" value={nj.year} onChange={e=>setNj(p=>({...p,year:e.target.value}))}/></div></div><div style={{marginBottom:12}}><label style={lbl}>Emoji</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{["⭐","🎉","💕","🏆","🌟","🎂","✈️","🏠","🎓","💼","👶","💍"].map(e=>(<button key={e} onClick={()=>setNj(p=>({...p,emoji:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${nj.emoji===e?T.brown:T.border}`,background:nj.emoji===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>))}</div></div><div style={{marginBottom:16}}><label style={lbl}>Caption (optional)</label><textarea style={{...inp,minHeight:70,resize:"none"}} placeholder="A few words about this memory..." value={nj.caption} onChange={e=>setNj(p=>({...p,caption:e.target.value}))}/></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(!nj.title||!nj.year)return;await journey.add({title:nj.title,year:nj.year,chapter:nj.chapter,caption:nj.caption,emoji:nj.emoji});setNj({title:"",year:new Date().getFullYear().toString(),chapter:"milestones",caption:"",emoji:"⭐"});setShowAdd(false);}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Memory 📸</button></div></Card>):(<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}}>+ Add Memory</button>)}
       </div>
-      {journey.loading&&<Spinner/>}
-      {!journey.loading&&sorted.length===0&&(<Card style={{textAlign:"center",padding:36}}><div style={{fontSize:48,marginBottom:12}}>📸</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:T.dark,marginBottom:8}}>Begin your story</div><div style={{fontSize:13,color:T.muted,lineHeight:1.7}}>Add memories from childhood to today.</div></Card>)}
-      <div style={{position:"relative"}}>
-        {sorted.length>0&&<div style={{position:"absolute",left:20,top:0,bottom:0,width:2,background:T.border}}/>}
-        {sorted.map(item=>{const ch=CHAPTERS.find(c=>c.id===item.chapter)||CHAPTERS[8];return(<div key={item.id} style={{display:"flex",gap:16,marginBottom:16,position:"relative"}}><div style={{width:40,height:40,borderRadius:"50%",background:ch.color+"20",border:`3px solid ${ch.color}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,flexShrink:0,zIndex:1,marginTop:4}}>{item.emoji||ch.emoji}</div><div style={{flex:1,background:T.card,borderRadius:16,padding:14,boxShadow:"0 2px 12px rgba(0,0,0,0.07)"}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:4}}><div><div style={{fontWeight:700,fontSize:15,color:T.dark}}>{item.title}</div><div style={{fontSize:11,color:ch.color,fontWeight:700}}>{ch.emoji} {ch.label} · {item.year}</div></div><button onClick={()=>journey.remove(item.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:15}}>×</button></div>{item.caption&&<div style={{fontSize:13,color:T.muted,marginTop:4,lineHeight:1.6,fontStyle:"italic"}}>"{item.caption}"</div>}</div></div>);})}
-      </div>
-      {showAdd?(<Card style={{marginTop:8}}><div style={{fontWeight:700,color:T.dark,marginBottom:14}}>Add a Memory</div><div style={{marginBottom:12}}><label style={lbl}>Chapter</label><div style={{display:"flex",flexWrap:"wrap",gap:6}}>{CHAPTERS.map(c=>(<button key={c.id} onClick={()=>setNj(p=>({...p,chapter:c.id}))} style={{padding:"6px 10px",borderRadius:8,border:`2px solid ${nj.chapter===c.id?c.color:T.border}`,background:nj.chapter===c.id?c.color+"20":"#fff",cursor:"pointer",fontSize:12,fontWeight:600}}>{c.emoji} {c.label}</button>))}</div></div><div style={{display:"flex",gap:10,marginBottom:12}}><div style={{flex:2}}><label style={lbl}>Memory Title</label><input style={inp} placeholder="e.g. First day at school" value={nj.title} onChange={e=>setNj(p=>({...p,title:e.target.value}))}/></div><div style={{flex:1}}><label style={lbl}>Year</label><input style={inp} type="number" placeholder="2018" value={nj.year} onChange={e=>setNj(p=>({...p,year:e.target.value}))}/></div></div><div style={{marginBottom:12}}><label style={lbl}>Emoji</label><div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{["⭐","🎉","💕","🏆","🌟","🎂","✈️","🏠","🎓","💼","👶","💍"].map(e=>(<button key={e} onClick={()=>setNj(p=>({...p,emoji:e}))} style={{width:34,height:34,borderRadius:8,border:`2px solid ${nj.emoji===e?T.brown:T.border}`,background:nj.emoji===e?T.warm:"#fff",fontSize:17,cursor:"pointer"}}>{e}</button>))}</div></div><div style={{marginBottom:16}}><label style={lbl}>Caption (optional)</label><textarea style={{...inp,minHeight:70,resize:"none"}} placeholder="A few words about this memory..." value={nj.caption} onChange={e=>setNj(p=>({...p,caption:e.target.value}))}/></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(!nj.title||!nj.year)return;await journey.add({title:nj.title,year:nj.year,chapter:nj.chapter,caption:nj.caption,emoji:nj.emoji});setNj({title:"",year:new Date().getFullYear().toString(),chapter:"milestones",caption:"",emoji:"⭐"});setShowAdd(false);}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Memory 📸</button></div></Card>):(<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.brown}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}}>+ Add Memory</button>)}
     </div>
   );
 }
