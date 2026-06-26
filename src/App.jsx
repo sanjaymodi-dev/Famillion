@@ -696,6 +696,23 @@ const BGM_TRACKS=[
   {id:"sitar", label:"🎵 Indian Meditation", url:"https://archive.org/download/IndianSitarInstrumentalMusic10Hours/Indian%20Background%20Flute%20Music%20Instrumental%20Meditation%20Music%20%20Yoga%20Music%20%20Spa%20Music%20for%20Relaxation.mp3"},
   {id:"rain",  label:"🌧️ Gentle Rain",      url:"https://archive.org/download/rain-sounds-gentle-rain-thunderstorms/ambience-crickets-chirping-light-rain-tending-to-heavier-rain-10576.mp3"},
 ];
+// REEL_TRACKS — bundled royalty-free music for Reels (Pixabay-sourced, see Famillion notes).
+const REEL_TRACKS=[
+  {id:"acoustic_spring",   label:"🌸 Acoustic Spring (Mother's Day)", mood:"upbeat",    url:`${SUPABASE_URL}/storage/v1/object/public/music/ikoliks_aj-acoustic-spring-mothers-day-music-320427.mp3`},
+  {id:"dance_playful",     label:"💃 Dance Playful Night",            mood:"upbeat",    url:`${SUPABASE_URL}/storage/v1/object/public/music/alexzavesa-dance-playful-night-510786.mp3`},
+  {id:"joyful_funk",       label:"🎷 Joyful Rhythm Walk (Funk)",      mood:"upbeat",    url:`${SUPABASE_URL}/storage/v1/object/public/music/lightbeatsmusic-joyful-rhythm-walk-funk-513936.mp3`},
+  {id:"childhood_happy",   label:"🎈 Childhood Memories (Happy Rock)",mood:"upbeat",    url:`${SUPABASE_URL}/storage/v1/object/public/music/alexgrohl-childhood-memories-the-happy-rock-404441.mp3`},
+  {id:"family_memories",   label:"👨‍👩‍👧 Family Memories",                  mood:"upbeat",    url:`${SUPABASE_URL}/storage/v1/object/public/music/andriig-family-family-memories-music-504413.mp3`},
+  {id:"nostalgic_piano",   label:"🎹 Nostalgic Piano",                mood:"nostalgic", url:`${SUPABASE_URL}/storage/v1/object/public/music/atlasaudio-nostalgic-piano-520047.mp3`},
+  {id:"childhood_piano",   label:"🎹 Childhood Piano",                mood:"nostalgic", url:`${SUPABASE_URL}/storage/v1/object/public/music/the_mountain-childhood-piano-147919.mp3`},
+  {id:"heartful_memories", label:"💛 Heartful Memories (Piano)",      mood:"nostalgic", url:`${SUPABASE_URL}/storage/v1/object/public/music/harumachimusic-heartful-memories-peaceful-relaxing-piano-494122.mp3`},
+  {id:"scenery_memories",  label:"🌅 Scenery of Memories",            mood:"nostalgic", url:`${SUPABASE_URL}/storage/v1/object/public/music/ukaka5656-scenery-of-memories-195693.mp3`},
+  {id:"mythos_mysterium",  label:"🌌 Mythos Mysterium (Atmospheric)", mood:"nostalgic", url:`${SUPABASE_URL}/storage/v1/object/public/music/44363205-mythos-mysterium-returned-unto-thee-218005.mp3`},
+  {id:"power_ballad_80s",  label:"🎸 80s Power Ballad",               mood:"retro",     url:`${SUPABASE_URL}/storage/v1/object/public/music/guitar_obsession-80s-power-ballad-118338.mp3`},
+  {id:"pop_rock_80s",      label:"🎤 80s Family Cop Show",            mood:"retro",     url:`${SUPABASE_URL}/storage/v1/object/public/music/nickpanekaiassets-80s-family-cop-show-pixabay-214403.mp3`},
+  {id:"indie_rock_80s",    label:"🤘 Indie Rock Eighties",            mood:"retro",     url:`${SUPABASE_URL}/storage/v1/object/public/music/remstunes-indie-rock-eighties-479044.mp3`},
+  {id:"retro_dancing_80s", label:"🕺 Retrosunrise (Dancing in the 80s)",mood:"retro",    url:`${SUPABASE_URL}/storage/v1/object/public/music/retrosunrise-dancing-in-the-80s-235696.mp3`},
+];
 // Collage photos — picsum.photos (CORS-friendly, reliable, beautiful lifestyle shots)
 // Each URL is a fixed seed so same photo always loads for that index
 const COLLAGE_PHOTOS=[
@@ -2270,6 +2287,26 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [showFramesDebugGrid,setShowFramesDebugGrid]=useState(false);
   const [debugGridResults,setDebugGridResults]=useState([]);
   const [debugGridLoading,setDebugGridLoading]=useState(false);
+
+  // REEL state
+  const reels=useTable("reels",familyId);
+  const [showReel,setShowReel]=useState(false);
+  const [reelStep,setReelStep]=useState("source"); // "source" | "music" | "save" | "play"
+  const [reelSourceMode,setReelSourceMode]=useState("manual"); // "album" | "chapter" | "manual"
+  const [reelSourceId,setReelSourceId]=useState(""); // album id or chapter id
+  const [reelSelectedPhotoIds,setReelSelectedPhotoIds]=useState([]);
+  const [reelMusicChoice,setReelMusicChoice]=useState(""); // bundled track id, or "custom"
+  const [reelCustomMusicFile,setReelCustomMusicFile]=useState(null);
+  const [reelCustomMusicUploading,setReelCustomMusicUploading]=useState(false);
+  const [reelTransition,setReelTransition]=useState("fade");
+  const [reelName,setReelName]=useState("");
+  const [reelSaving,setReelSaving]=useState(false);
+  const [reelErr,setReelErr]=useState("");
+  const [reelPlayingId,setReelPlayingId]=useState(null); // reel id currently in player
+  const [reelPlayIndex,setReelPlayIndex]=useState(0);
+  const [reelPlaying,setReelPlaying]=useState(true);
+  const reelAudioRef=useRef(null);
+
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
   const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId&&!p.is_created).length;
@@ -2315,6 +2352,12 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   // ── BACK BUTTON (Memories tab overlays) ──
   useEffect(()=>{
     const onBack=(e)=>{
+      if(showReel){
+        if(reelPlayingId){setReelPlayingId(null);return;}
+        if(reelStep==="save"){setReelStep("music");return;}
+        if(reelStep==="music"){setReelStep("source");return;}
+        setShowReel(false);return;
+      }
       if(showFramesDebugGrid){setShowFramesDebugGrid(false);return;}
       if(showFrames){setShowFrames(false);return;}
       if(editingPhotoId){setEditingPhotoId(null);return;}
@@ -2324,13 +2367,13 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
-  },[showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
+  },[showReel,reelPlayingId,reelStep,showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
 
   useEffect(()=>{
-    if(showFramesDebugGrid||showFrames||editingPhotoId||showAddPhoto||showAdd){
+    if(showReel||showFramesDebugGrid||showFrames||editingPhotoId||showAddPhoto||showAdd){
       window.history.pushState({memories:true},"");
     }
-  },[showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
+  },[showReel,reelPlayingId,reelStep,showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
 
   const heroCardClass=(idx,current,total)=>{
     if(idx===current)return"active";
@@ -2673,12 +2716,34 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
         <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>CREATE SOMETHING</div>
         <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
           {[{lbl:"Frames",ic:"🖼️"},{lbl:"Collage",ic:"🧩"},{lbl:"Reel",ic:"🎬"},{lbl:"Roll",ic:"🎞️"}].map(c=>(
-            <div key={c.lbl} onClick={()=>{if(c.lbl==="Frames"){setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}else{alert(c.lbl+" coming soon");}}} style={{flexShrink:0,width:64,background:T.warm,border:`1px solid ${T.brown}40`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
+            <div key={c.lbl} onClick={()=>{if(c.lbl==="Frames"){setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}else if(c.lbl==="Reel"){setReelStep("source");setReelSourceMode("manual");setReelSourceId("");setReelSelectedPhotoIds([]);setReelMusicChoice("");setReelTransition("fade");setReelName("");setReelErr("");setShowReel(true);}else{alert(c.lbl+" coming soon");}}} style={{flexShrink:0,width:64,background:T.warm,border:`1px solid ${T.brown}40`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
               <div style={{fontSize:20}}>{c.ic}</div>
               <div style={{fontSize:9.5,color:T.brown,fontWeight:600,marginTop:4}}>{c.lbl}</div>
             </div>
           ))}
         </div>
+
+        {reels.data.length>0&&(
+          <>
+            <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>YOUR REELS</div>
+            <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
+              {reels.data.map(r=>{
+                const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
+                return(
+                  <div key={r.id} onClick={()=>{setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(r.id);}} style={{flexShrink:0,width:72,cursor:"pointer"}}>
+                    <div style={{position:"relative",width:72,height:90,borderRadius:12,overflow:"hidden",background:T.border}}>
+                      {cover&&<img src={cover.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
+                      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.25)"}}>
+                        <span style={{fontSize:20,color:"#fff"}}>▶️</span>
+                      </div>
+                    </div>
+                    <div style={{fontSize:9.5,color:T.dark,fontWeight:600,marginTop:4,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
 
         {/* PHOTOS — counter, nudge banner, grid, upload form */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
@@ -3031,6 +3096,220 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
             </div>
           </div>
         )}
+
+        {showReel&&(()=>{
+          const TRANSITIONS=[
+            {id:"fade",lbl:"Fade",ic:"🌫️"},
+            {id:"slide",lbl:"Slide",ic:"➡️"},
+            {id:"zoom",lbl:"Zoom",ic:"🔍"},
+            {id:"flip",lbl:"Flip",ic:"🔄"},
+            {id:"cut",lbl:"Cut",ic:"✂️"},
+          ];
+          const nonCreatedPhotos=photos.data.filter(p=>!p.is_created);
+          const albumsWithPhotos=albums.data.filter(a=>nonCreatedPhotos.some(p=>p.album_id===a.id));
+          const chaptersWithPhotos=CHAPTERS.filter(c=>nonCreatedPhotos.some(p=>p.chapter===c.id));
+          const sourcedPhotoIds=reelSourceMode==="album"?nonCreatedPhotos.filter(p=>p.album_id===reelSourceId).map(p=>p.id)
+            :reelSourceMode==="chapter"?nonCreatedPhotos.filter(p=>p.chapter===reelSourceId).map(p=>p.id)
+            :reelSelectedPhotoIds;
+          const finalPhotoIds=reelSourceMode==="manual"?reelSelectedPhotoIds:sourcedPhotoIds;
+          const finalPhotos=finalPhotoIds.map(id=>photos.data.find(p=>p.id===id)).filter(Boolean);
+          const reelCount=reels.data.filter(r=>r.member_id===myMemberId).length;
+
+          const togglePhotoSelect=(id)=>{
+            setReelSelectedPhotoIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):[...prev,id]);
+          };
+
+          const uploadCustomMusic=async()=>{
+            if(!reelCustomMusicFile)return null;
+            setReelCustomMusicUploading(true);
+            try{
+              const token=sb._token||localStorage.getItem("fn_token");
+              if(!token){setReelErr("Not logged in — please sign out and sign back in.");setReelCustomMusicUploading(false);return null;}
+              const fileName=`${familyId}/${myMemberId||"unknown"}_track_${Date.now()}.mp3`;
+              const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/music/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"audio/mpeg","x-upsert":"true"},body:reelCustomMusicFile});
+              if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
+              setReelCustomMusicUploading(false);
+              return `${SUPABASE_URL}/storage/v1/object/public/music/${fileName}`;
+            }catch(err){setReelErr("Music upload error: "+err.message);setReelCustomMusicUploading(false);return null;}
+          };
+
+          const saveReel=async()=>{
+            if(finalPhotoIds.length<2){setReelErr("Pick at least 2 photos for your reel.");return;}
+            setReelSaving(true);setReelErr("");
+            let musicUrl=null;
+            if(reelMusicChoice==="custom"){
+              musicUrl=await uploadCustomMusic();
+              if(!musicUrl){setReelSaving(false);return;}
+            }else if(reelMusicChoice){
+              musicUrl=REEL_TRACKS.find(t=>t.id===reelMusicChoice)?.url||null;
+            }
+            try{
+              const finalName=reelName.trim()||`Reel #${reelCount+1}`;
+              await reels.add({member_id:myMemberId||null,name:finalName,photo_ids:finalPhotoIds,music_track:musicUrl,transition:reelTransition,source_album_id:reelSourceMode==="album"?reelSourceId:null,source_chapter:reelSourceMode==="chapter"?reelSourceId:null});
+              setShowReel(false);
+            }catch(err){setReelErr("Save error: "+err.message);}
+            setReelSaving(false);
+          };
+
+          return(
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:T.cream,zIndex:300,overflowY:"auto"}}>
+              <div style={{padding:"16px 16px 30px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <span onClick={()=>{if(reelStep==="music")setReelStep("source");else if(reelStep==="save")setReelStep("music");else setShowReel(false);}} style={{fontSize:20,color:T.dark,cursor:"pointer"}}>←</span>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark}}>
+                    {reelStep==="source"?"Pick Photos for Reel":reelStep==="music"?"Music & Transition":"Name & Save"}
+                  </span>
+                </div>
+
+                {reelStep==="source"&&(
+                  <>
+                    <div style={{display:"flex",gap:8,marginBottom:14}}>
+                      {[{id:"manual",lbl:"Pick Photos"},{id:"album",lbl:"From Album"},{id:"chapter",lbl:"From Chapter"}].map(m=>(
+                        <button key={m.id} onClick={()=>{setReelSourceMode(m.id);setReelSourceId("");}} style={{flex:1,padding:"9px 4px",borderRadius:10,border:`1.5px solid ${reelSourceMode===m.id?"#0A6B58":T.border}`,background:reelSourceMode===m.id?"#E0F7F2":"#fff",fontSize:11,fontWeight:600,color:T.dark,cursor:"pointer"}}>{m.lbl}</button>
+                      ))}
+                    </div>
+
+                    {reelSourceMode==="manual"&&(
+                      <>
+                        <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Tap photos to add them, in the order you want them to appear ({reelSelectedPhotoIds.length} selected)</div>
+                        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:16}}>
+                          {nonCreatedPhotos.map(p=>{
+                            const idx=reelSelectedPhotoIds.indexOf(p.id);
+                            return(
+                              <div key={p.id} onClick={()=>togglePhotoSelect(p.id)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:idx>=0?"3px solid #0A6B58":"3px solid transparent",cursor:"pointer"}}>
+                                <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                                {idx>=0&&<div style={{position:"absolute",top:4,left:4,background:"#0A6B58",color:"#fff",borderRadius:"50%",width:20,height:20,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700}}>{idx+1}</div>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+
+                    {reelSourceMode==="album"&&(
+                      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                        {albumsWithPhotos.length===0&&<div style={{fontSize:12,color:T.muted}}>No albums with photos yet.</div>}
+                        {albumsWithPhotos.map(a=>(
+                          <div key={a.id} onClick={()=>setReelSourceId(a.id)} style={{padding:"10px 14px",borderRadius:12,border:`2px solid ${reelSourceId===a.id?"#0A6B58":T.border}`,background:reelSourceId===a.id?"#E0F7F2":"#fff",cursor:"pointer",fontSize:13,fontWeight:600,color:T.dark}}>
+                            🗂️ {a.name} <span style={{color:T.muted,fontWeight:400}}>· {nonCreatedPhotos.filter(p=>p.album_id===a.id).length} photos</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {reelSourceMode==="chapter"&&(
+                      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+                        {chaptersWithPhotos.length===0&&<div style={{fontSize:12,color:T.muted}}>No chapters with photos yet.</div>}
+                        {chaptersWithPhotos.map(c=>(
+                          <div key={c.id} onClick={()=>setReelSourceId(c.id)} style={{padding:"10px 14px",borderRadius:12,border:`2px solid ${reelSourceId===c.id?"#0A6B58":T.border}`,background:reelSourceId===c.id?"#E0F7F2":"#fff",cursor:"pointer",fontSize:13,fontWeight:600,color:T.dark}}>
+                            {c.emoji} {c.label} <span style={{color:T.muted,fontWeight:400}}>· {nonCreatedPhotos.filter(p=>p.chapter===c.id).length} photos</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {reelErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{reelErr}</div>}
+
+                    <button disabled={finalPhotoIds.length<2} onClick={()=>{setReelErr("");setReelStep("music");}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:finalPhotoIds.length<2?T.muted:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:finalPhotoIds.length<2?"default":"pointer"}}>
+                      {finalPhotoIds.length<2?`Pick at least 2 photos (${finalPhotoIds.length} so far)`:`Continue with ${finalPhotoIds.length} photos →`}
+                    </button>
+                  </>
+                )}
+
+                {reelStep==="music"&&(
+                  <>
+                    <div style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:10}}>TRANSITION STYLE</div>
+                    <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:8}}>
+                      {TRANSITIONS.map(t=>(
+                        <div key={t.id} onClick={()=>setReelTransition(t.id)} style={{flexShrink:0,width:64,background:reelTransition===t.id?"#E0F7F2":"#fff",border:`2px solid ${reelTransition===t.id?"#0A6B58":T.border}`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
+                          <div style={{fontSize:20}}>{t.ic}</div>
+                          <div style={{fontSize:9.5,color:T.dark,fontWeight:600,marginTop:4}}>{t.lbl}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:10}}>MUSIC (OPTIONAL)</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:10,maxHeight:240,overflowY:"auto"}}>
+                      <div onClick={()=>setReelMusicChoice("")} style={{padding:"9px 12px",borderRadius:10,border:`2px solid ${reelMusicChoice===""?"#0A6B58":T.border}`,background:reelMusicChoice===""?"#E0F7F2":"#fff",cursor:"pointer",fontSize:12,fontWeight:600,color:T.dark}}>🔇 No music</div>
+                      {REEL_TRACKS.map(t=>(
+                        <div key={t.id} onClick={()=>setReelMusicChoice(t.id)} style={{padding:"9px 12px",borderRadius:10,border:`2px solid ${reelMusicChoice===t.id?"#0A6B58":T.border}`,background:reelMusicChoice===t.id?"#E0F7F2":"#fff",cursor:"pointer",fontSize:12,fontWeight:600,color:T.dark}}>{t.label}</div>
+                      ))}
+                      <label style={{padding:"9px 12px",borderRadius:10,border:`2px solid ${reelMusicChoice==="custom"?"#0A6B58":T.border}`,background:reelMusicChoice==="custom"?"#E0F7F2":"#fff",cursor:"pointer",fontSize:12,fontWeight:600,color:T.dark,display:"block"}}>
+                        📤 {reelCustomMusicFile?reelCustomMusicFile.name:"Upload your own track"}
+                        <input type="file" accept="audio/*" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f){setReelCustomMusicFile(f);setReelMusicChoice("custom");}}}/>
+                      </label>
+                    </div>
+
+                    {reelErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{reelErr}</div>}
+
+                    <button onClick={()=>{setReelErr("");setReelStep("save");}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>
+                      Continue →
+                    </button>
+                  </>
+                )}
+
+                {reelStep==="save"&&(
+                  <>
+                    <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:10,marginBottom:14}}>
+                      {finalPhotos.slice(0,8).map((p,i)=>(<img key={p.id} src={p.url} alt="" style={{width:48,height:48,borderRadius:8,objectFit:"cover",flexShrink:0}}/>))}
+                      {finalPhotos.length>8&&<div style={{width:48,height:48,borderRadius:8,background:T.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:T.muted,flexShrink:0}}>+{finalPhotos.length-8}</div>}
+                    </div>
+
+                    <div style={{marginBottom:14}}>
+                      <label style={lbl}>Name this reel</label>
+                      <input style={inp} placeholder={`Reel #${reelCount+1}`} value={reelName} onChange={e=>setReelName(e.target.value)}/>
+                      <div style={{fontSize:9.5,color:T.muted,marginTop:4}}>Leave blank and we'll call it "Reel #{reelCount+1}"</div>
+                    </div>
+
+                    {reelErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{reelErr}</div>}
+
+                    <button disabled={reelSaving||reelCustomMusicUploading} onClick={saveReel} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:reelSaving?"default":"pointer"}}>
+                      {reelCustomMusicUploading?"Uploading music...":reelSaving?"Saving...":"Save Reel 🎬"}
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {reelPlayingId&&(()=>{
+          const reel=reels.data.find(r=>r.id===reelPlayingId);
+          if(!reel)return null;
+          const reelPhotos=(reel.photo_ids||[]).map(id=>photos.data.find(p=>p.id===id)).filter(Boolean);
+          const trans=reel.transition||"fade";
+
+          const goNext=()=>setReelPlayIndex(i=>(i+1)%reelPhotos.length);
+          const goPrev=()=>setReelPlayIndex(i=>(i-1+reelPhotos.length)%reelPhotos.length);
+
+          return(
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"#000",zIndex:350,display:"flex",flexDirection:"column"}}>
+              <div style={{padding:"16px",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <span onClick={()=>{setReelPlayingId(null);if(reelAudioRef.current){reelAudioRef.current.pause();}}} style={{fontSize:20,color:"#fff",cursor:"pointer"}}>←</span>
+                <span style={{fontSize:13,color:"#fff",fontWeight:700}}>{reel.name}</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,0.6)"}}>{reelPlayIndex+1}/{reelPhotos.length}</span>
+              </div>
+              <div style={{flex:1,position:"relative",margin:"0 16px 16px",borderRadius:18,overflow:"hidden"}}>
+                {reelPhotos.map((p,i)=>{
+                  const isActive=i===reelPlayIndex;
+                  let style={position:"absolute",top:0,left:0,width:"100%",height:"100%",objectFit:"contain",transition:"opacity 0.6s ease, transform 0.6s ease"};
+                  if(trans==="fade")style={...style,opacity:isActive?1:0};
+                  else if(trans==="slide")style={...style,opacity:isActive?1:0,transform:isActive?"translateX(0)":"translateX(40px)"};
+                  else if(trans==="zoom")style={...style,opacity:isActive?1:0,transform:isActive?"scale(1)":"scale(1.15)"};
+                  else if(trans==="flip")style={...style,opacity:isActive?1:0,transform:isActive?"rotateY(0deg)":"rotateY(90deg)"};
+                  else style={...style,opacity:isActive?1:0,transition:"none"}; // cut
+                  return <img key={p.id} src={p.url} alt="" style={style}/>;
+                })}
+              </div>
+              {reel.music_track&&<audio ref={reelAudioRef} src={reel.music_track} autoPlay loop/>}
+              <div style={{display:"flex",justifyContent:"center",alignItems:"center",gap:20,paddingBottom:28}}>
+                <span onClick={goPrev} style={{fontSize:22,color:"#fff",cursor:"pointer"}}>‹</span>
+                <span onClick={()=>setReelPlaying(p=>!p)} style={{fontSize:28,color:"#F4A724",cursor:"pointer"}}>{reelPlaying?"⏸":"▶️"}</span>
+                <span onClick={goNext} style={{fontSize:22,color:"#fff",cursor:"pointer"}}>›</span>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ===== SECTION 3: CHAPTER TIMELINE (unchanged) ===== */}
         <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4,marginTop:8}}>
