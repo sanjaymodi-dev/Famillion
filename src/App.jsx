@@ -2252,6 +2252,14 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [editingPhotoId,setEditingPhotoId]=useState(null);
   const [ef,setEf]=useState({caption:"",chapter:"",album_id:"",tagged:[]});
   const [uploadProgress,setUploadProgress]=useState(null);
+  const [showFrames,setShowFrames]=useState(false);
+  const [framesSource,setFramesSource]=useState("gallery"); // "gallery" | "camera"
+  const [framesSourcePhotoId,setFramesSourcePhotoId]=useState(null);
+  const [framesCapturedFile,setFramesCapturedFile]=useState(null);
+  const [framesStyle,setFramesStyle]=useState("classic");
+  const [framesColor,setFramesColor]=useState("navy");
+  const [framesSaving,setFramesSaving]=useState(false);
+  const [framesErr,setFramesErr]=useState("");
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
   const myPhotoCount=photos.data.filter(p=>p.member_id===myMemberId&&!p.is_created).length;
@@ -2294,6 +2302,25 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     return()=>clearInterval(photoTimerRef.current);
   },[photoHeroItems.length]);
 
+  // ── BACK BUTTON (Memories tab overlays) ──
+  useEffect(()=>{
+    const onBack=(e)=>{
+      if(showFrames){setShowFrames(false);return;}
+      if(editingPhotoId){setEditingPhotoId(null);return;}
+      if(showAddPhoto){setShowAddPhoto(false);setPhotoErr("");return;}
+      if(showAdd){setShowAdd(false);return;}
+      // else let default happen (go to home tab handled by parent)
+    };
+    window.addEventListener("popstate",onBack);
+    return()=>window.removeEventListener("popstate",onBack);
+  },[showFrames,editingPhotoId,showAddPhoto,showAdd]);
+
+  useEffect(()=>{
+    if(showFrames||editingPhotoId||showAddPhoto||showAdd){
+      window.history.pushState({memories:true},"");
+    }
+  },[showFrames,editingPhotoId,showAddPhoto,showAdd]);
+
   const heroCardClass=(idx,current,total)=>{
     if(idx===current)return"active";
     if(idx===(current+1)%total)return"next";
@@ -2306,6 +2333,34 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     if(cls==="next")return{...base,transform:"translateX(60%) scale(0.82)",opacity:0.4,zIndex:2};
     if(cls==="prev")return{...base,transform:"translateX(-60%) scale(0.82)",opacity:0.4,zIndex:2};
     return{...base,transform:"translateX(0) scale(0.65)",opacity:0,zIndex:1};
+  };
+
+  const memTouchRef=useRef({x:0,y:0,swiping:false});
+  const onMemTouchStart=(e)=>{memTouchRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY,swiping:false};};
+  const onMemTouchMove=(e)=>{
+    const dx=e.touches[0].clientX-memTouchRef.current.x;
+    const dy=e.touches[0].clientY-memTouchRef.current.y;
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>10){memTouchRef.current.swiping=true;e.preventDefault();}
+  };
+  const onMemTouchEnd=(e)=>{
+    if(!memTouchRef.current.swiping||memHeroItems.length<2)return;
+    const dx=e.changedTouches[0].clientX-memTouchRef.current.x;
+    if(dx>50)setMemCurrent(c=>(c-1+memHeroItems.length)%memHeroItems.length);
+    else if(dx<-50)setMemCurrent(c=>(c+1)%memHeroItems.length);
+  };
+
+  const photoTouchRef=useRef({x:0,y:0,swiping:false});
+  const onPhotoTouchStart=(e)=>{photoTouchRef.current={x:e.touches[0].clientX,y:e.touches[0].clientY,swiping:false};};
+  const onPhotoTouchMove=(e)=>{
+    const dx=e.touches[0].clientX-photoTouchRef.current.x;
+    const dy=e.touches[0].clientY-photoTouchRef.current.y;
+    if(Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>10){photoTouchRef.current.swiping=true;e.preventDefault();}
+  };
+  const onPhotoTouchEnd=(e)=>{
+    if(!photoTouchRef.current.swiping||photoHeroItems.length<2)return;
+    const dx=e.changedTouches[0].clientX-photoTouchRef.current.x;
+    if(dx>50)setPhotoCurrent(c=>(c-1+photoHeroItems.length)%photoHeroItems.length);
+    else if(dx<-50)setPhotoCurrent(c=>(c+1)%photoHeroItems.length);
   };
 
   const compressImage=(file)=>new Promise((resolve,reject)=>{
@@ -2412,7 +2467,7 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           </div>
         ):(
           <>
-            <div style={{flex:1,position:"relative",minHeight:320,marginTop:6}}>
+            <div onTouchStart={onMemTouchStart} onTouchMove={onMemTouchMove} onTouchEnd={onMemTouchEnd} style={{flex:1,position:"relative",minHeight:320,marginTop:6,touchAction:"pan-y"}}>
               {memHeroItems.map((item,i)=>{
                 const cls=heroCardClass(i,memCurrent,memHeroItems.length);
                 return(
@@ -2448,7 +2503,7 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
         {/* ===== SECTION 2: PHOTOS HERO (individual uploads, ~72% size) ===== */}
         {photoHeroItems.length>0&&(
           <>
-            <div style={{position:"relative",width:"72%",margin:"6px auto 0",paddingBottom:"62%"}}>
+            <div onTouchStart={onPhotoTouchStart} onTouchMove={onPhotoTouchMove} onTouchEnd={onPhotoTouchEnd} style={{position:"relative",width:"72%",margin:"6px auto 0",paddingBottom:"62%",touchAction:"pan-y"}}>
               {photoHeroItems.map((item,i)=>{
                 const cls=heroCardClass(i,photoCurrent,photoHeroItems.length);
                 return(
@@ -2470,7 +2525,7 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
         <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>CREATE SOMETHING</div>
         <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
           {[{lbl:"Frames",ic:"🖼️"},{lbl:"Collage",ic:"🧩"},{lbl:"Reel",ic:"🎬"},{lbl:"Roll",ic:"🎞️"}].map(c=>(
-            <div key={c.lbl} onClick={()=>alert(c.lbl+" coming soon")} style={{flexShrink:0,width:64,background:T.warm,border:`1px solid ${T.brown}40`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
+            <div key={c.lbl} onClick={()=>{if(c.lbl==="Frames"){setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}else{alert(c.lbl+" coming soon");}}} style={{flexShrink:0,width:64,background:T.warm,border:`1px solid ${T.brown}40`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
               <div style={{fontSize:20}}>{c.ic}</div>
               <div style={{fontSize:9.5,color:T.brown,fontWeight:600,marginTop:4}}>{c.lbl}</div>
             </div>
@@ -2614,6 +2669,95 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
             </div>
           </div>
         )}
+
+        {/* ===== FRAMES SCREEN (Pass 1: plumbing, placeholder preview) ===== */}
+        {showFrames&&(()=>{
+          const FRAME_STYLES=[
+            {id:"classic",lbl:"Classic Border",colorable:true,defaultColor:"navy"},
+            {id:"saffronedge",lbl:"Saffron Edge",colorable:true,defaultColor:"saffron"},
+            {id:"rounded",lbl:"Rounded Corners",colorable:false},
+            {id:"poloroid",lbl:"Polaroid",colorable:false},
+            {id:"double",lbl:"Double Border",colorable:true,defaultColor:"navy"},
+            {id:"glow",lbl:"Vignette Glow",colorable:false},
+            {id:"dashed",lbl:"Dashed Border",colorable:true,defaultColor:"navy"},
+            {id:"brackets",lbl:"Corner Brackets",colorable:true,defaultColor:"saffron"},
+            {id:"torn",lbl:"Torn Edge",colorable:false},
+            {id:"shadow",lbl:"Soft Shadow",colorable:false},
+            {id:"bw",lbl:"Black & White",colorable:false},
+          ];
+          const FRAME_COLORS={navy:"#0F1F3D",saffron:"#F4A724",pink:"#F2A6B8",cream:"#FDF6EC",sage:"#8FAE8B",dustyblue:"#7FA8C9"};
+          const selectedStyle=FRAME_STYLES.find(s=>s.id===framesStyle);
+          const sourcePhoto=framesSource==="gallery"?photos.data.find(p=>p.id===framesSourcePhotoId):null;
+          const previewUrl=framesSource==="gallery"?sourcePhoto?.url:(framesCapturedFile?URL.createObjectURL(framesCapturedFile):null);
+          const galleryPhotos=photos.data.filter(p=>!p.is_created);
+
+          return(
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:T.cream,zIndex:300,overflowY:"auto"}}>
+              <div style={{padding:"16px 16px 30px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <span onClick={()=>setShowFrames(false)} style={{fontSize:20,color:T.dark,cursor:"pointer"}}>←</span>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark}}>Add a Frame</span>
+                </div>
+
+                <div style={{display:"flex",gap:10,marginBottom:14}}>
+                  <button onClick={()=>setFramesSource("gallery")} style={{flex:1,background:framesSource==="gallery"?"#E0F7F2":"#fff",border:`1.5px solid ${framesSource==="gallery"?"#0A6B58":T.border}`,borderRadius:14,padding:"12px 6px",textAlign:"center",cursor:"pointer"}}>
+                    <div style={{fontSize:20}}>🖼️</div>
+                    <div style={{fontSize:11,fontWeight:600,color:T.dark,marginTop:4}}>Choose Existing</div>
+                  </button>
+                  <label style={{flex:1,background:framesSource==="camera"?"#E0F7F2":"#fff",border:`1.5px solid ${framesSource==="camera"?"#0A6B58":T.border}`,borderRadius:14,padding:"12px 6px",textAlign:"center",cursor:"pointer",display:"block"}}>
+                    <div style={{fontSize:20}}>📷</div>
+                    <div style={{fontSize:11,fontWeight:600,color:T.dark,marginTop:4}}>Take New Photo</div>
+                    <input type="file" accept="image/*" capture="environment" style={{display:"none"}} onChange={e=>{const f=e.target.files?.[0];if(f){setFramesCapturedFile(f);setFramesSource("camera");}}}/>
+                  </label>
+                </div>
+
+                {framesSource==="gallery"&&(
+                  <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:10,marginBottom:10}}>
+                    {galleryPhotos.length===0&&<div style={{fontSize:12,color:T.muted,padding:"8px 0"}}>No uploaded photos yet — upload one first, or take a new photo instead.</div>}
+                    {galleryPhotos.map(p=>(
+                      <div key={p.id} onClick={()=>setFramesSourcePhotoId(p.id)} style={{flexShrink:0,width:56,height:56,borderRadius:10,overflow:"hidden",border:`2px solid ${framesSourcePhotoId===p.id?"#0A6B58":"transparent"}`,cursor:"pointer"}}>
+                        <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div style={{borderRadius:18,overflow:"hidden",position:"relative",aspectRatio:"1",background:"#000",marginBottom:18}}>
+                  {previewUrl?(
+                    <img src={previewUrl} alt="preview" style={{width:"100%",height:"100%",objectFit:"cover",filter:framesStyle==="bw"?"grayscale(100%)":"none"}}/>
+                  ):(
+                    <div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:13}}>Pick a photo to preview</div>
+                  )}
+                  <div style={{position:"absolute",bottom:8,left:8,background:"rgba(0,0,0,0.6)",borderRadius:8,padding:"3px 8px",fontSize:9,color:"#fff"}}>Preview shown without frame styling — full effect coming next</div>
+                </div>
+
+                <div style={{fontSize:11,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:10}}>CHOOSE A STYLE</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
+                  {FRAME_STYLES.map(s=>(
+                    <div key={s.id} onClick={()=>{setFramesStyle(s.id);if(s.colorable)setFramesColor(s.defaultColor);}} style={{background:framesStyle===s.id?"#E0F7F2":"#fff",border:`2px solid ${framesStyle===s.id?"#0A6B58":T.border}`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
+                      <div style={{fontSize:9.5,fontWeight:600,color:T.dark,lineHeight:1.3}}>{s.lbl}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {selectedStyle?.colorable&&(
+                  <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
+                    {Object.keys(FRAME_COLORS).map(key=>(
+                      <div key={key} onClick={()=>setFramesColor(key)} style={{width:34,height:34,borderRadius:"50%",flexShrink:0,cursor:"pointer",background:FRAME_COLORS[key],border:framesColor===key?`3px solid ${T.dark}`:"3px solid transparent"}}/>
+                    ))}
+                  </div>
+                )}
+
+                {framesErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{framesErr}</div>}
+
+                <button disabled={!previewUrl||framesSaving} onClick={()=>setFramesErr("Real save coming in the next build pass — this confirms the screen and selections work.")} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:!previewUrl?T.muted:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:!previewUrl?"default":"pointer"}}>
+                  {framesSaving?"Saving...":"Save Framed Photo ✨"}
+                </button>
+                <div style={{fontSize:10,color:T.muted,marginTop:8,textAlign:"center"}}>Saved as a new photo · doesn't count toward your 50-photo limit</div>
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ===== SECTION 3: CHAPTER TIMELINE (unchanged) ===== */}
         <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:12,marginBottom:4,marginTop:8}}>
