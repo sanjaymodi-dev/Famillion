@@ -340,9 +340,20 @@ function AuthScreen({ onAuth }) {
 
     // Complete any pending setup (family creation or join) deferred from before email verification
     const pendingRaw = localStorage.getItem("fn_pending_setup");
+    let p = null;
     if (pendingRaw) {
+      try { p = JSON.parse(pendingRaw); } catch(e) { p = null; }
+    }
+    // Cross-device fallback: check DB if localStorage is empty or on a different device
+    if (!p) {
       try {
-        const p = JSON.parse(pendingRaw);
+        const {data:rows} = await sb.from("pending_setups").select("*").eq("email", email.toLowerCase().trim()).order("created_at",{ascending:false});
+        const row = Array.isArray(rows) ? rows[0] : null;
+        if (row?.setup_data) p = row.setup_data;
+      } catch(dbErr) { console.warn("pending_setups DB read failed:", dbErr); }
+    }
+    if (p) {
+      try {
         if (p.type === "join") {
           // Complete join: create user_profiles row + link/create member
           const {error:profErr} = await sb.from("user_profiles").insert({
@@ -380,7 +391,6 @@ function AuthScreen({ onAuth }) {
                 const {data:insertedMembers} = await sb.from("members").insert(
                   p.members.map(m=>({family_id:fid,...m}))
                 ).select();
-                // Link admin to the member whose name best matches their email username
                 const emailUser = p.email.split("@")[0].toLowerCase();
                 const matched = Array.isArray(insertedMembers)
                   ? insertedMembers.find(m=>
@@ -396,10 +406,21 @@ function AuthScreen({ onAuth }) {
             }
           }
         }
+        // Clean up both local and DB copies
         localStorage.removeItem("fn_pending_setup");
+        try { await sb.from("pending_setups").delete().eq("email", email.toLowerCase().trim()); } catch(e){}
       } catch(setupErr) {
         console.warn("Pending setup error:", setupErr);
         localStorage.removeItem("fn_pending_setup");
+        try { await sb.from("pending_setups").delete().eq("email", email.toLowerCase().trim()); } catch(e){}
+      }
+    } else {
+      // Check if this signed-in user already has a profile (returning user, not a new signup)
+      const {data:existingProfile} = await sb.from("user_profiles").select("id").eq("id", sb._userId);
+      if (!existingProfile || (Array.isArray(existingProfile) && existingProfile.length === 0)) {
+        // Genuinely stuck — signed in but no family/profile and no pending setup found
+        setError("Your account was verified but we couldn't find your setup data. This can happen if you signed up on a different device. Please sign out and try signing up again, or contact support.");
+        setLoading(false); return;
       }
     }
 
@@ -411,8 +432,6 @@ function AuthScreen({ onAuth }) {
     try {
       const {data:authData, error:authError} = await sb.auth.signUp(email, password);
       if (authError) throw new Error(authError.message||"Signup failed");
-      // With "Confirm email" ON, Supabase returns user.id but no access_token yet.
-      // Store everything in localStorage and complete setup on first sign-in after verification.
       const userId = authData?.user?.id || sb._userId;
       if (!userId) throw new Error("Could not get your user ID. Please try again.");
       const inviteRef = `INV-${Math.random().toString(36).substr(2,8).toUpperCase()}`;
@@ -430,7 +449,12 @@ function AuthScreen({ onAuth }) {
         members: members.map(m=>({name:m.name, emoji:m.emoji, relationship:m.relationship||"", dob:m.dob||null, occupation:m.occupation||""})),
         email,
       };
+      // Store locally (fast path, same device)
       localStorage.setItem("fn_pending_setup", JSON.stringify(pendingSetup));
+      // Store in DB (cross-device fallback — works even if email link opens different browser)
+      try {
+        await sb.from("pending_setups").insert({user_id:userId, email:email.toLowerCase().trim(), setup_data:pendingSetup});
+      } catch(dbErr) { console.warn("pending_setups DB write failed:", dbErr); }
       setSuccess(`✅ Almost there! Your family invite code is: ${inviteRef}\n\nA verification email has been sent to ${email}. Click the link in that email, then come back and sign in — your family will be set up automatically.`);
       setMode("login"); setStep(1);
     } catch(e) { setError(e.message); }
@@ -483,7 +507,12 @@ function AuthScreen({ onAuth }) {
         emoji:joinEmoji,
         email,
       };
+      // Store locally (fast path, same device)
       localStorage.setItem("fn_pending_setup",JSON.stringify(pendingJoin));
+      // Store in DB (cross-device fallback)
+      try {
+        await sb.from("pending_setups").insert({user_id:userId||null, email:email.toLowerCase().trim(), setup_data:pendingJoin});
+      } catch(dbErr) { console.warn("pending_setups DB write failed:", dbErr); }
       setSuccess(`✅ Almost there! A verification email has been sent to ${email}. Click the link to verify, then sign in here and you'll be added to ${joinFamily.name} automatically.`);
       setMode("login");setJoinMode(false);setJoinStep(1);setJoinFamily(null);setJoinMembers([]);setSelectedMemberId(null);setJoinName("");setJoinNew(false);
     }catch(e){setError(e.message);}
@@ -2306,6 +2335,20 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [reelPlayIndex,setReelPlayIndex]=useState(0);
   const [reelPlaying,setReelPlaying]=useState(true);
   const reelAudioRef=useRef(null);
+  const reelAdvanceTimerRef=useRef(null);
+
+  useEffect(()=>{
+    clearInterval(reelAdvanceTimerRef.current);
+    if(!reelPlayingId||!reelPlaying)return;
+    const reel=reels.data.find(r=>r.id===reelPlayingId);
+    if(!reel)return;
+    const count=(reel.photo_ids||[]).filter(id=>photos.data.some(p=>p.id===id)).length;
+    if(count<2)return;
+    reelAdvanceTimerRef.current=setInterval(()=>{
+      setReelPlayIndex(i=>(i+1)%count);
+    },2800);
+    return()=>clearInterval(reelAdvanceTimerRef.current);
+  },[reelPlayingId,reelPlaying,reels.data,photos.data]);
 
   const filtered=filter==="all"?journey.data:journey.data.filter(j=>j.chapter===filter);
   const sorted=[...filtered].sort((a,b)=>Number(a.year)-Number(b.year));
@@ -2712,38 +2755,54 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           </>
         )}
 
-        {/* ===== CREATE STRIP ===== */}
-        <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>CREATE SOMETHING</div>
-        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
-          {[{lbl:"Frames",ic:"🖼️"},{lbl:"Collage",ic:"🧩"},{lbl:"Reel",ic:"🎬"},{lbl:"Roll",ic:"🎞️"}].map(c=>(
-            <div key={c.lbl} onClick={()=>{if(c.lbl==="Frames"){setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}else if(c.lbl==="Reel"){setReelStep("source");setReelSourceMode("manual");setReelSourceId("");setReelSelectedPhotoIds([]);setReelMusicChoice("");setReelTransition("fade");setReelName("");setReelErr("");setShowReel(true);}else{alert(c.lbl+" coming soon");}}} style={{flexShrink:0,width:64,background:T.warm,border:`1px solid ${T.brown}40`,borderRadius:14,padding:"10px 4px",textAlign:"center",cursor:"pointer"}}>
-              <div style={{fontSize:20}}>{c.ic}</div>
-              <div style={{fontSize:9.5,color:T.brown,fontWeight:600,marginTop:4}}>{c.lbl}</div>
-            </div>
-          ))}
-        </div>
+        {/* ===== HERO 2: CREATIONS CAROUSEL (Frames + Reels + Collage/Roll placeholders) ===== */}
+        {(()=>{
+          const framesItems=photos.data.filter(p=>p.is_created).map(p=>({kind:"frame",id:p.id,img:p.url,title:p.name||"Frame",sub:"🖼️ Frame"}));
+          const reelsItems=reels.data.map(r=>{
+            const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
+            return{kind:"reel",id:r.id,img:cover?.url,title:r.name,sub:"🎬 Reel"};
+          }).filter(it=>it.img);
+          const placeholders=[
+            {kind:"collage_placeholder",id:"collage_ph",title:"Collage",sub:"🧩 Coming soon",bg:"linear-gradient(135deg,#F4A724,#0A6B58)"},
+            {kind:"roll_placeholder",id:"roll_ph",title:"Roll",sub:"🎞️ Coming soon",bg:"linear-gradient(135deg,#7FA8C9,#F2A6B8)"},
+          ];
+          const creationItems=[...framesItems,...reelsItems,...placeholders];
 
-        {reels.data.length>0&&(
-          <>
-            <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>YOUR REELS</div>
-            <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:14,marginBottom:6}}>
-              {reels.data.map(r=>{
-                const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
-                return(
-                  <div key={r.id} onClick={()=>{setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(r.id);}} style={{flexShrink:0,width:72,cursor:"pointer"}}>
-                    <div style={{position:"relative",width:72,height:90,borderRadius:12,overflow:"hidden",background:T.border}}>
-                      {cover&&<img src={cover.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
-                      <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.25)"}}>
-                        <span style={{fontSize:20,color:"#fff"}}>▶️</span>
+          return(
+            <div style={{marginBottom:6}}>
+              <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>YOUR CREATIONS</div>
+              <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:14}}>
+                {creationItems.map(item=>(
+                  <div key={item.kind+item.id} style={{flexShrink:0,width:110,position:"relative"}}>
+                    <div onClick={()=>{
+                      if(item.kind==="frame"){const p=photos.data.find(x=>x.id===item.id);if(p)startEditPhoto(p);}
+                      else if(item.kind==="reel"){setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.id);}
+                    }} style={{position:"relative",width:110,height:130,borderRadius:14,overflow:"hidden",cursor:item.kind==="frame"||item.kind==="reel"?"pointer":"default",background:item.bg||T.border}}>
+                      {item.img&&<img src={item.img} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
+                      {!item.img&&<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>{item.kind==="collage_placeholder"?"🧩":"🎞️"}</div>}
+                      {item.kind==="reel"&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.2)"}}><span style={{fontSize:24,color:"#fff"}}>▶️</span></div>}
+                      <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(15,31,61,0.75)",padding:"5px 7px"}}>
+                        <div style={{fontSize:10,color:"#fff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.title}</div>
+                        <div style={{fontSize:8.5,color:"#F4A724"}}>{item.sub}</div>
                       </div>
                     </div>
-                    <div style={{fontSize:9.5,color:T.dark,fontWeight:600,marginTop:4,textAlign:"center",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{r.name}</div>
+                    {(item.kind==="collage_placeholder"||item.kind==="roll_placeholder")&&(
+                      <div onClick={()=>alert((item.kind==="collage_placeholder"?"Collage":"Roll")+" coming soon")} style={{position:"absolute",top:6,right:6,background:"rgba(255,255,255,0.9)",borderRadius:8,padding:"3px 7px",fontSize:9,fontWeight:700,color:T.brown,cursor:"pointer"}}>+ New</div>
+                    )}
                   </div>
-                );
-              })}
+                ))}
+                <div onClick={()=>{setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}} style={{flexShrink:0,width:110,height:130,borderRadius:14,border:`2px dashed ${T.brown}60`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}>
+                  <span style={{fontSize:22}}>🖼️</span>
+                  <span style={{fontSize:10,color:T.brown,fontWeight:700}}>+ New Frame</span>
+                </div>
+                <div onClick={()=>{setReelStep("source");setReelSourceMode("manual");setReelSourceId("");setReelSelectedPhotoIds([]);setReelMusicChoice("");setReelTransition("fade");setReelName("");setReelErr("");setShowReel(true);}} style={{flexShrink:0,width:110,height:130,borderRadius:14,border:`2px dashed ${T.brown}60`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}>
+                  <span style={{fontSize:22}}>🎬</span>
+                  <span style={{fontSize:10,color:T.brown,fontWeight:700}}>+ New Reel</span>
+                </div>
+              </div>
             </div>
-          </>
-        )}
+          );
+        })()}
 
         {/* PHOTOS — counter, nudge banner, grid, upload form */}
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
