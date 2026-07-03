@@ -4343,6 +4343,58 @@ useEffect(()=>{
   return()=>window.removeEventListener("popstate",onBack);
 },[tab,showMore,selectedMember]);
 
+useEffect(()=>{
+  const NAV_COLORS=["#F4A724","#E05C7A","#6BAF71","#7B9FE0"];
+  const NAV_DASH=[80,120,100,100];
+  const DIM="rgba(255,255,255,0.22)";
+  const STEP=3200,GAP=400,REST=2000;
+  let cancelled=false;
+  let rafId=null;
+  function ease(t){return t<0.5?2*t*t:-1+(4-2*t)*t;}
+  function lerp(a,b,t){return a+(b-a)*t;}
+  function animatePath(idx,done){
+    const el=document.getElementById("fn-nav-p"+idx);
+    if(!el){done();return;}
+    const color=NAV_COLORS[idx];
+    const total=NAV_DASH[idx];
+    const start=performance.now();
+    el.setAttribute("stroke-dasharray",total);
+    function frame(now){
+      if(cancelled)return;
+      const raw=Math.min((now-start)/STEP,1);
+      let offset,fillOp;
+      if(raw<0.4){const p=ease(raw/0.4);offset=lerp(0,total,p);fillOp=lerp(1,0,p);}
+      else{const p=ease((raw-0.4)/0.6);offset=lerp(total,0,p);fillOp=lerp(0,1,p);}
+      el.setAttribute("stroke-dashoffset",offset);
+      el.setAttribute("fill-opacity",fillOp);
+      el.setAttribute("fill",color);
+      el.setAttribute("stroke",color);
+      if(raw<1){rafId=requestAnimationFrame(frame);}
+      else{el.setAttribute("stroke-dashoffset","0");el.setAttribute("fill-opacity","1");done();}
+    }
+    rafId=requestAnimationFrame(frame);
+  }
+  function animateDots(done){
+    const dots=[0,1,2,3,4,5,6,7,8].map(i=>document.getElementById("fn-nav-d"+i)).filter(Boolean);
+    let i=0;
+    function undraw(){if(cancelled)return;if(i>=dots.length){i=0;setTimeout(redraw,200);return;}dots[i].setAttribute("fill",DIM);i++;setTimeout(undraw,110);}
+    function redraw(){if(cancelled)return;if(i>=dots.length){setTimeout(done,300);return;}dots[i].setAttribute("fill","#F4A724");i++;setTimeout(redraw,110);}
+    undraw();
+  }
+  function runSequence(){
+    if(cancelled)return;
+    let idx=0;
+    function next(){
+      if(cancelled)return;
+      if(idx<4){animatePath(idx,()=>{idx++;setTimeout(next,GAP);});}
+      else{animateDots(()=>{setTimeout(runSequence,REST);});}
+    }
+    next();
+  }
+  const t=setTimeout(runSequence,1000);
+  return()=>{cancelled=true;clearTimeout(t);if(rafId)cancelAnimationFrame(rafId);};
+},[]);
+
   if(recoveryToken)return <ResetPasswordScreen token={recoveryToken}/>;
   if(authLoading)return <SplashScreen/>;
 
@@ -4465,7 +4517,7 @@ useEffect(()=>{
             </div>
           </div>
         </div>
-        <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:86}}>{screens[tab]||screens["home"]}</div>
+        <div style={{flex:1,overflowY:"auto",paddingTop:4,paddingBottom:100}}>{screens[tab]||screens["home"]}</div>
 
         {/* FLOATING AI BUTTON */}
         {tab!=="concierge"&&(
@@ -4483,7 +4535,7 @@ useEffect(()=>{
 
         {/* MORE DRAWER */}
         {showMore&&(
-          <div style={{position:"fixed",bottom:72,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.98)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,padding:"12px 16px",boxShadow:"0 -8px 32px rgba(0,0,0,0.1)",zIndex:100}}>
+          <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.98)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,padding:"12px 16px",boxShadow:"0 -8px 32px rgba(0,0,0,0.1)",zIndex:100}}>
             {showMusicPanel&&(
               <div style={{marginBottom:12,borderBottom:`1px solid ${T.border}`,paddingBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -4526,13 +4578,55 @@ useEffect(()=>{
         )}
 
         {/* BOTTOM NAV */}
-        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.97)",backdropFilter:"blur(12px)",borderTop:`1px solid ${T.border}`,boxShadow:"0 -4px 20px rgba(92,61,46,0.08)",zIndex:200}}>
-          <div style={{display:"flex",padding:"8px 4px 16px"}}>
-            {NAV.map(n=>{
-              const isMore=n.id==="more";
-              const isActive=isMore?showMore:tab===n.id;
-              return(<button key={n.id} onClick={()=>{if(isMore){setShowMore(s=>!s);}else{handleTabChange(n.id);}}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2,background:isActive?T.brown+"18":"transparent",border:"none",cursor:"pointer",padding:"4px 2px",borderRadius:10,transition:"all 0.15s"}}><span style={{fontSize:18}}>{n.icon}</span><span style={{fontSize:9,fontWeight:800,color:isActive?T.brown:T.muted,letterSpacing:0.3}}>{n.label}</span></button>);
-            })}
+        <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"#0F1F3D",zIndex:200}}>
+          <div style={{display:"flex",padding:"0 4px 20px"}}>
+            <button onClick={()=>handleTabChange("home")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+              <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="home"?"#F4A724":"transparent",marginBottom:2}}/>
+              <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
+                <path id="fn-nav-p0" d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1H5a1 1 0 01-1-1V10.5z" fill="#F4A724" stroke="#F4A724" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M9 22V12h6v10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" fill="none"/>
+              </svg>
+              <span style={{fontSize:13,fontWeight:800,color:tab==="home"?"#F4A724":"rgba(255,255,255,0.25)"}}>Home</span>
+            </button>
+            <button onClick={()=>handleTabChange("health")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+              <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="health"?"#F4A724":"transparent",marginBottom:2}}/>
+              <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
+                <path id="fn-nav-p1" d="M12 21C12 21 3 14 3 8.5A5 5 0 0112 6a5 5 0 019 2.5C21 14 12 21 12 21z" fill="#E05C7A" stroke="#E05C7A" strokeWidth="1.5" strokeLinejoin="round"/>
+              </svg>
+              <span style={{fontSize:13,fontWeight:800,color:tab==="health"?"#F4A724":"rgba(255,255,255,0.25)"}}>Health</span>
+            </button>
+            <button onClick={()=>handleTabChange("budget")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+              <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="budget"?"#F4A724":"transparent",marginBottom:2}}/>
+              <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
+                <path id="fn-nav-p2" d="M3 8h15a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" fill="#6BAF71" stroke="#6BAF71" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M3 8l3-4h10" stroke="rgba(255,255,255,0.2)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+                <circle cx="16" cy="13" r="1.5" fill="rgba(255,255,255,0.35)"/>
+              </svg>
+              <span style={{fontSize:13,fontWeight:800,color:tab==="budget"?"#F4A724":"rgba(255,255,255,0.25)"}}>Budget</span>
+            </button>
+            <button onClick={()=>handleTabChange("plan")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+              <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="plan"?"#F4A724":"transparent",marginBottom:2}}/>
+              <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
+                <path id="fn-nav-p3" d="M4 7h16v14H4z" fill="#7B9FE0" stroke="#7B9FE0" strokeWidth="1.5" strokeLinejoin="round"/>
+                <path d="M8 4V2M16 4V2M4 11h16" stroke="rgba(255,255,255,0.25)" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
+              </svg>
+              <span style={{fontSize:13,fontWeight:800,color:tab==="plan"?"#F4A724":"rgba(255,255,255,0.25)"}}>Plan</span>
+            </button>
+            <button onClick={()=>setShowMore(s=>!s)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+              <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:showMore?"#F4A724":"transparent",marginBottom:2}}/>
+              <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
+                <circle id="fn-nav-d0" cx="7"  cy="7"  r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d1" cx="12" cy="7"  r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d2" cx="17" cy="7"  r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d3" cx="7"  cy="12" r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d4" cx="12" cy="12" r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d5" cx="17" cy="12" r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d6" cx="7"  cy="17" r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d7" cx="12" cy="17" r="2.5" fill="#F4A724"/>
+                <circle id="fn-nav-d8" cx="17" cy="17" r="2.5" fill="#F4A724"/>
+              </svg>
+              <span style={{fontSize:13,fontWeight:800,color:showMore?"#F4A724":"rgba(255,255,255,0.25)"}}>More</span>
+            </button>
           </div>
         </div>
       </div>
