@@ -198,7 +198,7 @@ function SplashScreen() {
 const FLogo = (
   <svg width="36" height="36" viewBox="0 0 52 52" style={{display:"block",flexShrink:0}}>
     <circle cx="26" cy="26" r="24" fill="none" stroke="#DC5509" strokeWidth="1.5"/>
-    <text x="26" y="36" textAnchor="middle" fontFamily="Georgia,serif" fontSize="36" fontWeight="700" fill="#DC5509">F</text>
+    <text x="26.5" y="38.5" textAnchor="middle" fontFamily="Georgia,serif" fontSize="36" fontWeight="700" fill="#DC5509">F</text>
   </svg>
 );
 
@@ -813,7 +813,17 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   const upcoming=[...(events||[])].filter(e=>new Date(e.date)>=now).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,3);
   const unseenNudges=(nudges||[]).filter(n=>!n.seen&&n.to_member===currentUserName).slice(0,1);
   const [slide,setSlide]=useState(0);
-  const totalSlides=COLLAGES.length;
+  // Home slider: creations from last 15 days (newest first, max 7) → fallback recent uploads → fallback stock collages
+  const homePhotos=useTable("photos",family?.id);
+  const homeReels=useTable("reels",family?.id);
+  const fifteenAgo=new Date(now.getTime()-15*24*60*60*1000);
+  const homeCreations=[
+    ...homePhotos.data.filter(p=>p.is_created).map(p=>({id:"p"+p.id,url:p.url,label:p.created_type==="collage"?"🧩 Collage":p.created_type==="roll"?"🎞️ Roll":"🖼️ Frame",title:p.name||"",ts:p.created_at,isRoll:p.created_type==="roll"})),
+    ...homeReels.data.map(r=>{const cover=homePhotos.data.find(p=>p.id===(r.photo_ids||[])[0]);return cover?{id:"r"+r.id,url:cover.url,label:"🎬 Reel",title:r.name||"",ts:r.created_at,isReel:true}:null;}).filter(Boolean),
+  ].filter(c=>new Date(c.ts)>=fifteenAgo).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,7);
+  const homeUploads=homePhotos.data.filter(p=>!p.is_created).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,7).map(p=>({id:"u"+p.id,url:p.url,label:"📸 Our moments",title:p.caption||"",ts:p.created_at}));
+  const homeSlides=homeCreations.length>0?homeCreations:homeUploads;
+  const totalSlides=homeSlides.length>0?homeSlides.length:COLLAGES.length;
   const dateStr=now.toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long"});
   const hr=now.getHours();
   const greeting=hr<12?"Good morning ☀️":hr<17?"Good afternoon 🌤️":"Good evening 🌙";
@@ -835,9 +845,11 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   }
 
   useEffect(()=>{
+    if(totalSlides<1)return;
+    setSlide(s=>s>=totalSlides?0:s);
     const t=setInterval(()=>setSlide(s=>(s+1)%totalSlides),3500);
     return()=>clearInterval(t);
-  },[]);
+  },[totalSlides]);
 
   // HOME SCREEN ANIMATIONS
   useEffect(()=>{
@@ -1031,10 +1043,16 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           </div>
         </div>
 
-        {/* ROW 2 — Collage slider */}
+        {/* ROW 2 — Creations slider (last 15 days) with fallbacks */}
         <div id="hs-t1" className="hs-tile" style={{borderRadius:16,overflow:"hidden",height:200,position:"relative"}}>
           <div style={{display:"flex",height:"100%",transition:"transform 0.4s ease",transform:`translateX(-${slide*100}%)`}}>
-            {COLLAGES.map((c,ci)=>(
+            {homeSlides.length>0?homeSlides.map(sl=>(
+              <div key={sl.id} onClick={()=>onTabChange("journey")} style={{minWidth:"100%",height:"100%",position:"relative",flexShrink:0,background:"#0F1F3D",cursor:"pointer"}}>
+                <img src={sl.url} alt={sl.title||"memory"} style={{width:"100%",height:"100%",objectFit:sl.isRoll?"contain":"cover",display:"block"}} loading="lazy"/>
+                {sl.isReel&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.18)"}}><span style={{fontSize:26,color:"#fff"}}>▶️</span></div>}
+                {sl.title&&<div style={{position:"absolute",bottom:26,left:12,right:12,fontSize:12,fontWeight:700,color:"#FDF6EC",textShadow:"0 1px 4px rgba(0,0,0,0.6)"}}>{sl.title}</div>}
+              </div>
+            )):COLLAGES.map((c,ci)=>(
               <div key={ci} style={{minWidth:"100%",height:"100%",display:"grid",gridTemplateColumns:"2fr 1fr",gridTemplateRows:"1fr 1fr",gap:2,flexShrink:0}}>
                 {c.photos.map((pidx,pi)=>(
                   <div key={pi} style={{...(pi===0?{gridRow:"1/3"}:{}),overflow:"hidden",background:"#1A2F52"}}>
@@ -1044,9 +1062,9 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
               </div>
             ))}
           </div>
-          <div style={{position:"absolute",top:10,left:10,background:"rgba(0,0,0,0.38)",borderRadius:99,padding:"4px 11px",fontSize:10,color:"rgba(255,255,255,0.88)",fontWeight:600}}>📸 Our moments</div>
+          <div style={{position:"absolute",top:10,left:10,background:"rgba(0,0,0,0.38)",borderRadius:99,padding:"4px 11px",fontSize:10,color:"rgba(255,255,255,0.88)",fontWeight:600}}>{homeCreations.length>0?(homeSlides[slide]?.label||"✨ Fresh creations"):"📸 Our moments"}</div>
           <div style={{position:"absolute",bottom:10,left:"50%",transform:"translateX(-50%)",display:"flex",gap:5}}>
-            {COLLAGES.map((_,i)=>(
+            {Array.from({length:totalSlides}).map((_,i)=>(
               <div key={i} onClick={()=>setSlide(i)} style={{width:6,height:6,borderRadius:"50%",background:i===slide?SAF:"rgba(255,255,255,0.3)",cursor:"pointer",transition:"background 0.3s"}}/>
             ))}
           </div>
@@ -2564,7 +2582,7 @@ function JournalScreen({ familyId, members, userId }) {
 
 const CHAPTERS=[{id:"childhood",label:"Childhood",emoji:"👶",color:T.lav},{id:"school",label:"School Days",emoji:"🎒",color:T.blue},{id:"college",label:"College",emoji:"🎓",color:T.teal},{id:"work",label:"First Job",emoji:"💼",color:T.green},{id:"wedding",label:"Wedding",emoji:"💍",color:T.rose},{id:"parenthood",label:"Parenthood",emoji:"👨‍👩‍👧",color:T.amber},{id:"home",label:"New Home",emoji:"🏠",color:T.brown},{id:"travel",label:"Adventures",emoji:"✈️",color:T.orange},{id:"milestones",label:"Milestones",emoji:"🏆",color:T.green}];
 
-function PhotoJourneyScreen({ familyId, members, myMemberId }) {
+function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
   const journey=useTable("photo_journey",familyId);
   const photos=useTable("photos",familyId);
   const albums=useTable("albums",familyId);
@@ -2619,6 +2637,33 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const reelAudioRef=useRef(null);
   const reelAdvanceTimerRef=useRef(null);
 
+  // COLLAGE state
+  const [showCollage,setShowCollage]=useState(false);
+  const [collageStep,setCollageStep]=useState("build"); // "build" | "save"
+  const [collageSelectedIds,setCollageSelectedIds]=useState([]);
+  const [collageLayout,setCollageLayout]=useState("");
+  const [collageBg,setCollageBg]=useState("cream");
+  const [collageName,setCollageName]=useState("");
+  const [collageSaveTagged,setCollageSaveTagged]=useState([]);
+  const [collageSaveAlbumId,setCollageSaveAlbumId]=useState("");
+  const [collageSaving,setCollageSaving]=useState(false);
+  const [collageErr,setCollageErr]=useState("");
+  const [collagePreview,setCollagePreview]=useState(null); // {url,blob}
+  const [collageRendering,setCollageRendering]=useState(false);
+
+  // ROLL state
+  const [showRoll,setShowRoll]=useState(false);
+  const [rollStep,setRollStep]=useState("source"); // "source" | "save"
+  const [rollSourceMode,setRollSourceMode]=useState("manual"); // "manual" | "album" | "multi"
+  const [rollAlbumId,setRollAlbumId]=useState("");
+  const [rollSelectedIds,setRollSelectedIds]=useState([]);
+  const [rollStamp,setRollStamp]=useState("");
+  const [rollName,setRollName]=useState("");
+  const [rollSaving,setRollSaving]=useState(false);
+  const [rollErr,setRollErr]=useState("");
+  const [rollPreview,setRollPreview]=useState(null); // {url,blob}
+  const [rollRendering,setRollRendering]=useState(false);
+
   useEffect(()=>{
     clearInterval(reelAdvanceTimerRef.current);
     if(!reelPlayingId||!reelPlaying)return;
@@ -2655,8 +2700,15 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
   const [memCurrent,setMemCurrent]=useState(0);
   const memTimerRef=useRef(null);
 
-  // HERO 2: Photos (individual uploads only, not is_created)
-  const photoHeroItems=photos.data.filter(p=>!p.is_created);
+  // HERO 2: All creations (frames/collages/rolls from photos + reels), serial order oldest→newest
+  const CREATED_LABEL={frame:"🖼️ Frame",collage:"🧩 Collage",roll:"🎞️ Roll",reel:"🎬 Reel"};
+  const photoHeroItems=[
+    ...photos.data.filter(p=>p.is_created).map(p=>({kind:p.created_type||"frame",id:p.id,url:p.url,caption:p.name||p.caption||"",created_at:p.created_at,photo:p})),
+    ...reels.data.map(r=>{
+      const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
+      return cover?{kind:"reel",id:r.id,url:cover.url,caption:r.name,created_at:r.created_at}:null;
+    }).filter(Boolean),
+  ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
   const [photoCurrent,setPhotoCurrent]=useState(0);
   const photoTimerRef=useRef(null);
 
@@ -2683,6 +2735,14 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
         if(reelStep==="music"){setReelStep("source");return;}
         setShowReel(false);return;
       }
+      if(showCollage){
+        if(collageStep==="save"){setCollageStep("build");return;}
+        setShowCollage(false);return;
+      }
+      if(showRoll){
+        if(rollStep==="save"){setRollStep("source");return;}
+        setShowRoll(false);return;
+      }
       if(showFramesDebugGrid){setShowFramesDebugGrid(false);return;}
       if(showFrames){setShowFrames(false);return;}
       if(editingPhotoId){setEditingPhotoId(null);return;}
@@ -2692,13 +2752,13 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     };
     window.addEventListener("popstate",onBack);
     return()=>window.removeEventListener("popstate",onBack);
-  },[showReel,reelPlayingId,reelStep,showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
+  },[showReel,reelPlayingId,reelStep,showCollage,collageStep,showRoll,rollStep,showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
 
   useEffect(()=>{
-    if(showReel||showFramesDebugGrid||showFrames||editingPhotoId||showAddPhoto||showAdd){
+    if(showReel||showCollage||showRoll||showFramesDebugGrid||showFrames||editingPhotoId||showAddPhoto||showAdd){
       window.history.pushState({memories:true},"");
     }
-  },[showReel,reelPlayingId,reelStep,showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
+  },[showReel,reelPlayingId,reelStep,showCollage,collageStep,showRoll,rollStep,showFramesDebugGrid,showFrames,editingPhotoId,showAddPhoto,showAdd]);
 
   const heroCardClass=(idx,current,total)=>{
     if(idx===current)return"active";
@@ -2775,6 +2835,106 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
     if(typeof source==="string"){img.src=source;}
     else{const reader=new FileReader();reader.onload=()=>{img.src=reader.result;};reader.onerror=reject;reader.readAsDataURL(source);}
   });
+
+  // ── COLLAGE + ROLL canvas engines ──
+  const COLLAGE_COLORS={cream:"#FDF6EC",navy:"#0F1F3D",saffron:"#DC5509",teal:"#0A6B58",pink:"#F2A6B8",white:"#FFFFFF"};
+  const COLLAGE_LAYOUTS={2:["2h","2v"],3:["3big","3row"],4:["4grid"],6:["6grid"]};
+  const COLLAGE_LAYOUT_LABELS={"2h":"Side by side","2v":"Stacked","3big":"1 big + 2","3row":"3 in a row","4grid":"2 × 2 grid","6grid":"3 × 2 grid"};
+
+  const drawCover=(ctx,img,x,y,w,h,r)=>{
+    ctx.save();
+    ctx.beginPath();
+    if(ctx.roundRect)ctx.roundRect(x,y,w,h,r);else ctx.rect(x,y,w,h);
+    ctx.clip();
+    const ir=img.width/img.height, cr=w/h;
+    let sx=0,sy=0,sw=img.width,sh=img.height;
+    if(ir>cr){sw=img.height*cr;sx=(img.width-sw)/2;}
+    else{sh=img.width/cr;sy=(img.height-sh)/2;}
+    ctx.drawImage(img,sx,sy,sw,sh,x,y,w,h);
+    ctx.restore();
+  };
+
+  const drawCollage=(imgs,layoutId,bgHex)=>new Promise((resolve,reject)=>{
+    const W=1080,H=1080,pad=30,gap=22,rad=14;
+    const canvas=document.createElement("canvas");canvas.width=W;canvas.height=H;
+    const ctx=canvas.getContext("2d");
+    ctx.fillStyle=bgHex;ctx.fillRect(0,0,W,H);
+    const iw=W-pad*2, ih=H-pad*2;
+    let cells=[];
+    if(layoutId==="2h"){const cw=(iw-gap)/2;cells=[[pad,pad,cw,ih],[pad+cw+gap,pad,cw,ih]];}
+    else if(layoutId==="2v"){const ch=(ih-gap)/2;cells=[[pad,pad,iw,ch],[pad,pad+ch+gap,iw,ch]];}
+    else if(layoutId==="3big"){const bw=Math.round((iw-gap)*0.58),sw=iw-gap-bw,sh=(ih-gap)/2;cells=[[pad,pad,bw,ih],[pad+bw+gap,pad,sw,sh],[pad+bw+gap,pad+sh+gap,sw,sh]];}
+    else if(layoutId==="3row"){const cw=(iw-gap*2)/3;cells=[[pad,pad,cw,ih],[pad+cw+gap,pad,cw,ih],[pad+(cw+gap)*2,pad,cw,ih]];}
+    else if(layoutId==="4grid"){const cw=(iw-gap)/2,ch=(ih-gap)/2;cells=[[pad,pad,cw,ch],[pad+cw+gap,pad,cw,ch],[pad,pad+ch+gap,cw,ch],[pad+cw+gap,pad+ch+gap,cw,ch]];}
+    else if(layoutId==="6grid"){const cw=(iw-gap*2)/3,ch=(ih-gap)/2;cells=[[pad,pad,cw,ch],[pad+cw+gap,pad,cw,ch],[pad+(cw+gap)*2,pad,cw,ch],[pad,pad+ch+gap,cw,ch],[pad+cw+gap,pad+ch+gap,cw,ch],[pad+(cw+gap)*2,pad+ch+gap,cw,ch]];}
+    imgs.forEach((img,i)=>{if(cells[i])drawCover(ctx,img,cells[i][0],cells[i][1],cells[i][2],cells[i][3],rad);});
+    canvas.toBlob(blob=>{if(!blob)return reject(new Error("render failed"));resolve({blob,url:URL.createObjectURL(blob)});},"image/jpeg",0.85);
+  });
+
+  const drawRoll=(imgs,stamp)=>new Promise((resolve,reject)=>{
+    const n=imgs.length,cellW=360,cellH=450,gap=16,side=28,band=48;
+    const W=side*2+n*cellW+(n-1)*gap, H=band+cellH+band;
+    const canvas=document.createElement("canvas");canvas.width=W;canvas.height=H;
+    const ctx=canvas.getContext("2d");
+    ctx.fillStyle="#1C1C1E";ctx.fillRect(0,0,W,H);
+    const holeW=24,holeH=14,holeR=4;
+    const holeCount=Math.max(6,Math.round(W/70));
+    const step=(W-side*2)/(holeCount-1);
+    const drawHole=(hx,hy)=>{ctx.fillStyle="#4A4A4E";ctx.beginPath();if(ctx.roundRect)ctx.roundRect(hx-holeW/2,hy,holeW,holeH,holeR);else ctx.rect(hx-holeW/2,hy,holeW,holeH);ctx.fill();};
+    const topY=(band-holeH)/2, botY=H-band+(band-holeH)/2;
+    let stampW=0;
+    const stampText=(stamp||"").trim();
+    if(stampText){ctx.font="600 22px Lato, Arial, sans-serif";stampW=ctx.measureText(stampText).width;}
+    for(let i=0;i<holeCount;i++){
+      const hx=side+i*step;
+      drawHole(hx,topY);
+      if(!stampText||Math.abs(hx-W/2)>stampW/2+44)drawHole(hx,botY);
+    }
+    imgs.forEach((img,i)=>{drawCover(ctx,img,side+i*(cellW+gap),band,cellW,cellH,8);});
+    if(stampText){
+      ctx.font="600 22px Lato, Arial, sans-serif";
+      ctx.fillStyle="#9A9A9E";ctx.textAlign="center";ctx.textBaseline="middle";
+      ctx.fillText(stampText,W/2,H-band/2);
+    }
+    canvas.toBlob(blob=>{if(!blob)return reject(new Error("render failed"));resolve({blob,url:URL.createObjectURL(blob)});},"image/jpeg",0.85);
+  });
+
+  // COLLAGE live preview
+  useEffect(()=>{
+    if(!showCollage||collageStep!=="build")return;
+    const opts=COLLAGE_LAYOUTS[collageSelectedIds.length]||[];
+    if(!opts.length){setCollagePreview(prev=>{if(prev?.url)URL.revokeObjectURL(prev.url);return null;});return;}
+    if(!opts.includes(collageLayout)){setCollageLayout(opts[0]);return;}
+    let cancelled=false;
+    setCollageRendering(true);
+    const sources=collageSelectedIds.map(id=>photos.data.find(x=>x.id===id)).filter(Boolean).map(p=>loadImageFromSource(p.url));
+    Promise.all(sources)
+      .then(imgs=>drawCollage(imgs,collageLayout,COLLAGE_COLORS[collageBg]||"#FDF6EC"))
+      .then(({blob,url})=>{
+        if(cancelled){URL.revokeObjectURL(url);return;}
+        setCollagePreview(prev=>{if(prev?.url)URL.revokeObjectURL(prev.url);return{blob,url};});
+        setCollageErr("");setCollageRendering(false);
+      })
+      .catch(()=>{if(!cancelled){setCollageErr("Couldn't render preview — please try again.");setCollageRendering(false);}});
+    return()=>{cancelled=true;};
+  },[showCollage,collageStep,collageSelectedIds,collageLayout,collageBg]);
+
+  // ROLL preview (rendered on save step)
+  useEffect(()=>{
+    if(!showRoll||rollStep!=="save"||rollSelectedIds.length<3)return;
+    let cancelled=false;
+    setRollRendering(true);
+    const sources=rollSelectedIds.map(id=>photos.data.find(x=>x.id===id)).filter(Boolean).map(p=>loadImageFromSource(p.url));
+    Promise.all(sources)
+      .then(imgs=>drawRoll(imgs,rollStamp))
+      .then(({blob,url})=>{
+        if(cancelled){URL.revokeObjectURL(url);return;}
+        setRollPreview(prev=>{if(prev?.url)URL.revokeObjectURL(prev.url);return{blob,url};});
+        setRollErr("");setRollRendering(false);
+      })
+      .catch(()=>{if(!cancelled){setRollErr("Couldn't render the strip — please try again.");setRollRendering(false);}});
+    return()=>{cancelled=true;};
+  },[showRoll,rollStep,rollSelectedIds,rollStamp]);
 
   const drawFrame=(img,styleId,colorHex)=>new Promise((resolve)=>{
     const maxDim=1280;
@@ -3016,16 +3176,25 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
       </div>
 
       <div style={{padding:"0 16px 16px"}}>
-        {/* ===== SECTION 2: PHOTOS HERO (individual uploads, ~72% size) ===== */}
+        {/* ===== SECTION 2: CREATIONS HERO (all created content, serial order, ~72% size) ===== */}
+        <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginTop:6}}>YOUR CREATIONS</div>
+        {photoHeroItems.length===0&&(
+          <div style={{background:T.warm,border:`1px dashed ${T.brown}40`,borderRadius:14,padding:"18px 14px",margin:"8px 0 14px",textAlign:"center"}}>
+            <div style={{fontSize:24,marginBottom:6}}>✨</div>
+            <div style={{fontSize:12,color:T.brown,fontWeight:600}}>Your frames, reels, collages and rolls will appear here — create your first one below</div>
+          </div>
+        )}
         {photoHeroItems.length>0&&(
           <>
             <div onTouchStart={onPhotoTouchStart} onTouchMove={onPhotoTouchMove} onTouchEnd={onPhotoTouchEnd} style={{position:"relative",width:"72%",margin:"6px auto 0",paddingBottom:"62%",touchAction:"pan-y"}}>
               {photoHeroItems.map((item,i)=>{
                 const cls=heroCardClass(i,photoCurrent,photoHeroItems.length);
                 return(
-                  <div key={item.id} style={{...heroCardStyle(cls),borderRadius:18}} onClick={()=>{if(cls==="active")startEditPhoto(item);else if(cls==="next")setPhotoCurrent((photoCurrent+1)%photoHeroItems.length);else if(cls==="prev")setPhotoCurrent((photoCurrent-1+photoHeroItems.length)%photoHeroItems.length);}}>
-                    <img src={item.url} alt={item.caption||"photo"} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                    <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg, rgba(15,31,61,0) 45%, rgba(15,31,61,0.9) 100%)"}}/>
+                  <div key={item.kind+item.id} style={{...heroCardStyle(cls),borderRadius:18,background:"#0F1F3D"}} onClick={()=>{if(cls==="active"){if(item.kind==="reel"){setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.id);}else if(item.photo)startEditPhoto(item.photo);}else if(cls==="next")setPhotoCurrent((photoCurrent+1)%photoHeroItems.length);else if(cls==="prev")setPhotoCurrent((photoCurrent-1+photoHeroItems.length)%photoHeroItems.length);}}>
+                    <img src={item.url} alt={item.caption||"creation"} style={{width:"100%",height:"100%",objectFit:item.kind==="roll"?"contain":"cover",display:"block"}}/>
+                    {item.kind==="reel"&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.18)"}}><span style={{fontSize:30,color:"#fff"}}>▶️</span></div>}
+                    <div style={{position:"absolute",top:10,left:10,background:"rgba(15,31,61,0.8)",borderRadius:8,padding:"3px 8px",fontSize:10,color:"#DC5509",fontWeight:700}}>{CREATED_LABEL[item.kind]||"✨"}</div>
+                    <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg, rgba(15,31,61,0) 55%, rgba(15,31,61,0.9) 100%)",pointerEvents:"none"}}/>
                     {item.caption&&<div style={{position:"absolute",bottom:12,left:14,right:14,fontSize:13,fontWeight:700,color:"#FDF6EC"}}>{item.caption}</div>}
                   </div>
                 );
@@ -3037,40 +3206,32 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           </>
         )}
 
-        {/* ===== HERO 2: CREATIONS CAROUSEL (Frames + Reels + Collage/Roll placeholders) ===== */}
+        {/* ===== FILMSTRIP: CREATION SAMPLES + CREATE BUTTONS ===== */}
         {(()=>{
-          const framesItems=photos.data.filter(p=>p.is_created).map(p=>({kind:"frame",id:p.id,img:p.url,title:p.name||"Frame",sub:"🖼️ Frame"}));
+          const framesItems=photos.data.filter(p=>p.is_created).map(p=>({kind:p.created_type||"frame",id:p.id,img:p.url,title:p.name||CREATED_LABEL[p.created_type||"frame"].split(" ")[1],sub:CREATED_LABEL[p.created_type||"frame"]}));
           const reelsItems=reels.data.map(r=>{
             const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
             return{kind:"reel",id:r.id,img:cover?.url,title:r.name,sub:"🎬 Reel"};
           }).filter(it=>it.img);
-          const placeholders=[
-            {kind:"collage_placeholder",id:"collage_ph",title:"Collage",sub:"🧩 Coming soon",bg:"linear-gradient(135deg,#DC5509,#0A6B58)"},
-            {kind:"roll_placeholder",id:"roll_ph",title:"Roll",sub:"🎞️ Coming soon",bg:"linear-gradient(135deg,#7FA8C9,#F2A6B8)"},
-          ];
-          const creationItems=[...framesItems,...reelsItems,...placeholders];
+          const creationItems=[...framesItems,...reelsItems];
 
           return(
             <div style={{marginBottom:6}}>
-              <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>YOUR CREATIONS</div>
+              <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>QUICK CREATE</div>
               <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:14}}>
                 {creationItems.map(item=>(
                   <div key={item.kind+item.id} style={{flexShrink:0,width:110,position:"relative"}}>
                     <div onClick={()=>{
-                      if(item.kind==="frame"){const p=photos.data.find(x=>x.id===item.id);if(p)startEditPhoto(p);}
-                      else if(item.kind==="reel"){setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.id);}
-                    }} style={{position:"relative",width:110,height:130,borderRadius:14,overflow:"hidden",cursor:item.kind==="frame"||item.kind==="reel"?"pointer":"default",background:item.bg||T.border}}>
-                      {item.img&&<img src={item.img} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>}
-                      {!item.img&&<div style={{width:"100%",height:"100%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:32}}>{item.kind==="collage_placeholder"?"🧩":"🎞️"}</div>}
+                      if(item.kind==="reel"){setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.id);}
+                      else{const p=photos.data.find(x=>x.id===item.id);if(p)startEditPhoto(p);}
+                    }} style={{position:"relative",width:110,height:130,borderRadius:14,overflow:"hidden",cursor:"pointer",background:item.kind==="roll"?"#1C1C1E":T.border}}>
+                      {item.img&&<img src={item.img} alt="" style={{width:"100%",height:"100%",objectFit:item.kind==="roll"?"contain":"cover"}}/>}
                       {item.kind==="reel"&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.2)"}}><span style={{fontSize:24,color:"#fff"}}>▶️</span></div>}
                       <div style={{position:"absolute",bottom:0,left:0,right:0,background:"rgba(15,31,61,0.75)",padding:"5px 7px"}}>
                         <div style={{fontSize:10,color:"#fff",fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{item.title}</div>
                         <div style={{fontSize:8.5,color:"#DC5509"}}>{item.sub}</div>
                       </div>
                     </div>
-                    {(item.kind==="collage_placeholder"||item.kind==="roll_placeholder")&&(
-                      <div onClick={()=>alert((item.kind==="collage_placeholder"?"Collage":"Roll")+" coming soon")} style={{position:"absolute",top:6,right:6,background:"rgba(255,255,255,0.9)",borderRadius:8,padding:"3px 7px",fontSize:9,fontWeight:700,color:T.brown,cursor:"pointer"}}>+ New</div>
-                    )}
                   </div>
                 ))}
                 <div onClick={()=>{setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}} style={{flexShrink:0,width:110,height:130,borderRadius:14,border:`2px dashed ${T.brown}60`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}>
@@ -3080,6 +3241,14 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
                 <div onClick={()=>{setReelStep("source");setReelSourceMode("manual");setReelSourceId("");setReelSelectedPhotoIds([]);setReelMusicChoice("");setReelTransition("fade");setReelName("");setReelErr("");setShowReel(true);}} style={{flexShrink:0,width:110,height:130,borderRadius:14,border:`2px dashed ${T.brown}60`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}>
                   <span style={{fontSize:22}}>🎬</span>
                   <span style={{fontSize:10,color:T.brown,fontWeight:700}}>+ New Reel</span>
+                </div>
+                <div onClick={()=>{setCollageStep("build");setCollageSelectedIds([]);setCollageLayout("");setCollageBg("cream");setCollageName("");setCollageSaveTagged([]);setCollageSaveAlbumId("");setCollageErr("");setCollagePreview(null);setShowCollage(true);}} style={{flexShrink:0,width:110,height:130,borderRadius:14,border:`2px dashed ${T.brown}60`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}>
+                  <span style={{fontSize:22}}>🧩</span>
+                  <span style={{fontSize:10,color:T.brown,fontWeight:700}}>+ New Collage</span>
+                </div>
+                <div onClick={()=>{setRollStep("source");setRollSourceMode("manual");setRollAlbumId("");setRollSelectedIds([]);setRollName("");setRollErr("");setRollPreview(null);setRollStamp(`${(family?.name||"OUR FAMILY").toUpperCase()} · ${new Date().getFullYear()}`);setShowRoll(true);}} style={{flexShrink:0,width:110,height:130,borderRadius:14,border:`2px dashed ${T.brown}60`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",cursor:"pointer",gap:4}}>
+                  <span style={{fontSize:22}}>🎞️</span>
+                  <span style={{fontSize:10,color:T.brown,fontWeight:700}}>+ New Roll</span>
                 </div>
               </div>
             </div>
@@ -3105,14 +3274,24 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
           </div>
         )}
         {photos.loading&&<Spinner/>}
-        {!photos.loading&&photos.data.length>0&&(
+        {!photos.loading&&(photos.data.length>0||reels.data.length>0)&&(
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6,marginBottom:10}}>
-            {photos.data.map(p=>(
-              <div key={p.id} onClick={()=>startEditPhoto(p)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:T.border,cursor:"pointer"}}>
-                <img src={p.url} alt={p.caption||"memory"} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
-                <button onClick={(e)=>{e.stopPropagation();photos.remove(p.id);}} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
-                {(p.chapter||p.album_id||p.tagged_members?.length)&&<div style={{position:"absolute",bottom:3,left:3,background:"rgba(0,0,0,0.5)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#fff"}}>🏷️</div>}
-                {p.is_created&&<div style={{position:"absolute",top:3,left:3,background:"rgba(244,167,36,0.9)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#0F1F3D",fontWeight:700}}>✨</div>}
+            {[
+              ...photos.data.map(p=>({t:"photo",id:"p"+p.id,d:p,ts:p.created_at})),
+              ...reels.data.map(r=>{const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);return cover?{t:"reel",id:"r"+r.id,d:r,cover:cover.url,ts:r.created_at}:null;}).filter(Boolean),
+            ].sort((a,b)=>new Date(b.ts)-new Date(a.ts)).map(item=>item.t==="photo"?(
+              <div key={item.id} onClick={()=>startEditPhoto(item.d)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:item.d.created_type==="roll"?"#1C1C1E":T.border,cursor:"pointer"}}>
+                <img src={item.d.url} alt={item.d.caption||"memory"} style={{width:"100%",height:"100%",objectFit:item.d.created_type==="roll"?"contain":"cover"}}/>
+                <button onClick={(e)=>{e.stopPropagation();photos.remove(item.d.id);}} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1}}>×</button>
+                {(item.d.chapter||item.d.album_id||item.d.tagged_members?.length)&&<div style={{position:"absolute",bottom:3,left:3,background:"rgba(0,0,0,0.5)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#fff"}}>🏷️</div>}
+                {item.d.is_created&&<div style={{position:"absolute",top:3,left:3,background:"rgba(220,85,9,0.9)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#FDF6EC",fontWeight:700}}>{item.d.created_type==="collage"?"🧩":item.d.created_type==="roll"?"🎞️":"🖼️"}</div>}
+              </div>
+            ):(
+              <div key={item.id} onClick={()=>{setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.d.id);}} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",background:"#0F1F3D",cursor:"pointer"}}>
+                <img src={item.cover} alt={item.d.name||"reel"} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.25)"}}><span style={{fontSize:20,color:"#fff"}}>▶️</span></div>
+                <button onClick={(e)=>{e.stopPropagation();reels.remove(item.d.id);}} style={{position:"absolute",top:3,right:3,background:"rgba(0,0,0,0.5)",border:"none",borderRadius:"50%",width:20,height:20,color:"#fff",fontSize:12,cursor:"pointer",lineHeight:1,zIndex:2}}>×</button>
+                <div style={{position:"absolute",top:3,left:3,background:"rgba(220,85,9,0.9)",borderRadius:6,padding:"1px 5px",fontSize:9,color:"#FDF6EC",fontWeight:700}}>🎬</div>
               </div>
             ))}
           </div>
@@ -3607,6 +3786,241 @@ function PhotoJourneyScreen({ familyId, members, myMemberId }) {
                     <button disabled={reelSaving||reelCustomMusicUploading} onClick={saveReel} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:reelSaving?"default":"pointer"}}>
                       {reelCustomMusicUploading?"Uploading music...":reelSaving?"Saving...":"Save Reel 🎬"}
                     </button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {showCollage&&(()=>{
+          const nonCreated=photos.data.filter(p=>!p.is_created);
+          const nSel=collageSelectedIds.length;
+          const layoutOptions=COLLAGE_LAYOUTS[nSel]||[];
+          const collageCount=photos.data.filter(p=>p.is_created&&(p.created_type==="collage")).length;
+          const toggleSel=(id)=>setCollageSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):(prev.length>=6?prev:[...prev,id]));
+          const toggleTagC=(name)=>setCollageSaveTagged(p=>p.includes(name)?p.filter(x=>x!==name):[...p,name]);
+
+          const doSaveCollage=async()=>{
+            if(!collagePreview?.blob){setCollageErr("Preview not ready yet — give it a second.");return;}
+            setCollageSaving(true);setCollageErr("");
+            try{
+              const token=sb._token||localStorage.getItem("fn_token");
+              if(!token){setCollageErr("Not logged in — please sign out and sign back in.");setCollageSaving(false);return;}
+              const fileName=`${familyId}/${myMemberId||"unknown"}_collage_${Date.now()}.jpg`;
+              const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/memories/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:collagePreview.blob});
+              if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
+              const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/memories/${fileName}`;
+              const finalName=collageName.trim()||`Collage #${collageCount+1}`;
+              await photos.add({member_id:myMemberId||null,url:publicUrl,name:finalName,caption:null,tagged_members:collageSaveTagged.length?collageSaveTagged:null,chapter:null,album_id:collageSaveAlbumId||null,is_created:true,created_type:"collage"});
+              if(collagePreview?.url)URL.revokeObjectURL(collagePreview.url);
+              setShowCollage(false);
+            }catch(err){setCollageErr("Save error: "+err.message);}
+            setCollageSaving(false);
+          };
+
+          return(
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:T.cream,zIndex:300,overflowY:"auto"}}>
+              <div style={{padding:"16px 16px 30px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <span onClick={()=>{if(collageStep==="save")setCollageStep("build");else setShowCollage(false);}} style={{fontSize:20,color:T.dark,cursor:"pointer"}}>←</span>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark}}>{collageStep==="build"?"Make a Collage":"Name & Save"}</span>
+                </div>
+
+                {collageStep==="build"&&(
+                  <>
+                    <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Tap 2, 3, 4 or 6 photos in the order you want ({nSel} selected)</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:14}}>
+                      {nonCreated.map(p=>{
+                        const idx=collageSelectedIds.indexOf(p.id);
+                        return(
+                          <div key={p.id} onClick={()=>toggleSel(p.id)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:idx>=0?"3px solid #0A6B58":"3px solid transparent",cursor:"pointer"}}>
+                            <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                            {idx>=0&&<div style={{position:"absolute",top:3,right:3,width:18,height:18,borderRadius:"50%",background:"#0A6B58",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{idx+1}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    {nonCreated.length===0&&<div style={{fontSize:12,color:T.muted,marginBottom:14}}>No photos yet — add some photos first, then come back.</div>}
+
+                    {nSel>0&&layoutOptions.length===0&&(
+                      <div style={{background:"#FFF7EE",border:"1px solid #DC550940",borderRadius:10,padding:"8px 12px",marginBottom:12,fontSize:12,color:"#DC5509",fontWeight:600}}>Collages work with 2, 3, 4 or 6 photos — add or remove one.</div>
+                    )}
+
+                    {layoutOptions.length>0&&(
+                      <>
+                        <label style={lbl}>Layout</label>
+                        <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+                          {layoutOptions.map(lo=>(
+                            <button key={lo} onClick={()=>setCollageLayout(lo)} style={{padding:"9px 14px",borderRadius:10,border:`1.5px solid ${collageLayout===lo?"#0A6B58":T.border}`,background:collageLayout===lo?"#E0F7F2":"#fff",fontSize:12,fontWeight:600,color:T.dark,cursor:"pointer"}}>{COLLAGE_LAYOUT_LABELS[lo]}</button>
+                          ))}
+                        </div>
+                        <label style={lbl}>Background colour</label>
+                        <div style={{display:"flex",gap:10,marginBottom:14}}>
+                          {Object.keys(COLLAGE_COLORS).map(key=>(
+                            <div key={key} onClick={()=>setCollageBg(key)} style={{width:32,height:32,borderRadius:"50%",flexShrink:0,cursor:"pointer",background:COLLAGE_COLORS[key],border:collageBg===key?`3px solid ${T.dark}`:`1.5px solid ${T.border}`}}/>
+                          ))}
+                        </div>
+                        <label style={lbl}>Preview</label>
+                        <div style={{background:"#fff",border:`1px solid ${T.border}`,borderRadius:14,padding:10,marginBottom:14,minHeight:120,display:"flex",alignItems:"center",justifyContent:"center"}}>
+                          {collageRendering&&<div style={{fontSize:12,color:T.muted}}>Rendering…</div>}
+                          {!collageRendering&&collagePreview&&<img src={collagePreview.url} alt="collage preview" style={{width:"100%",borderRadius:8,display:"block"}}/>}
+                          {!collageRendering&&!collagePreview&&<div style={{fontSize:12,color:T.muted}}>Pick photos to see your collage</div>}
+                        </div>
+                      </>
+                    )}
+
+                    {collageErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{collageErr}</div>}
+
+                    <button disabled={!collagePreview||collageRendering||layoutOptions.length===0} onClick={()=>setCollageStep("save")} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:(!collagePreview||collageRendering||layoutOptions.length===0)?T.border:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:(!collagePreview||collageRendering||layoutOptions.length===0)?T.muted:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>Next: Name & Save →</button>
+                  </>
+                )}
+
+                {collageStep==="save"&&(
+                  <>
+                    {collagePreview&&<img src={collagePreview.url} alt="collage" style={{width:"70%",display:"block",margin:"0 auto 14px",borderRadius:12}}/>}
+                    <div style={{marginBottom:12}}>
+                      <label style={lbl}>Name this collage</label>
+                      <input style={inp} placeholder={`Collage #${collageCount+1}`} value={collageName} onChange={e=>setCollageName(e.target.value)}/>
+                    </div>
+                    <div style={{marginBottom:12}}>
+                      <label style={lbl}>Tag family members (optional)</label>
+                      <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+                        {members.map(m=>(
+                          <button key={m.id} onClick={()=>toggleTagC(m.name)} style={{padding:"6px 12px",borderRadius:99,border:`1.5px solid ${collageSaveTagged.includes(m.name)?"#0A6B58":T.border}`,background:collageSaveTagged.includes(m.name)?"#E0F7F2":"#fff",fontSize:12,fontWeight:600,color:T.dark,cursor:"pointer"}}>{m.name.split(" ")[0]}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div style={{marginBottom:16}}>
+                      <label style={lbl}>Add to album (optional)</label>
+                      <select style={inp} value={collageSaveAlbumId} onChange={e=>setCollageSaveAlbumId(e.target.value)}>
+                        <option value="">No album</option>
+                        {albums.data.map(a=><option key={a.id} value={a.id}>{a.name}</option>)}
+                      </select>
+                    </div>
+                    {collageErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{collageErr}</div>}
+                    <button disabled={collageSaving} onClick={doSaveCollage} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:collageSaving?"default":"pointer"}}>{collageSaving?"Saving...":"Save Collage 🧩"}</button>
+                  </>
+                )}
+              </div>
+            </div>
+          );
+        })()}
+
+        {showRoll&&(()=>{
+          const nonCreated=photos.data.filter(p=>!p.is_created);
+          const albumsWithPhotos=albums.data.filter(a=>nonCreated.some(p=>p.album_id===a.id));
+          const unfiled=nonCreated.filter(p=>!p.album_id);
+          const nSel=rollSelectedIds.length;
+          const rollCount=photos.data.filter(p=>p.is_created&&p.created_type==="roll").length;
+          const toggleSel=(id)=>setRollSelectedIds(prev=>prev.includes(id)?prev.filter(x=>x!==id):(prev.length>=8?prev:[...prev,id]));
+          const pickAlbum=(aid)=>{setRollAlbumId(aid);setRollSelectedIds(nonCreated.filter(p=>p.album_id===aid).slice(0,8).map(p=>p.id));};
+
+          const PhotoPickGrid=({list})=>(
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:6,marginBottom:12}}>
+              {list.map(p=>{
+                const idx=rollSelectedIds.indexOf(p.id);
+                return(
+                  <div key={p.id} onClick={()=>toggleSel(p.id)} style={{position:"relative",aspectRatio:"1",borderRadius:10,overflow:"hidden",border:idx>=0?"3px solid #0A6B58":"3px solid transparent",cursor:"pointer"}}>
+                    <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+                    {idx>=0&&<div style={{position:"absolute",top:3,right:3,width:18,height:18,borderRadius:"50%",background:"#0A6B58",color:"#fff",fontSize:10,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{idx+1}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          );
+
+          const doSaveRoll=async()=>{
+            if(!rollPreview?.blob){setRollErr("The strip is still rendering — give it a second.");return;}
+            setRollSaving(true);setRollErr("");
+            try{
+              const token=sb._token||localStorage.getItem("fn_token");
+              if(!token){setRollErr("Not logged in — please sign out and sign back in.");setRollSaving(false);return;}
+              const fileName=`${familyId}/${myMemberId||"unknown"}_roll_${Date.now()}.jpg`;
+              const uploadRes=await fetch(`${SUPABASE_URL}/storage/v1/object/memories/${fileName}`,{method:"PUT",headers:{"Authorization":`Bearer ${token}`,"Content-Type":"image/jpeg","x-upsert":"true"},body:rollPreview.blob});
+              if(!uploadRes.ok){const errText=await uploadRes.text();throw new Error(errText);}
+              const publicUrl=`${SUPABASE_URL}/storage/v1/object/public/memories/${fileName}`;
+              const finalName=rollName.trim()||`Roll #${rollCount+1}`;
+              await photos.add({member_id:myMemberId||null,url:publicUrl,name:finalName,caption:null,tagged_members:null,chapter:null,album_id:rollSourceMode==="album"?(rollAlbumId||null):null,is_created:true,created_type:"roll"});
+              if(rollPreview?.url)URL.revokeObjectURL(rollPreview.url);
+              setShowRoll(false);
+            }catch(err){setRollErr("Save error: "+err.message);}
+            setRollSaving(false);
+          };
+
+          return(
+            <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:T.cream,zIndex:300,overflowY:"auto"}}>
+              <div style={{padding:"16px 16px 30px"}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+                  <span onClick={()=>{if(rollStep==="save")setRollStep("source");else setShowRoll(false);}} style={{fontSize:20,color:T.dark,cursor:"pointer"}}>←</span>
+                  <span style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:T.dark}}>{rollStep==="source"?"Make a Roll":"Stamp, Name & Save"}</span>
+                </div>
+
+                {rollStep==="source"&&(
+                  <>
+                    <div style={{display:"flex",gap:8,marginBottom:14}}>
+                      {[{id:"manual",lbl:"Pick Photos"},{id:"album",lbl:"One Album"},{id:"multi",lbl:"Across Albums"}].map(m=>(
+                        <button key={m.id} onClick={()=>{setRollSourceMode(m.id);setRollAlbumId("");setRollSelectedIds([]);}} style={{flex:1,padding:"9px 4px",borderRadius:10,border:`1.5px solid ${rollSourceMode===m.id?"#0A6B58":T.border}`,background:rollSourceMode===m.id?"#E0F7F2":"#fff",fontSize:11,fontWeight:600,color:T.dark,cursor:"pointer"}}>{m.lbl}</button>
+                      ))}
+                    </div>
+                    <div style={{fontSize:11,color:T.muted,marginBottom:8}}>Pick 3–8 photos for your film strip ({nSel} of 8 selected)</div>
+
+                    {rollSourceMode==="manual"&&<PhotoPickGrid list={nonCreated}/>}
+
+                    {rollSourceMode==="album"&&(
+                      <>
+                        <div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:8,marginBottom:8}}>
+                          {albumsWithPhotos.map(a=>(
+                            <button key={a.id} onClick={()=>pickAlbum(a.id)} style={{flexShrink:0,padding:"8px 14px",borderRadius:99,border:`1.5px solid ${rollAlbumId===a.id?"#0A6B58":T.border}`,background:rollAlbumId===a.id?"#E0F7F2":"#fff",fontSize:12,fontWeight:600,color:T.dark,cursor:"pointer"}}>{a.name}</button>
+                          ))}
+                          {albumsWithPhotos.length===0&&<div style={{fontSize:12,color:T.muted}}>No albums with photos yet.</div>}
+                        </div>
+                        {rollAlbumId&&<div style={{fontSize:10.5,color:T.muted,marginBottom:8}}>First 8 pre-selected — tap to add or remove</div>}
+                        {rollAlbumId&&<PhotoPickGrid list={nonCreated.filter(p=>p.album_id===rollAlbumId)}/>}
+                      </>
+                    )}
+
+                    {rollSourceMode==="multi"&&(
+                      <>
+                        {albumsWithPhotos.map(a=>(
+                          <div key={a.id}>
+                            <div style={{fontSize:11,fontWeight:700,color:T.brown,marginBottom:6}}>🗂️ {a.name}</div>
+                            <PhotoPickGrid list={nonCreated.filter(p=>p.album_id===a.id)}/>
+                          </div>
+                        ))}
+                        {unfiled.length>0&&(
+                          <div>
+                            <div style={{fontSize:11,fontWeight:700,color:T.brown,marginBottom:6}}>📷 Not in an album</div>
+                            <PhotoPickGrid list={unfiled}/>
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    {rollErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{rollErr}</div>}
+
+                    <button disabled={nSel<3} onClick={()=>{setRollPreview(null);setRollStep("save");}} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:nSel<3?T.border:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:nSel<3?T.muted:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>{nSel<3?`Pick at least 3 photos`:"Next: Stamp & Save →"}</button>
+                  </>
+                )}
+
+                {rollStep==="save"&&(
+                  <>
+                    <label style={lbl}>Preview</label>
+                    <div style={{background:"#1C1C1E",borderRadius:14,padding:8,marginBottom:14,minHeight:90,display:"flex",alignItems:"center",justifyContent:"center",overflowX:"auto"}}>
+                      {rollRendering&&<div style={{fontSize:12,color:"#9A9A9E"}}>Developing your film…</div>}
+                      {!rollRendering&&rollPreview&&<img src={rollPreview.url} alt="roll preview" style={{height:120,display:"block"}}/>}
+                    </div>
+                    <div style={{marginBottom:12}}>
+                      <label style={lbl}>Film stamp (optional)</label>
+                      <input style={inp} value={rollStamp} onChange={e=>setRollStamp(e.target.value)}/>
+                      <div style={{fontSize:9.5,color:T.muted,marginTop:4}}>Printed on the bottom edge of the strip — clear it for a plain strip</div>
+                    </div>
+                    <div style={{marginBottom:16}}>
+                      <label style={lbl}>Name this roll</label>
+                      <input style={inp} placeholder={`Roll #${rollCount+1}`} value={rollName} onChange={e=>setRollName(e.target.value)}/>
+                    </div>
+                    {rollErr&&<div style={{background:"#FFF0F0",border:"1px solid #C97B8440",borderRadius:10,padding:"8px 12px",marginBottom:10,fontSize:12,color:"#C97B84"}}>{rollErr}</div>}
+                    <button disabled={rollSaving||rollRendering} onClick={doSaveRoll} style={{width:"100%",padding:14,borderRadius:14,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,fontSize:14,cursor:rollSaving?"default":"pointer"}}>{rollSaving?"Saving...":"Save Roll 🎞️"}</button>
                   </>
                 )}
               </div>
@@ -4707,7 +5121,7 @@ useEffect(()=>{
     plan:     <CalendarScreen  familyId={family?.id} members={members}/>,
     chores:   <ChoresScreen    familyId={family?.id} onPts={handlePts}/>,
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
-    journey:  <PhotoJourneyScreen familyId={family?.id} members={members} myMemberId={myMemberId}/>,
+    journey:  <PhotoJourneyScreen familyId={family?.id} family={family} members={members} myMemberId={myMemberId}/>,
     journal:  <JournalScreen   familyId={family?.id} members={members} userId={user?.id}/>,
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
