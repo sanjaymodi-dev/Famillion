@@ -816,11 +816,10 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
   // Home slider: creations from last 15 days (newest first, max 7) → fallback recent uploads → fallback stock collages
   const homePhotos=useTable("photos",family?.id);
   const homeReels=useTable("reels",family?.id);
-  const fifteenAgo=new Date(now.getTime()-15*24*60*60*1000);
   const homeCreations=[
     ...homePhotos.data.filter(p=>p.is_created).map(p=>({id:"p"+p.id,url:p.url,label:p.created_type==="collage"?"🧩 Collage":p.created_type==="roll"?"🎞️ Roll":"🖼️ Frame",title:p.name||"",ts:p.created_at,isRoll:p.created_type==="roll"})),
     ...homeReels.data.map(r=>{const cover=homePhotos.data.find(p=>p.id===(r.photo_ids||[])[0]);return cover?{id:"r"+r.id,url:cover.url,label:"🎬 Reel",title:r.name||"",ts:r.created_at,isReel:true}:null;}).filter(Boolean),
-  ].filter(c=>new Date(c.ts)>=fifteenAgo).sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,7);
+  ].sort((a,b)=>new Date(b.ts)-new Date(a.ts)).slice(0,7);
   const homeUploads=homePhotos.data.filter(p=>!p.is_created).sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,7).map(p=>({id:"u"+p.id,url:p.url,label:"📸 Our moments",title:p.caption||"",ts:p.created_at}));
   const homeSlides=homeCreations.length>0?homeCreations:homeUploads;
   const totalSlides=homeSlides.length>0?homeSlides.length:COLLAGES.length;
@@ -1017,8 +1016,8 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
           <div style={{background:HL,borderRadius:16,padding:"16px 14px",minHeight:110,display:"flex",flexDirection:"column",justifyContent:"center",position:"relative",overflow:"hidden"}}>
             <div style={{fontSize:10,color:"rgba(255,255,255,0.35)",fontWeight:600,marginBottom:4}}>{dateStr}</div>
             <div style={{fontSize:19,fontWeight:800,color:SAF,lineHeight:1.25}}>
-              <span className="hs-sun">{greeting.split(" ")[0]==="Good"?greeting.slice(greeting.indexOf(" ")+1,greeting.indexOf(" ")+1+greeting.split(" ")[1].length):""}</span>
-              {" "}<span id="hs-greet-txt" data-text={greeting.split(" ").slice(0,2).join(" ")==="Good morning"?"Good morning":greeting.split(" ").slice(0,2).join(" ")==="Good afternoon"?"Good afternoon":"Good evening"}></span>
+              <span id="hs-greet-txt" data-text={greeting.split(" ").slice(0,2).join(" ")}></span>
+              {" "}<span className="hs-sun">{greeting.split(" ")[2]||""}</span>
             </div>
             <div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:6,fontWeight:600}}>{family?.name||"My Family"}</div>
           </div>
@@ -1188,12 +1187,12 @@ function HomeScreen({ family, members, expenses, events, onMemberClick, onTabCha
               <div style={{fontSize:10,color:"#999"}}>Last 7 days</div>
             </div>
             {recentExpenses.map((e,i)=>{
-              const m=members?.find(mb=>mb.id===e.member_id||mb.name===e.member_name);
+              const m=members?.find(mb=>mb.name===e.who||mb.id===e.member_id||mb.name===e.member_name||(e.who&&mb.name.split(" ")[0]===e.who));
               return(
                 <div key={e.id} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"8px 0",borderBottom:i<recentExpenses.length-1||recentEvents.length>0?"0.5px solid #F0EBE3":"none"}}>
                   <div style={{width:30,height:30,borderRadius:"50%",background:"#EDE8DF",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0,marginTop:1}}>{m?.emoji||"👤"}</div>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{fontSize:12,color:"#1A1A1A",fontWeight:600,lineHeight:1.4}}>{m?.name?.split(" ")[0]||"Someone"} added {e.category||"expense"} — ₹{Number(e.amount).toLocaleString()}</div>
+                    <div style={{fontSize:12,color:"#1A1A1A",fontWeight:600,lineHeight:1.4}}>{(m?.name||e.who||"Someone").split(" ")[0]} added {e.category||"expense"} — ₹{Number(e.amount).toLocaleString()}</div>
                     <div style={{fontSize:10,color:"#999",marginTop:2}}>{daysAgoStr(e.date||e.created_at)} · Budget</div>
                   </div>
                 </div>
@@ -5101,6 +5100,24 @@ useEffect(()=>{
   return()=>{cancelled=true;clearTimeout(t);if(rafId)cancelAnimationFrame(rafId);};
 },[]);
 
+  // Device city for header pill (GPS + reverse geocode, cached 6h; falls back to family.city)
+  const [deviceCity,setDeviceCity]=useState(null);
+  useEffect(()=>{
+    try{
+      const cached=JSON.parse(localStorage.getItem("fn_city_cache")||"null");
+      if(cached&&cached.city&&Date.now()-cached.ts<6*60*60*1000){setDeviceCity(cached.city);return;}
+    }catch(e){}
+    if(!navigator.geolocation)return;
+    navigator.geolocation.getCurrentPosition(async(pos)=>{
+      try{
+        const r=await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${pos.coords.latitude}&longitude=${pos.coords.longitude}&localityLanguage=en`);
+        const j=await r.json();
+        const city=j.city||j.locality||j.principalSubdivision||null;
+        if(city){setDeviceCity(city);localStorage.setItem("fn_city_cache",JSON.stringify({city,ts:Date.now()}));}
+      }catch(err){}
+    },()=>{},{maximumAge:600000,timeout:8000});
+  },[]);
+
   if(recoveryToken)return <ResetPasswordScreen token={recoveryToken}/>;
   if(authLoading)return <SplashScreen/>;
 
@@ -5156,18 +5173,18 @@ useEffect(()=>{
             @keyframes hdr-sweep{0%,100%{left:-100%}35%,65%{left:150%}}
             @keyframes flogo-glow{0%,100%{background:#DC5509;box-shadow:0 0 0px rgba(220,85,9,0)}40%{background:#FF7020;box-shadow:0 0 18px rgba(255,112,32,0.9),0 0 32px rgba(255,112,32,0.4)}50%{background:#FF7020;box-shadow:0 0 24px rgba(255,112,32,1),0 0 44px rgba(255,112,32,0.5)}60%{background:#DC5509;box-shadow:0 0 8px rgba(220,85,9,0.3)}}
             @keyframes ftxt-shimmer{0%,30%{background-position:100% center}50%{background-position:0% center}70%,100%{background-position:-100% center}}
-            @keyframes trophy-bonce{0%,96%,100%{transform:scale(1)}97%{transform:scale(1.18)}98%{transform:scale(0.95)}99%{transform:scale(1.08)}}
-            @keyframes sparkle-pop{0%,95%{opacity:0;transform:translate(0,0) scale(0)}96%{opacity:1;transform:translate(0,0) scale(1.2)}97%{opacity:1;transform:translate(var(--tx),var(--ty)) scale(1)}98%{opacity:0;transform:translate(var(--tx2),var(--ty2)) scale(.5)}100%{opacity:0}}
+            @keyframes trophy-bonce{0%,88%,100%{transform:scale(1)}91%{transform:scale(1.14)}94%{transform:scale(0.96)}97%{transform:scale(1.06)}}
+            @keyframes sparkle-pop{0%,72%{opacity:0;transform:translate(0,0) scale(0)}78%{opacity:1;transform:translate(var(--tx),var(--ty)) scale(1.15)}86%{opacity:0.9;transform:translate(var(--tx2),var(--ty2)) scale(0.9)}94%,100%{opacity:0;transform:translate(var(--tx2),var(--ty2)) scale(0.3)}}
             .fhdr-sweep{position:absolute;top:0;left:-100%;width:60%;height:100%;background:linear-gradient(90deg,transparent,rgba(220,85,9,0.1),transparent);animation:hdr-sweep 8s ease-in-out infinite;pointer-events:none;}
             .flogo-f{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:700;color:#fff;font-size:19px;flex-shrink:0;animation:flogo-glow 8s ease-in-out infinite;}
             .ftxt{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;background:linear-gradient(90deg,#fff 0%,#fff 38%,#FF8C30 50%,#fff 62%,#fff 100%);background-size:200% auto;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:ftxt-shimmer 8s ease-in-out infinite;}
-            .ftrophy{background:rgba(220,85,9,0.2);border-radius:99px;padding:5px 12px;font-size:12px;color:#DC5509;font-weight:800;position:relative;animation:trophy-bonce 30s ease-in-out infinite;}
-            .fsp{position:absolute;font-size:10px;opacity:0;pointer-events:none;animation:sparkle-pop 30s ease-in-out infinite;}
-            .fsp:nth-child(1){top:-8px;left:4px;--tx:-6px;--ty:-10px;--tx2:-10px;--ty2:-18px;}
-            .fsp:nth-child(2){top:-10px;right:6px;animation-delay:.08s;--tx:6px;--ty:-10px;--tx2:12px;--ty2:-18px;}
-            .fsp:nth-child(3){top:50%;right:-12px;animation-delay:.16s;--tx:12px;--ty:-4px;--tx2:20px;--ty2:-6px;}
-            .fsp:nth-child(4){bottom:-8px;right:4px;animation-delay:.24s;--tx:6px;--ty:8px;--tx2:10px;--ty2:14px;}
-            .fsp:nth-child(5){bottom:-8px;left:6px;animation-delay:.32s;--tx:-8px;--ty:8px;--tx2:-14px;--ty2:14px;}
+            .ftrophy{background:rgba(220,85,9,0.2);border-radius:99px;padding:5px 12px;font-size:12px;color:#DC5509;font-weight:800;position:relative;animation:trophy-bonce 7s ease-in-out infinite;}
+            .fsp{position:absolute;font-size:10px;opacity:0;pointer-events:none;animation:sparkle-pop 7s ease-in-out infinite;}
+            .fsp:nth-child(1){top:-9px;left:2px;--tx:-8px;--ty:-8px;--tx2:-14px;--ty2:-15px;}
+            .fsp:nth-child(2){top:-11px;right:8px;animation-delay:0.9s;--tx:8px;--ty:-8px;--tx2:14px;--ty2:-15px;}
+            .fsp:nth-child(3){top:45%;right:-13px;animation-delay:1.8s;--tx:10px;--ty:-3px;--tx2:18px;--ty2:-5px;}
+            .fsp:nth-child(4){bottom:-9px;right:14px;animation-delay:2.7s;--tx:7px;--ty:8px;--tx2:12px;--ty2:14px;}
+            .fsp:nth-child(5){bottom:-9px;left:10px;animation-delay:3.6s;--tx:-9px;--ty:8px;--tx2:-15px;--ty2:14px;}
           `}</style>
           <div className="fhdr-sweep"/>
           <div style={{display:"flex",alignItems:"center",gap:10,position:"relative",zIndex:1}}>
@@ -5175,7 +5192,7 @@ useEffect(()=>{
             <div className="ftxt">Famillion</div>
           </div>
           <div style={{display:"flex",gap:8,alignItems:"center",position:"relative",zIndex:1}}>
-            {family?.city&&<span style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:700,background:"rgba(255,255,255,0.08)",borderRadius:99,padding:"3px 9px"}}>📍{family.city}</span>}
+            {(deviceCity||family?.city)&&<span style={{fontSize:10,color:"rgba(255,255,255,0.55)",fontWeight:700,background:"rgba(255,255,255,0.08)",borderRadius:99,padding:"3px 9px"}}>📍{deviceCity||family.city}</span>}
             <span onClick={toggleBgm} style={{background:"transparent",borderRadius:"50%",width:32,height:32,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,cursor:"pointer",border:`1.5px solid ${bgmOn?"#DC5509":"rgba(255,255,255,0.2)"}`}}>{bgmOn?"🎵":"🔕"}</span>
             <div className="ftrophy" onClick={()=>handleTabChange("rewards")}>
               <span className="fsp">✦</span><span className="fsp">✦</span><span className="fsp">✦</span><span className="fsp">✦</span><span className="fsp">✦</span>
@@ -5183,10 +5200,9 @@ useEffect(()=>{
             </div>
           </div>
         </div>
-        {tab!=="home"&&(
         <div style={{padding:"8px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",background:"#0F1F3D",borderBottom:"1px solid rgba(255,255,255,0.08)"}}>
           <div onClick={()=>setShowHeader(s=>!s)} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}>
-            <span style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.55)",textTransform:"uppercase",letterSpacing:1}}>{NAV.find(n=>n.id===tab)?.label||tab}</span>
+            <span style={{fontSize:12,fontWeight:700,color:"rgba(255,255,255,0.55)",textTransform:"uppercase",letterSpacing:1}}>☰ Menu</span>
             <span style={{fontSize:11,color:"rgba(255,255,255,0.3)"}}>▾</span>
           </div>
           <div onClick={()=>handleTabChange("profile")} style={{display:"flex",alignItems:"center",gap:6,cursor:"pointer"}}>
@@ -5196,7 +5212,6 @@ useEffect(()=>{
             <span style={{fontSize:12,fontWeight:700,color:"#FDF6EC"}}>{(currentUserName||"").split(" ")[0]}</span>
           </div>
         </div>
-        )}
 
        {/* HEADER DRAWER — sliding quarter-pane from left */}
         <div style={{position:"fixed",top:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,height:"100vh",zIndex:300,pointerEvents:showHeader?"all":"none"}}>
@@ -5254,7 +5269,7 @@ useEffect(()=>{
 
         {/* MORE DRAWER */}
         {showMore&&(
-          <div style={{position:"fixed",bottom:90,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.98)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,padding:"12px 16px",boxShadow:"0 -8px 32px rgba(0,0,0,0.1)",zIndex:100}}>
+          <div style={{position:"fixed",bottom:76,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"rgba(253,246,236,0.98)",backdropFilter:"blur(16px)",borderTop:`1px solid ${T.border}`,padding:"12px 16px",boxShadow:"0 -8px 32px rgba(0,0,0,0.1)",zIndex:100}}>
             {showMusicPanel&&(
               <div style={{marginBottom:12,borderBottom:`1px solid ${T.border}`,paddingBottom:12}}>
                 <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -5298,8 +5313,8 @@ useEffect(()=>{
 
         {/* BOTTOM NAV */}
         <div style={{position:"fixed",bottom:0,left:"50%",transform:"translateX(-50%)",width:"100%",maxWidth:420,background:"#0F1F3D",zIndex:200}}>
-          <div style={{display:"flex",padding:"0 4px 20px"}}>
-            <button onClick={()=>handleTabChange("home")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+          <div style={{display:"flex",padding:"0 4px 8px"}}>
+            <button onClick={()=>handleTabChange("home")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,border:"none",background:"transparent",cursor:"pointer",padding:"6px 2px 2px"}}>
               <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="home"?"#DC5509":"transparent",marginBottom:2}}/>
               <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
                 <path id="fn-nav-p0" d="M3 10.5L12 3l9 7.5V21a1 1 0 01-1 1H5a1 1 0 01-1-1V10.5z" fill="#DC5509" stroke="#DC5509" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -5307,14 +5322,14 @@ useEffect(()=>{
               </svg>
               <span style={{fontSize:13,fontWeight:800,color:tab==="home"?"#DC5509":"rgba(255,255,255,0.25)"}}>Home</span>
             </button>
-            <button onClick={()=>handleTabChange("health")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+            <button onClick={()=>handleTabChange("health")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,border:"none",background:"transparent",cursor:"pointer",padding:"6px 2px 2px"}}>
               <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="health"?"#DC5509":"transparent",marginBottom:2}}/>
               <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
                 <path id="fn-nav-p1" d="M12 21C12 21 3 14 3 8.5A5 5 0 0112 6a5 5 0 019 2.5C21 14 12 21 12 21z" fill="#E05C7A" stroke="#E05C7A" strokeWidth="1.5" strokeLinejoin="round"/>
               </svg>
               <span style={{fontSize:13,fontWeight:800,color:tab==="health"?"#DC5509":"rgba(255,255,255,0.25)"}}>Health</span>
             </button>
-            <button onClick={()=>handleTabChange("budget")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+            <button onClick={()=>handleTabChange("budget")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,border:"none",background:"transparent",cursor:"pointer",padding:"6px 2px 2px"}}>
               <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="budget"?"#DC5509":"transparent",marginBottom:2}}/>
               <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
                 <path id="fn-nav-p2" d="M3 8h15a2 2 0 012 2v7a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" fill="#6BAF71" stroke="#6BAF71" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -5323,7 +5338,7 @@ useEffect(()=>{
               </svg>
               <span style={{fontSize:13,fontWeight:800,color:tab==="budget"?"#DC5509":"rgba(255,255,255,0.25)"}}>Budget</span>
             </button>
-            <button onClick={()=>handleTabChange("plan")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+            <button onClick={()=>handleTabChange("plan")} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,border:"none",background:"transparent",cursor:"pointer",padding:"6px 2px 2px"}}>
               <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:tab==="plan"?"#DC5509":"transparent",marginBottom:2}}/>
               <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
                 <path id="fn-nav-p3" d="M4 7h16v14H4z" fill="#7B9FE0" stroke="#7B9FE0" strokeWidth="1.5" strokeLinejoin="round"/>
@@ -5331,7 +5346,7 @@ useEffect(()=>{
               </svg>
               <span style={{fontSize:13,fontWeight:800,color:tab==="plan"?"#DC5509":"rgba(255,255,255,0.25)"}}>Plan</span>
             </button>
-            <button onClick={()=>setShowMore(s=>!s)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:5,border:"none",background:"transparent",cursor:"pointer",padding:"10px 2px 2px"}}>
+            <button onClick={()=>setShowMore(s=>!s)} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3,border:"none",background:"transparent",cursor:"pointer",padding:"6px 2px 2px"}}>
               <div style={{height:3,width:36,borderRadius:"0 0 4px 4px",background:showMore?"#DC5509":"transparent",marginBottom:2}}/>
               <svg width="36" height="36" viewBox="0 0 24 24" style={{overflow:"visible"}}>
                 <circle id="fn-nav-d0" cx="7"  cy="7"  r="2.5" fill="#DC5509"/>
