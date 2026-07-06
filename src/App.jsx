@@ -2684,7 +2684,17 @@ function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
   const capReached=myPhotoCount>=50;
 
   // HERO 1: Memories (Albums + Chapters) — only items that actually have a cover image
-  const memHeroItems=[
+  // Creations list (frames/collages/rolls from photos + reels), serial order oldest→newest
+  const CREATED_LABEL={frame:"🖼️ Frame",collage:"🧩 Collage",roll:"🎞️ Roll",reel:"🎬 Reel"};
+  const photoHeroItems=[
+    ...photos.data.filter(p=>p.is_created).map(p=>({kind:p.created_type||"frame",id:p.id,url:p.url,caption:p.name||p.caption||"",created_at:p.created_at,photo:p})),
+    ...reels.data.map(r=>{
+      const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
+      return cover?{kind:"reel",id:r.id,url:cover.url,caption:r.name,created_at:r.created_at}:null;
+    }).filter(Boolean),
+  ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
+
+  const memHeroBase=[
     ...albums.data.filter(a=>photos.data.some(p=>p.album_id===a.id)).map(a=>{
       const cover=photos.data.find(p=>p.album_id===a.id);
       const count=photos.data.filter(p=>p.album_id===a.id).length;
@@ -2697,18 +2707,13 @@ function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
       return {kind:"chapter",id:j.id,img:cover?.url,title:j.title,meta:`${ch.emoji} ${ch.label} · ${count} photo${count===1?"":"s"}`};
     }),
   ].filter(it=>it.img);
+  // Fallback: when no albums/chapters have photos yet, the navy hero showcases creations instead
+  const heroShowingCreations=memHeroBase.length===0&&photoHeroItems.length>0;
+  const memHeroItems=heroShowingCreations
+    ? photoHeroItems.map(c=>({kind:"creation",ckind:c.kind,id:c.id,img:c.url,title:c.caption,meta:CREATED_LABEL[c.kind],badge:(c.kind||"frame").toUpperCase(),photo:c.photo,isRoll:c.kind==="roll"}))
+    : memHeroBase;
   const [memCurrent,setMemCurrent]=useState(0);
   const memTimerRef=useRef(null);
-
-  // HERO 2: All creations (frames/collages/rolls from photos + reels), serial order oldest→newest
-  const CREATED_LABEL={frame:"🖼️ Frame",collage:"🧩 Collage",roll:"🎞️ Roll",reel:"🎬 Reel"};
-  const photoHeroItems=[
-    ...photos.data.filter(p=>p.is_created).map(p=>({kind:p.created_type||"frame",id:p.id,url:p.url,caption:p.name||p.caption||"",created_at:p.created_at,photo:p})),
-    ...reels.data.map(r=>{
-      const cover=photos.data.find(p=>p.id===(r.photo_ids||[])[0]);
-      return cover?{kind:"reel",id:r.id,url:cover.url,caption:r.name,created_at:r.created_at}:null;
-    }).filter(Boolean),
-  ].sort((a,b)=>new Date(a.created_at)-new Date(b.created_at));
   const [photoCurrent,setPhotoCurrent]=useState(0);
   const photoTimerRef=useRef(null);
 
@@ -3147,10 +3152,11 @@ function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
               {memHeroItems.map((item,i)=>{
                 const cls=heroCardClass(i,memCurrent,memHeroItems.length);
                 return(
-                  <div key={item.kind+item.id} style={heroCardStyle(cls)} onClick={()=>{if(cls==="next")setMemCurrent((memCurrent+1)%memHeroItems.length);else if(cls==="prev")setMemCurrent((memCurrent-1+memHeroItems.length)%memHeroItems.length);}}>
-                    <img src={item.img} alt={item.title} style={{width:"100%",height:"100%",objectFit:"cover",display:"block"}}/>
-                    <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg, rgba(15,31,61,0) 42%, rgba(15,31,61,0.93) 100%)"}}/>
-                    <div style={{position:"absolute",top:12,left:12,background:"rgba(244,167,36,0.88)",borderRadius:9,padding:"4px 10px",fontSize:9.5,color:"#0F1F3D",fontWeight:800}}>{item.kind==="album"?"ALBUM":"CHAPTER"}</div>
+                  <div key={item.kind+item.id} style={{...heroCardStyle(cls),background:"#16294A"}} onClick={()=>{if(cls==="active"&&item.kind==="creation"){if(item.ckind==="reel"){setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.id);}else if(item.photo)startEditPhoto(item.photo);}else if(cls==="next")setMemCurrent((memCurrent+1)%memHeroItems.length);else if(cls==="prev")setMemCurrent((memCurrent-1+memHeroItems.length)%memHeroItems.length);}}>
+                    <img src={item.img} alt={item.title} style={{width:"100%",height:"100%",objectFit:item.isRoll?"contain":"cover",display:"block"}}/>
+                    {item.ckind==="reel"&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.18)"}}><span style={{fontSize:32,color:"#fff"}}>▶️</span></div>}
+                    <div style={{position:"absolute",inset:0,background:"linear-gradient(180deg, rgba(15,31,61,0) 42%, rgba(15,31,61,0.93) 100%)",pointerEvents:"none"}}/>
+                    <div style={{position:"absolute",top:12,left:12,background:"rgba(244,167,36,0.88)",borderRadius:9,padding:"4px 10px",fontSize:9.5,color:"#0F1F3D",fontWeight:800}}>{item.kind==="album"?"ALBUM":item.kind==="chapter"?"CHAPTER":item.badge}</div>
                     <div style={{position:"absolute",bottom:16,left:18,right:18}}>
                       <div style={{fontSize:18,fontWeight:700,color:"#FDF6EC"}}>{item.title}</div>
                       <div style={{fontSize:11,color:"#DC5509",marginTop:4,fontWeight:600}}>{item.meta}</div>
@@ -3162,7 +3168,7 @@ function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
             <div style={{display:"flex",justifyContent:"center",gap:6,margin:"12px 0 2px"}}>
               {memHeroItems.map((_,i)=>(<div key={i} onClick={()=>setMemCurrent(i)} style={{width:i===memCurrent?18:6,height:6,borderRadius:99,background:i===memCurrent?"#DC5509":"rgba(244,167,36,0.3)",transition:"all 0.35s ease",cursor:"pointer"}}/>))}
             </div>
-            <div style={{textAlign:"center",fontSize:9.5,color:"rgba(253,246,236,0.4)",marginBottom:6}}>albums & chapters you've created</div>
+            <div style={{textAlign:"center",fontSize:9.5,color:"rgba(253,246,236,0.4)",marginBottom:6}}>{heroShowingCreations?"your creations · albums & chapters will show here once made":"albums & chapters you've created"}</div>
           </>
         )}
         <div style={{textAlign:"center",fontSize:9,color:"rgba(244,167,36,0.6)",padding:"4px 0 10px",animation:"bouncehero 1.6s ease-in-out infinite"}}>▾ scroll for photos</div>
@@ -3176,15 +3182,15 @@ function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
       </div>
 
       <div style={{padding:"0 16px 16px"}}>
-        {/* ===== SECTION 2: CREATIONS HERO (all created content, serial order, ~72% size) ===== */}
-        <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginTop:6}}>YOUR CREATIONS</div>
+        {/* ===== SECTION 2: CREATIONS HERO (hidden when navy hero is showing creations) ===== */}
+        {!heroShowingCreations&&<div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginTop:6}}>YOUR CREATIONS</div>}
         {photoHeroItems.length===0&&(
           <div style={{background:T.warm,border:`1px dashed ${T.brown}40`,borderRadius:14,padding:"18px 14px",margin:"8px 0 14px",textAlign:"center"}}>
             <div style={{fontSize:24,marginBottom:6}}>✨</div>
             <div style={{fontSize:12,color:T.brown,fontWeight:600}}>Your frames, reels, collages and rolls will appear here — create your first one below</div>
           </div>
         )}
-        {photoHeroItems.length>0&&(
+        {!heroShowingCreations&&photoHeroItems.length>0&&(
           <>
             <div onTouchStart={onPhotoTouchStart} onTouchMove={onPhotoTouchMove} onTouchEnd={onPhotoTouchEnd} style={{position:"relative",width:"72%",margin:"6px auto 0",paddingBottom:"62%",touchAction:"pan-y"}}>
               {photoHeroItems.map((item,i)=>{
@@ -3217,13 +3223,16 @@ function PhotoJourneyScreen({ familyId, family, members, myMemberId }) {
 
           return(
             <div style={{marginBottom:6}}>
-              <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:8}}>QUICK CREATE</div>
+              <div style={{fontSize:10,color:T.muted,fontWeight:700,letterSpacing:0.5,marginBottom:2}}>QUICK CREATE</div>
+              <div style={{fontSize:10.5,color:T.brown,marginBottom:8}}>tap any item below to create more like it ✨</div>
               <div style={{display:"flex",gap:10,overflowX:"auto",paddingBottom:14}}>
                 {creationItems.map(item=>(
                   <div key={item.kind+item.id} style={{flexShrink:0,width:110,position:"relative"}}>
                     <div onClick={()=>{
-                      if(item.kind==="reel"){setReelPlayIndex(0);setReelPlaying(true);setReelPlayingId(item.id);}
-                      else{const p=photos.data.find(x=>x.id===item.id);if(p)startEditPhoto(p);}
+                      if(item.kind==="reel"){setReelStep("source");setReelSourceMode("manual");setReelSourceId("");setReelSelectedPhotoIds([]);setReelMusicChoice("");setReelTransition("fade");setReelName("");setReelErr("");setShowReel(true);}
+                      else if(item.kind==="collage"){setCollageStep("build");setCollageSelectedIds([]);setCollageLayout("");setCollageBg("cream");setCollageName("");setCollageSaveTagged([]);setCollageSaveAlbumId("");setCollageErr("");setCollagePreview(null);setShowCollage(true);}
+                      else if(item.kind==="roll"){setRollStep("source");setRollSourceMode("manual");setRollAlbumId("");setRollSelectedIds([]);setRollName("");setRollErr("");setRollPreview(null);setRollStamp(`${(family?.name||"OUR FAMILY").toUpperCase()} · ${new Date().getFullYear()}`);setShowRoll(true);}
+                      else{setFramesSourcePhotoId(photos.data.find(p=>!p.is_created)?.id||null);setShowFrames(true);}
                     }} style={{position:"relative",width:110,height:130,borderRadius:14,overflow:"hidden",cursor:"pointer",background:item.kind==="roll"?"#1C1C1E":T.border}}>
                       {item.img&&<img src={item.img} alt="" style={{width:"100%",height:"100%",objectFit:item.kind==="roll"?"contain":"cover"}}/>}
                       {item.kind==="reel"&&<div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",background:"rgba(0,0,0,0.2)"}}><span style={{fontSize:24,color:"#fff"}}>▶️</span></div>}
@@ -5030,6 +5039,7 @@ const [showHeader,setShowHeader]=useState(false);
 useEffect(()=>{
   const onBack=(e)=>{
     const state=e.state;
+    if(state&&(state.memories||state.budget))return; // overlay-marker entries are handled by their own screens
     if(selectedMember){setSelectedMember(null);return;}
     if(showMore){setShowMore(false);return;}
     if(state?.tab){setTab(state.tab);return;}
