@@ -4833,6 +4833,179 @@ function WealthScreen({ family, members, familyId, onPts }) {
   );
 }
 
+// Shaped Notif Component
+function NotifShape({shape="popcorn",message="",color="#FF7020"}) {
+  const svgMap={
+    popcorn:(<svg viewBox="0 0 200 160" style={{width:"100%",maxWidth:"120px"}}>
+      <circle cx="50" cy="60" r="20" fill={color} opacity="0.9"/><circle cx="80" cy="45" r="22" fill={color} opacity="0.9"/>
+      <circle cx="110" cy="55" r="19" fill={color} opacity="0.9"/><circle cx="140" cy="60" r="21" fill={color} opacity="0.9"/>
+      <circle cx="65" cy="90" r="20" fill={color} opacity="0.9"/><circle cx="100" cy="95" r="22" fill={color} opacity="0.9"/>
+      <circle cx="130" cy="90" r="19" fill={color} opacity="0.9"/>
+      <text x="100" y="135" textAnchor="middle" style={{fontSize:"13px",fontWeight:"600",fill:color}}>{message}</text>
+    </svg>),
+    star:(<svg viewBox="0 0 200 200" style={{width:"100%",maxWidth:"120px"}}>
+      <polygon points="100,20 130,80 195,80 145,130 175,190 100,145 25,190 55,130 5,80 70,80" fill={color} opacity="0.9"/>
+      <text x="100" y="105" textAnchor="middle" style={{fontSize:"13px",fontWeight:"600",fill:"#fff",dominantBaseline:"middle"}}>{message}</text>
+    </svg>),
+    heart:(<svg viewBox="0 0 200 200" style={{width:"100%",maxWidth:"120px"}}>
+      <path d="M100,170 C40,130 10,100 10,70 C10,50 20,35 40,35 C55,35 70,45 100,65 C130,45 145,35 160,35 C180,35 190,50 190,70 C190,100 160,130 100,170 Z" fill={color} opacity="0.9"/>
+      <text x="100" y="85" textAnchor="middle" style={{fontSize:"13px",fontWeight:"600",fill:"#fff",dominantBaseline:"middle"}}>{message}</text>
+    </svg>),
+    bell:(<svg viewBox="0 0 200 200" style={{width:"100%",maxWidth:"120px"}}>
+      <path d="M50,80 Q50,40 100,40 Q150,40 150,80 L140,130 Q140,140 130,140 L70,140 Q60,140 60,130 Z" fill={color} opacity="0.9"/>
+      <circle cx="100" cy="145" r="8" fill={color} opacity="0.9"/>
+      <text x="100" y="100" textAnchor="middle" style={{fontSize:"13px",fontWeight:"600",fill:"#fff",dominantBaseline:"middle"}}>{message}</text>
+    </svg>),
+    burst:(<svg viewBox="0 0 200 200" style={{width:"100%",maxWidth:"120px"}}>
+      <line x1="100" y1="10" x2="100" y2="40" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="100" y1="160" x2="100" y2="190" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="10" y1="100" x2="40" y2="100" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="160" y1="100" x2="190" y2="100" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="35" y1="35" x2="55" y2="55" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="145" y1="145" x2="165" y2="165" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="165" y1="35" x2="145" y2="55" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <line x1="55" y1="145" x2="35" y2="165" stroke={color} strokeWidth="3" strokeLinecap="round"/>
+      <circle cx="100" cy="100" r="30" fill={color} opacity="0.9"/>
+      <text x="100" y="105" textAnchor="middle" style={{fontSize:"13px",fontWeight:"600",fill:"#fff",dominantBaseline:"middle"}}>{message}</text>
+    </svg>),
+    thumbsup:(<svg viewBox="0 0 200 200" style={{width:"100%",maxWidth:"120px"}}>
+      <path d="M60,180 L80,120 L80,60 Q80,40 100,40 L120,40 Q140,40 140,60 L140,100 Q140,120 120,120 L100,120 L105,180 Q105,190 95,190 L70,190 Q60,190 60,180 Z" fill={color} opacity="0.9"/>
+      <text x="100" y="150" textAnchor="middle" style={{fontSize:"13px",fontWeight:"600",fill:"#fff",dominantBaseline:"middle"}}>{message}</text>
+    </svg>),
+  };
+  return svgMap[shape]||svgMap.popcorn;
+}
+
+// Services & Shops Screen
+function ServicesShopsScreen({ familyId, members, services, shops, serviceAttendance }) {
+  const [svc, setSvc] = useState(services.data[0] || null);
+  const [expDay, setExpDay] = useState(null);
+  const [noteOpen, setNoteOpen] = useState({});
+  const [dayNotes, setDayNotes] = useState({});
+  
+  if (services.loading) return <Spinner />;
+  if (!svc && services.data.length === 0) {
+    return (
+      <div style={{padding:"0 16px 16px"}}>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Services & Shops</div>
+        <Card style={{textAlign:"center",padding:32,marginTop:16}}>
+          <div style={{fontSize:36,marginBottom:8}}>🧹</div>
+          <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>Add your first service provider</div>
+          <div style={{fontSize:12,color:T.muted}}>Track maids, drivers, delivery & more</div>
+          <button style={{marginTop:14,padding:"10px 20px",borderRadius:12,border:"none",background:T.teal,color:"#fff",fontWeight:700,cursor:"pointer"}}>+ Add Service</button>
+        </Card>
+      </div>
+    );
+  }
+
+  const currentYear=new Date().getFullYear();
+  const currentMonth=new Date().getMonth();
+  const daysInMonth=new Date(currentYear,currentMonth+1,0).getDate();
+  const attendance=serviceAttendance.data.filter(a=>a.service_id===svc?.id);
+  
+  const getDateStatus=(day)=>{
+    const dateStr=`${currentYear}-${String(currentMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+    const att=attendance.find(a=>a.date?.startsWith(dateStr));
+    return att?.status||"nodata"; // worked, leave, unapproved_leave, nodata
+  };
+
+  const getStatusColor=(status)=>{
+    switch(status){
+      case "worked":return{bg:"#E0F7F2",border:"#5B9B9B",text:"#0A6B58"};
+      case "leave":return{bg:"#FFF8E8",border:"#E8A838",text:"#E8A838"};
+      case "unapproved_leave":return{bg:"#FCE8E8",border:"#D4A5A5",text:"#A32D2D"};
+      default:return{bg:"transparent",border:"#EDE0D0",text:"#A08070"};
+    }
+  };
+
+  return (
+    <div style={{padding:"0 16px 16px"}}>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>🧹 Services & Shops</div>
+      
+      {/* Service tabs */}
+      <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
+        {services.data.map(s=>(
+          <button key={s.id} onClick={()=>setSvc(s)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:svc?.id===s.id?T.teal+"30":"#fff",color:svc?.id===s.id?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",borderBottom:svc?.id===s.id?`2px solid ${T.teal}`:"2px solid transparent"}}>
+            {s.name}
+          </button>
+        ))}
+      </div>
+
+      {svc&&(
+        <Card>
+          {/* Expanded Service Detail */}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
+            <div>
+              <div style={{fontWeight:700,color:T.dark,fontSize:15}}>📍 {svc.name}</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>{svc.frequency} • ₹{svc.cost}/visit</div>
+            </div>
+            <span style={{fontSize:12,color:T.teal}}>▼</span>
+          </div>
+
+          {/* Timings & Policy */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Timings & Policy</div>
+            <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>
+              <div>📍 {svc.frequency}</div>
+              <div>💰 ₹{svc.cost}/visit</div>
+              <div>📅 {svc.approved_days||"—"} days approved</div>
+              <div>📞 {svc.phone||"—"}</div>
+            </div>
+          </div>
+
+          {/* Attendance Calendar */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>Attendance - {new Date(currentYear,currentMonth).toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
+              {["S","M","T","W","T","F","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:T.muted,padding:"4px 0"}}>{d}</div>)}
+              {[...Array(daysInMonth)].map((_,i)=>{
+                const day=i+1;
+                const status=getDateStatus(day);
+                const colors=getStatusColor(status);
+                return(
+                  <div key={day} onClick={()=>setExpDay(expDay===day?null:day)} style={{aspect:"1",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8,background:colors.bg,border:`1px solid ${colors.border}`,fontSize:11,fontWeight:700,color:colors.text,cursor:"pointer",transition:"all 0.2s"}}>
+                    {status==="worked"?"✓":status==="leave"?"○":status==="unapproved_leave"?"✕":day}
+                  </div>
+                );
+              })}
+            </div>
+            <div style={{fontSize:10,color:T.muted}}>✓ Worked (teal) • ○ Off day (gold) • ✕ Unapproved (red)</div>
+          </div>
+
+          {/* Expanded day detail */}
+          {expDay&&(
+            <div style={{background:T.warm,padding:12,borderRadius:10,marginBottom:14}}>
+              <div style={{fontWeight:700,color:T.dark,marginBottom:8}}>Day {expDay} - {getDateStatus(expDay).toUpperCase()}</div>
+              {!noteOpen[expDay]?(
+                <button onClick={()=>setNoteOpen(n=>({...n,[expDay]:true}))} style={{width:"100%",padding:"8px",borderRadius:8,border:`1px dashed ${T.brown}`,background:"transparent",color:T.teal,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Add note</button>
+              ):(
+                <div>
+                  <textarea placeholder="e.g., 'Did extra', 'Great work'" value={dayNotes[expDay]||""} onChange={e=>setDayNotes(n=>({...n,[expDay]:e.target.value}))} style={{width:"100%",padding:"8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:11,marginBottom:8,height:"50px",resize:"none",boxSizing:"border-box"}}/>
+                  <button style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:T.teal,color:"#fff",fontWeight:600,cursor:"pointer",fontSize:11}}>Save note</button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Special Instructions */}
+          <div style={{marginBottom:14}}>
+            <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Special Instructions</div>
+            <div style={{fontSize:12,color:T.text,background:T.cream,padding:"8px",borderRadius:8}}>{svc.special_instructions||"—"}</div>
+          </div>
+
+          {/* Payment Status */}
+          <div style={{background:"#E0F7F2",padding:10,borderRadius:10}}>
+            <div style={{fontSize:11,fontWeight:800,color:T.teal}}>✓ PAID THIS MONTH</div>
+            <div style={{fontSize:10,color:T.teal}}>₹{svc.cost} • Cash</div>
+          </div>
+        </Card>
+      )}
+
+      <button style={{width:"100%",padding:14,marginTop:14,borderRadius:14,border:`2px dashed ${T.teal}`,background:"transparent",color:T.teal,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Service Provider</button>
+    </div>
+  );
+}
+
 export default function App() {
   const [user,setUser]=useState(null);
   const [authLoading,setAL]=useState(true);
@@ -4863,6 +5036,17 @@ const [showHeader,setShowHeader]=useState(false);
   const [showMusicPanel,setShowMusicPanel]=useState(false);
   const bgmRef=useRef(null);
   const bgmWasPlayingRef=useRef(false);
+
+  // Services & Shops state
+  const [servicesTab,setServicesTab]=useState("services");
+  const [expandedService,setExpandedService]=useState(null);
+  const [expandedShop,setExpandedShop]=useState(null);
+  const [showServiceForm,setShowServiceForm]=useState(false);
+  const [showShopForm,setShowShopForm]=useState(false);
+  const [selectedServiceProvider,setSelectedServiceProvider]=useState(0);
+  const [expandedDay,setExpandedDay]=useState(null);
+  const [dayNoteField,setDayNoteField]=useState({}); // { dayId: true/false }
+  const [serviceAdminPerms,setServiceAdminPerms]=useState({});
 
   // Pause/resume when app is minimised
   useEffect(()=>{
@@ -4926,6 +5110,9 @@ const [showHeader,setShowHeader]=useState(false);
   const expenses=useTable("expenses",family?.id);
   const events=useTable("events",family?.id);
   const nudges=useTable("nudges",family?.id);
+  const services=useTable("services",family?.id);
+  const shops=useTable("shops",family?.id);
+  const serviceAttendance=useTable("service_attendance",family?.id);
   const currentTheme=THEMES.find(t=>t.id===theme)||THEMES[0];
 
   useEffect(()=>{
@@ -5148,6 +5335,7 @@ useEffect(()=>{
     plan:     <CalendarScreen  familyId={family?.id} members={members}/>,
     chores:   <ChoresScreen    familyId={family?.id} onPts={handlePts}/>,
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
+    services: <ServicesShopsScreen familyId={family?.id} members={members} services={services} shops={shops} serviceAttendance={serviceAttendance}/>,
     journey:  <PhotoJourneyScreen familyId={family?.id} family={family} members={members} myMemberId={myMemberId}/>,
     journal:  <JournalScreen   familyId={family?.id} members={members} userId={user?.id}/>,
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
@@ -5158,7 +5346,7 @@ useEffect(()=>{
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
-  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"chores",icon:"🧹",label:"Chores"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Memories"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
+  const MORE_NAV=[{id:"wealth",icon:"💎",label:"Money"},{id:"services",icon:"🧹",label:"Services"},{id:"errands",icon:"🛒",label:"Errands"},{id:"journey",icon:"📸",label:"Memories"},{id:"journal",icon:"📓",label:"Journal"},{id:"kids",icon:"🎒",label:"Kids"},{id:"bgm",icon:bgmOn?"🎵":"🔇",label:bgmOn?"Sound On":"Sound"},{id:"rewards",icon:"🏆",label:"Rewards"},{id:"concierge",icon:"🤖",label:"AI"},{id:"settings",icon:"⚙️",label:"Settings"},{id:"profile",icon:"👤",label:"Profile"}];
 
   return(
     <div style={{minHeight:"100vh",background:currentTheme.bg,display:"flex",justifyContent:"center",fontFamily:"'Lato',sans-serif",overscrollBehavior:"none"}}>
