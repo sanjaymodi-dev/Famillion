@@ -4929,8 +4929,8 @@ const SHOP_TEMPLATES = {
     { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
   ],
   canteen: [
-    { id: "lunch_canteen", label: "Lunch Canteen", desc: "Daily meals", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Regular Meal", rate: "80"}, {name: "Premium Meal", rate: "120"}] },
-    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+    { id: "lunch_canteen", label: "Lunch Canteen", desc: "Daily meals", fields: ["name", "items", "settlement", "phone", "notes"], items: [{name: "Regular Meal", qty: "1", rate: "80"}, {name: "Premium Meal", qty: "1", rate: "120"}] },
+    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "items", "settlement", "phone", "notes"], items: [] }
   ],
   pharmacy: [
     { id: "regular_pharmacy", label: "Regular Pharmacy", desc: "Medicines on call", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Medicines", rate: "varies"}, {name: "Vitamins", rate: "varies"}] },
@@ -5046,41 +5046,45 @@ function AddServiceForm({ onClose, onSave, members }) {
 
           {!hasServices&&(
             <>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-                <div>
-                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
-                  <select style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
-                    {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
-                  <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="500" value={formData.cost} onChange={e=>setFormData(f=>({...f,cost:e.target.value}))}/>
+              <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>FREQUENCY & OFF-DAYS</label>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1.2fr 1fr",gap:8}}>
+                  <div>
+                    <label style={{display:"block",fontSize:10,fontWeight:700,color:"#8B5E3C",marginBottom:4}}>Frequency</label>
+                    <select style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+                      {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{display:"block",fontSize:10,fontWeight:700,color:"#8B5E3C",marginBottom:4}}>Off-days</label>
+                    <input style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} type="number" min="0" placeholder="2" value={formData.off_days_count} onChange={e=>setFormData(f=>({...f,off_days_count:e.target.value}))}/>
+                  </div>
+                  <div>
+                    <label style={{display:"block",fontSize:10,fontWeight:700,color:"#8B5E3C",marginBottom:4}}>Period</label>
+                    <select style={{width:"100%",padding:"8px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F"}} value={formData.off_days_period} onChange={e=>setFormData(f=>({...f,off_days_period:e.target.value}))}>
+                      <option value="weekly">Per Week</option>
+                      <option value="monthly">Per Month</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
               <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
+                  <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="500" value={formData.cost} onChange={e=>setFormData(f=>({...f,cost:e.target.value}))}/>
+                </div>
                 <div>
                   <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PAY PERIOD</label>
                   <select style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.pay_period} onChange={e=>setFormData(f=>({...f,pay_period:e.target.value}))}>
                     {payPeriods.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
                   </select>
                 </div>
-                <div>
-                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
-                  <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
-                </div>
               </div>
 
-              <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
-                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>OFF-DAYS (Per Week)</label>
-                <div style={{display:"flex",gap:8}}>
-                  <input style={{flex:1,padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="number" min="0" placeholder="2" value={formData.off_days_count} onChange={e=>setFormData(f=>({...f,off_days_count:e.target.value}))}/>
-                  <select style={{flex:1,padding:"10px 8px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F"}} value={formData.off_days_period} onChange={e=>setFormData(f=>({...f,off_days_period:e.target.value}))}>
-                    <option value="weekly">Per Week</option>
-                    <option value="monthly">Per Month</option>
-                  </select>
-                </div>
+              <div style={{marginBottom:12}}>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
+                <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
               </div>
             </>
           )}
@@ -5248,15 +5252,34 @@ function AddShopForm({ onClose, onSave, members }) {
           </div>
 
           <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>ITEMS & RATES</label>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>ITEMS & RATES & QTY</label>
             {formData.items.map((item,i)=>(
-              <div key={i} style={{display:"flex",gap:6,marginBottom:8}}>
-                <input style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} placeholder="Item name" value={item.name} onChange={e=>{const ni=[...formData.items];ni[i].name=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
-                <input style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="₹Rate" value={item.rate} onChange={e=>{const ni=[...formData.items];ni[i].rate=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
-                <button onClick={()=>setFormData(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#999",cursor:"pointer",fontSize:12}}>✕</button>
+              <div key={i} style={{marginBottom:8}}>
+                <div style={{display:"flex",gap:6,marginBottom:item.qty==="type_in"?8:0}}>
+                  <input style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} placeholder="Item name" value={item.name} onChange={e=>{const ni=[...formData.items];ni[i].name=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
+                  <select style={{flex:1,padding:"8px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:10,color:"#3D2B1F"}} value={item.qty||""} onChange={e=>{const ni=[...formData.items];ni[i].qty=e.target.value;setFormData(f=>({...f,items:ni}));}} >
+                    <option value="">Qty</option>
+                    <option value="type_in">Type in</option>
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3">3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                    <option value="7">7</option>
+                    <option value="8">8</option>
+                    <option value="9">9</option>
+                    <option value="10">10</option>
+                  </select>
+                  <input style={{flex:0.8,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="₹" value={item.rate} onChange={e=>{const ni=[...formData.items];ni[i].rate=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
+                  <button onClick={()=>setFormData(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#999",cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
+                {item.qty==="type_in"&&(
+                  <input style={{width:"100%",padding:"8px 10px",borderRadius:8,border:"1px solid #8B5E3C",background:"#fff",fontSize:10,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="Enter qty (e.g. 15, 20)" value={item.custom_qty||""} onChange={e=>{const ni=[...formData.items];ni[i].custom_qty=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
+                )}
               </div>
             ))}
-            <button onClick={()=>setFormData(f=>({...f,items:[...f.items,{name:"",rate:""}]}))} style={{width:"100%",padding:"8px",borderRadius:8,border:"1px dashed #8B5E3C",background:"transparent",color:"#8B5E3C",fontWeight:600,cursor:"pointer",fontSize:11}}>+ Add Item</button>
+            <button onClick={()=>setFormData(f=>({...f,items:[...f.items,{name:"",qty:"",rate:"",custom_qty:""}]}))} style={{width:"100%",padding:"8px",borderRadius:8,border:"1px dashed #8B5E3C",background:"transparent",color:"#8B5E3C",fontWeight:600,cursor:"pointer",fontSize:11}}>+ Add Item</button>
           </div>
 
           <div style={{marginBottom:14}}>
