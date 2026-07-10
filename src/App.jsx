@@ -4877,8 +4877,71 @@ function NotifShape({shape="popcorn",message="",color="#FF7020"}) {
 }
 
 // Services & Shops Screen
+// Service type templates
+const SERVICE_TEMPLATES = {
+  maid: [
+    { id: "daily_cleaner", label: "Daily Cleaner", desc: "Regular cleaning", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes", "special_instructions"] },
+    { id: "weekly_specialist", label: "Weekly Specialist", desc: "Deep cleaning weekly", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] },
+    { id: "custom", label: "Custom", desc: "Create your own", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes", "special_instructions"] }
+  ],
+  driver: [
+    { id: "daily_driver", label: "Daily Driver", desc: "Daily commute", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] },
+    { id: "custom", label: "Custom", desc: "Custom arrangement", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] }
+  ],
+  cook: [
+    { id: "lunch_dinner", label: "Lunch & Dinner", desc: "2 meals daily", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes", "special_instructions"] },
+    { id: "custom", label: "Custom", desc: "Custom menu", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] }
+  ],
+  laundry: [
+    { id: "wash_iron", label: "Wash & Iron", desc: "Washing + ironing", fields: ["name", "frequency", "services", "phone", "notes"], services: [{name: "Wash", rate: "30"}, {name: "Iron", rate: "20"}] },
+    { id: "premium_laundry", label: "Premium", desc: "All services", fields: ["name", "frequency", "services", "phone", "notes"], services: [{name: "Wash", rate: "30"}, {name: "Iron", rate: "20"}, {name: "Dry Clean", rate: "150"}, {name: "Steam Iron", rate: "40"}] },
+    { id: "custom", label: "Custom", desc: "Your services", fields: ["name", "frequency", "services", "phone", "notes"], services: [] }
+  ],
+  dhobi: [
+    { id: "weekly_wash", label: "Weekly Wash", desc: "Weekly washing", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] },
+    { id: "custom", label: "Custom", desc: "Custom arrangement", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] }
+  ],
+  gardener: [
+    { id: "weekly_care", label: "Weekly Care", desc: "Garden maintenance", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes", "special_instructions"] },
+    { id: "custom", label: "Custom", desc: "Custom plan", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] }
+  ],
+  watchman: [
+    { id: "full_time", label: "Full-time Watchman", desc: "24/7 security", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] },
+    { id: "custom", label: "Custom", desc: "Custom hours", fields: ["name", "frequency", "cost", "pay_period", "off_days", "phone", "notes"] }
+  ]
+};
+
+const SHOP_TEMPLATES = {
+  milk: [
+    { id: "milk_vendor", label: "Milk Vendor", desc: "Daily milk delivery", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Whole Milk (1L)", rate: "60"}, {name: "Toned Milk (1L)", rate: "50"}, {name: "Buffalo Milk (1L)", rate: "80"}] },
+    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+  ],
+  grocer: [
+    { id: "regular_grocer", label: "Regular Grocer", desc: "Weekly grocery", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Rice (1kg)", rate: "80"}, {name: "Dal (1kg)", rate: "100"}, {name: "Oil (1L)", rate: "200"}, {name: "Spices", rate: "custom"}] },
+    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+  ],
+  laundry: [
+    { id: "wash_iron_shop", label: "Wash & Iron", desc: "Laundry services", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Wash (per item)", rate: "30"}, {name: "Iron (per item)", rate: "20"}, {name: "Dry Clean (per item)", rate: "150"}] },
+    { id: "custom", label: "Custom", desc: "Your services", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+  ],
+  tuck_shop: [
+    { id: "regular_tuck", label: "Regular Tuck", desc: "Daily items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Snacks", rate: "varies"}, {name: "Drinks", rate: "varies"}] },
+    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+  ],
+  canteen: [
+    { id: "lunch_canteen", label: "Lunch Canteen", desc: "Daily meals", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Regular Meal", rate: "80"}, {name: "Premium Meal", rate: "120"}] },
+    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+  ],
+  pharmacy: [
+    { id: "regular_pharmacy", label: "Regular Pharmacy", desc: "Medicines on call", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [{name: "Medicines", rate: "varies"}, {name: "Vitamins", rate: "varies"}] },
+    { id: "custom", label: "Custom", desc: "Your items", fields: ["name", "frequency", "items", "settlement", "phone", "notes"], items: [] }
+  ]
+};
+
 function AddServiceForm({ onClose, onSave, members }) {
+  const [step, setStep] = useState("type"); // type | template | form
   const [selectedType, setSelectedType] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     frequency: "weekly",
@@ -4888,7 +4951,8 @@ function AddServiceForm({ onClose, onSave, members }) {
     off_days_period: "weekly",
     phone: "",
     notes: "",
-    special_instructions: ""
+    special_instructions: "",
+    services: []
   });
 
   const serviceTypes = [
@@ -4897,15 +4961,14 @@ function AddServiceForm({ onClose, onSave, members }) {
     { id: "cook", label: "Cook", emoji: "👨‍🍳" },
     { id: "dhobi", label: "Dhobi", emoji: "👕" },
     { id: "gardener", label: "Gardener", emoji: "🌿" },
-    { id: "watchman", label: "Watchman", emoji: "💂" },
-    { id: "custom", label: "Other", emoji: "🔧" }
+    { id: "watchman", label: "Watchman", emoji: "💂" }
   ];
 
   const frequencies = ["daily", "weekly", "bi-weekly", "monthly"];
   const payPeriods = ["once", "daily", "weekly", "monthly"];
 
-  // STEP 1: TYPE PICKER (Detached pop-up)
-  if (!selectedType) {
+  // STEP 1: Type Picker
+  if (step === "type") {
     return (
       <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
         <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
@@ -4915,104 +4978,163 @@ function AddServiceForm({ onClose, onSave, members }) {
           
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {serviceTypes.map(t=>(
-              <button key={t.id} onClick={()=>setSelectedType(t.id)} style={{padding:"16px 12px",borderRadius:14,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s",hover:{background:"#F5F0E8"}}}>
+              <button key={t.id} onClick={()=>{setSelectedType(t.id);setStep("template");}} style={{padding:"16px 12px",borderRadius:14,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s"}}>
                 <span style={{fontSize:28}}>{t.emoji}</span>
-                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F",textAlign:"center",lineHeight:1.3}}>{t.label}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F",textAlign:"center"}}>{t.label}</span>
               </button>
             ))}
           </div>
-
           <button onClick={onClose} style={{width:"100%",padding:"12px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Cancel</button>
         </div>
       </div>
     );
   }
 
-  // STEP 2: SERVICE FORM (Only after type selected)
-  const serviceType = serviceTypes.find(t => t.id === selectedType);
-
-  return (
-    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:380,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:"#0F1F3D"}}>Add {serviceType.label}</div>
-            <div style={{fontSize:11,color:T.muted,marginTop:2}}>Fill in {serviceType.label} details</div>
+  // STEP 2: Template Picker
+  if (step === "template" && selectedType) {
+    const templates = SERVICE_TEMPLATES[selectedType] || [];
+    const serviceType = serviceTypes.find(t => t.id === selectedType);
+    
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:400,position:"relative",boxShadow:"0 12px 40px rgba(0,0,0,0.3)",maxHeight:"80vh",overflowY:"auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:"#0F1F3D"}}>Choose Template</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>for {serviceType?.label}</div>
+            </div>
+            <button onClick={()=>setStep("type")} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
           </div>
-          <button onClick={()=>setSelectedType(null)} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
-        </div>
 
-        <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NAME *</label>
-          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder={`e.g. ${serviceType.label} name`} value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
-            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
-              {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
-            </select>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {templates.map(tmpl=>(
+              <button key={tmpl.id} onClick={()=>{setSelectedTemplate(tmpl);setFormData(f=>({...f,services:tmpl.services||[]}));setStep("form");}} style={{padding:"14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",textAlign:"left",transition:"all 0.2s",hover:{background:"#F5F0E8"}}}>
+                <div style={{fontWeight:700,color:"#3D2B1F",fontSize:13}}>{tmpl.label}</div>
+                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{tmpl.desc}</div>
+              </button>
+            ))}
           </div>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
-            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="number" placeholder="500" value={formData.cost} onChange={e=>setFormData(f=>({...f,cost:e.target.value}))}/>
-          </div>
-        </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PAY PERIOD</label>
-            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.pay_period} onChange={e=>setFormData(f=>({...f,pay_period:e.target.value}))}>
-              {payPeriods.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
-            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
-          </div>
-        </div>
-
-        <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>OFF-DAYS (Per Week)</label>
-          <div style={{display:"flex",gap:8}}>
-            <input style={{flex:1,padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} type="number" min="0" placeholder="2" value={formData.off_days_count} onChange={e=>setFormData(f=>({...f,off_days_count:e.target.value}))}/>
-            <select style={{flex:1,padding:"10px 8px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.off_days_period} onChange={e=>setFormData(f=>({...f,off_days_period:e.target.value}))}>
-              <option value="weekly">Per Week</option>
-              <option value="monthly">Per Month</option>
-            </select>
-          </div>
-        </div>
-
-        <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NOTES</label>
-          <textarea style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:50,resize:"none"}} placeholder="e.g. Background info, preferences" value={formData.notes} onChange={e=>setFormData(f=>({...f,notes:e.target.value}))}/>
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>SPECIAL INSTRUCTIONS</label>
-          <textarea style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:50,resize:"none"}} placeholder="e.g. Use own supplies, focus on kitchen" value={formData.special_instructions} onChange={e=>setFormData(f=>({...f,special_instructions:e.target.value}))}/>
-        </div>
-
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>setSelectedType(null)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
-          <button onClick={()=>{if(formData.name&&formData.cost){onSave({...formData,type:selectedType});setSelectedType(null);setFormData({name:"",frequency:"weekly",cost:"",pay_period:"monthly",off_days_count:"2",off_days_period:"weekly",phone:"",notes:"",special_instructions:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {serviceType.label}</button>
+          <button onClick={onClose} style={{width:"100%",padding:"12px",marginTop:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Cancel</button>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // STEP 3: Service Form
+  if (step === "form" && selectedType && selectedTemplate) {
+    const serviceType = serviceTypes.find(t => t.id === selectedType);
+    const hasServices = selectedTemplate.fields.includes("services");
+
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:400,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:"#0F1F3D"}}>Add {serviceType.label}</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>{selectedTemplate.label}</div>
+            </div>
+            <button onClick={()=>setStep("template")} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
+          </div>
+
+          <div style={{marginBottom:12}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NAME *</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder={`e.g. ${serviceType.label} name`} value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
+          </div>
+
+          {!hasServices&&(
+            <>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
+                  <select style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+                    {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
+                  <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="500" value={formData.cost} onChange={e=>setFormData(f=>({...f,cost:e.target.value}))}/>
+                </div>
+              </div>
+
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PAY PERIOD</label>
+                  <select style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.pay_period} onChange={e=>setFormData(f=>({...f,pay_period:e.target.value}))}>
+                    {payPeriods.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
+                  <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
+                </div>
+              </div>
+
+              <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
+                <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>OFF-DAYS (Per Week)</label>
+                <div style={{display:"flex",gap:8}}>
+                  <input style={{flex:1,padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="number" min="0" placeholder="2" value={formData.off_days_count} onChange={e=>setFormData(f=>({...f,off_days_count:e.target.value}))}/>
+                  <select style={{flex:1,padding:"10px 8px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F"}} value={formData.off_days_period} onChange={e=>setFormData(f=>({...f,off_days_period:e.target.value}))}>
+                    <option value="weekly">Per Week</option>
+                    <option value="monthly">Per Month</option>
+                  </select>
+                </div>
+              </div>
+            </>
+          )}
+
+          {hasServices&&(
+            <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
+              <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>SERVICES & RATES</label>
+              {formData.services.map((svc,i)=>(
+                <div key={i} style={{display:"flex",gap:6,marginBottom:8}}>
+                  <input style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} placeholder="Service name" value={svc.name} onChange={e=>{const ns=[...formData.services];ns[i].name=e.target.value;setFormData(f=>({...f,services:ns}));}}/>
+                  <input style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="Rate" value={svc.rate} onChange={e=>{const ns=[...formData.services];ns[i].rate=e.target.value;setFormData(f=>({...f,services:ns}));}}/>
+                  <button onClick={()=>setFormData(f=>({...f,services:f.services.filter((_,j)=>j!==i)}))} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#999",cursor:"pointer",fontSize:12}}>✕</button>
+                </div>
+              ))}
+              <button onClick={()=>setFormData(f=>({...f,services:[...f.services,{name:"",rate:""}]}))} style={{width:"100%",padding:"8px",borderRadius:8,border:"1px dashed #8B5E3C",background:"transparent",color:"#8B5E3C",fontWeight:600,cursor:"pointer",fontSize:11}}>+ Add Service</button>
+            </div>
+          )}
+
+          <div style={{marginBottom:12}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NOTES</label>
+            <textarea style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box",height:50,resize:"none"}} placeholder="Background, preferences" value={formData.notes} onChange={e=>setFormData(f=>({...f,notes:e.target.value}))}/>
+          </div>
+
+          {selectedTemplate.fields.includes("special_instructions")&&(
+            <div style={{marginBottom:14}}>
+              <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>SPECIAL INSTRUCTIONS</label>
+              <textarea style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box",height:50,resize:"none"}} placeholder="e.g. Use own supplies" value={formData.special_instructions} onChange={e=>setFormData(f=>({...f,special_instructions:e.target.value}))}/>
+            </div>
+          )}
+
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setStep("template")} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
+            <button onClick={()=>{if(formData.name&&(formData.cost||hasServices)){onSave({...formData,type:selectedType,template:selectedTemplate.id});localStorage.setItem(`service_${selectedType}_${Date.now()}`,JSON.stringify({...formData,type:selectedType}));}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {serviceType.label}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 function AddShopForm({ onClose, onSave, members }) {
+  const [step, setStep] = useState("type");
   const [selectedType, setSelectedType] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
     frequency: "daily",
     cost_per_visit: "",
     settlement_mode: "weekly",
     phone: "",
-    notes: ""
+    notes: "",
+    items: []
   });
 
   const shopTypes = [
@@ -5021,15 +5143,14 @@ function AddShopForm({ onClose, onSave, members }) {
     { id: "grocer", label: "Grocer", emoji: "🛒" },
     { id: "tuck_shop", label: "Tuck Shop", emoji: "🍫" },
     { id: "canteen", label: "Canteen", emoji: "🍜" },
-    { id: "pharmacy", label: "Pharmacy", emoji: "💊" },
-    { id: "custom", label: "Other", emoji: "🔧" }
+    { id: "pharmacy", label: "Pharmacy", emoji: "💊" }
   ];
 
   const frequencies = ["daily", "weekly", "bi-weekly", "monthly"];
   const settlements = ["daily", "weekly", "monthly"];
 
-  // STEP 1: TYPE PICKER (Detached pop-up)
-  if (!selectedType) {
+  // STEP 1: Type Picker
+  if (step === "type") {
     return (
       <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
         <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
@@ -5039,78 +5160,123 @@ function AddShopForm({ onClose, onSave, members }) {
           
           <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {shopTypes.map(t=>(
-              <button key={t.id} onClick={()=>setSelectedType(t.id)} style={{padding:"16px 12px",borderRadius:14,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s"}}>
+              <button key={t.id} onClick={()=>{setSelectedType(t.id);setStep("template");}} style={{padding:"16px 12px",borderRadius:14,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s"}}>
                 <span style={{fontSize:28}}>{t.emoji}</span>
-                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F",textAlign:"center",lineHeight:1.3}}>{t.label}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F",textAlign:"center"}}>{t.label}</span>
               </button>
             ))}
           </div>
-
           <button onClick={onClose} style={{width:"100%",padding:"12px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Cancel</button>
         </div>
       </div>
     );
   }
 
-  // STEP 2: SHOP FORM (Only after type selected)
-  const shopType = shopTypes.find(t => t.id === selectedType);
-
-  return (
-    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:380,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div>
-            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:"#0F1F3D"}}>Add {shopType.label}</div>
-            <div style={{fontSize:11,color:T.muted,marginTop:2}}>Track {shopType.label.toLowerCase()} deliveries</div>
+  // STEP 2: Template Picker
+  if (step === "template" && selectedType) {
+    const templates = SHOP_TEMPLATES[selectedType] || [];
+    const shopType = shopTypes.find(t => t.id === selectedType);
+    
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:400,position:"relative",boxShadow:"0 12px 40px rgba(0,0,0,0.3)",maxHeight:"80vh",overflowY:"auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:"#0F1F3D"}}>Choose Template</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>for {shopType?.label}</div>
+            </div>
+            <button onClick={()=>setStep("type")} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
           </div>
-          <button onClick={()=>setSelectedType(null)} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
-        </div>
 
-        <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NAME *</label>
-          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder={`e.g. ${shopType.label} name`} value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
-        </div>
-
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
-            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
-              {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
-            </select>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {templates.map(tmpl=>(
+              <button key={tmpl.id} onClick={()=>{setSelectedTemplate(tmpl);setFormData(f=>({...f,items:tmpl.items||[]}));setStep("form");}} style={{padding:"14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",textAlign:"left"}}>
+                <div style={{fontWeight:700,color:"#3D2B1F",fontSize:13}}>{tmpl.label}</div>
+                <div style={{fontSize:11,color:T.muted,marginTop:2}}>{tmpl.desc}</div>
+              </button>
+            ))}
           </div>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
-            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="number" placeholder="60" value={formData.cost_per_visit} onChange={e=>setFormData(f=>({...f,cost_per_visit:e.target.value}))}/>
-          </div>
-        </div>
 
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>SETTLE</label>
-            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.settlement_mode} onChange={e=>setFormData(f=>({...f,settlement_mode:e.target.value}))}>
-              {settlements.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
-            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
-          </div>
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NOTES</label>
-          <textarea style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:50,resize:"none"}} placeholder="e.g. Background, preferences, terms" value={formData.notes} onChange={e=>setFormData(f=>({...f,notes:e.target.value}))}/>
-        </div>
-
-        <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>setSelectedType(null)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
-          <button onClick={()=>{if(formData.name&&formData.cost_per_visit){onSave({...formData,type:selectedType});setSelectedType(null);setFormData({name:"",frequency:"daily",cost_per_visit:"",settlement_mode:"weekly",phone:"",notes:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {shopType.label}</button>
+          <button onClick={onClose} style={{width:"100%",padding:"12px",marginTop:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Cancel</button>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // STEP 3: Shop Form
+  if (step === "form" && selectedType && selectedTemplate) {
+    const shopType = shopTypes.find(t => t.id === selectedType);
+
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:400,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+            <div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:700,color:"#0F1F3D"}}>Add {shopType.label}</div>
+              <div style={{fontSize:11,color:T.muted,marginTop:2}}>{selectedTemplate.label}</div>
+            </div>
+            <button onClick={()=>setStep("template")} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
+          </div>
+
+          <div style={{marginBottom:12}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NAME *</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder={`e.g. ${shopType.label} name`} value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
+              <select style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+                {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+              </select>
+            </div>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
+              <input style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
+            </div>
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+            <div>
+              <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>SETTLE</label>
+              <select style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.settlement_mode} onChange={e=>setFormData(f=>({...f,settlement_mode:e.target.value}))}>
+                {settlements.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>ITEMS & RATES</label>
+            {formData.items.map((item,i)=>(
+              <div key={i} style={{display:"flex",gap:6,marginBottom:8}}>
+                <input style={{flex:2,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} placeholder="Item name" value={item.name} onChange={e=>{const ni=[...formData.items];ni[i].name=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
+                <input style={{flex:1,padding:"8px 10px",borderRadius:8,border:"1px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box"}} type="number" placeholder="₹Rate" value={item.rate} onChange={e=>{const ni=[...formData.items];ni[i].rate=e.target.value;setFormData(f=>({...f,items:ni}));}}/>
+                <button onClick={()=>setFormData(f=>({...f,items:f.items.filter((_,j)=>j!==i)}))} style={{padding:"8px 10px",borderRadius:8,border:"1px solid #ddd",background:"#fff",color:"#999",cursor:"pointer",fontSize:12}}>✕</button>
+              </div>
+            ))}
+            <button onClick={()=>setFormData(f=>({...f,items:[...f.items,{name:"",rate:""}]}))} style={{width:"100%",padding:"8px",borderRadius:8,border:"1px dashed #8B5E3C",background:"transparent",color:"#8B5E3C",fontWeight:600,cursor:"pointer",fontSize:11}}>+ Add Item</button>
+          </div>
+
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NOTES</label>
+            <textarea style={{width:"100%",padding:"10px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:11,color:"#3D2B1F",boxSizing:"border-box",height:50,resize:"none"}} placeholder="Terms, preferences, etc" value={formData.notes} onChange={e=>setFormData(f=>({...f,notes:e.target.value}))}/>
+          </div>
+
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>setStep("template")} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
+            <button onClick={()=>{if(formData.name&&formData.items.length>0&&formData.items[0].name){onSave({...formData,type:selectedType,template:selectedTemplate.id});localStorage.setItem(`shop_${selectedType}_${Date.now()}`,JSON.stringify({...formData,type:selectedType}));}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {shopType.label}</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
+
+
 
 function ServicesShopsScreen({ familyId, members, services, shops, serviceAttendance }) {
   const [tab, setTab] = useState("services");
