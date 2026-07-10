@@ -4878,13 +4878,16 @@ function NotifShape({shape="popcorn",message="",color="#FF7020"}) {
 
 // Services & Shops Screen
 function AddServiceForm({ onClose, onSave, members }) {
+  const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
-    type: "maid",
     frequency: "weekly",
     cost: "",
-    approved_days: "",
+    pay_period: "monthly",
+    off_days_count: "2",
+    off_days_period: "weekly",
     phone: "",
+    notes: "",
     special_instructions: ""
   });
 
@@ -4899,65 +4902,102 @@ function AddServiceForm({ onClose, onSave, members }) {
   ];
 
   const frequencies = ["daily", "weekly", "bi-weekly", "monthly"];
+  const payPeriods = ["once", "daily", "weekly", "monthly"];
+
+  // STEP 1: TYPE PICKER (Detached pop-up)
+  if (!selectedType) {
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:22,padding:"32px 24px",width:"100%",maxWidth:420,position:"relative",boxShadow:"0 12px 40px rgba(0,0,0,0.3)"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:"#0F1F3D",marginBottom:6,textAlign:"center"}}>Choose Service Type</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:20,textAlign:"center"}}>What service do you need to track?</div>
+          
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
+            {serviceTypes.map(t=>(
+              <button key={t.id} onClick={()=>setSelectedType(t.id)} style={{padding:"16px 12px",borderRadius:14,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s",hover:{background:"#F5F0E8"}}}>
+                <span style={{fontSize:28}}>{t.emoji}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F",textAlign:"center",lineHeight:1.3}}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <button onClick={onClose} style={{width:"100%",padding:"12px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  // STEP 2: SERVICE FORM (Only after type selected)
+  const serviceType = serviceTypes.find(t => t.id === selectedType);
 
   return (
     <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:360,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
+      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:380,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:"#0F1F3D"}}>Add Service</div>
-          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,color:"#999",cursor:"pointer"}}>✕</button>
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>SERVICE TYPE</label>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
-            {serviceTypes.map(t=>(
-              <button key={t.id} onClick={()=>setFormData(f=>({...f,type:t.id}))} style={{padding:"12px 8px",borderRadius:12,border:formData.type===t.id?"2px solid #0A6B58":"1.5px solid #EDE0D0",background:formData.type===t.id?"#E0F7F2":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                <span style={{fontSize:20}}>{t.emoji}</span>
-                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F"}}>{t.label}</span>
-              </button>
-            ))}
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:"#0F1F3D"}}>Add {serviceType.label}</div>
+            <div style={{fontSize:11,color:T.muted,marginTop:2}}>Fill in {serviceType.label} details</div>
           </div>
+          <button onClick={()=>setSelectedType(null)} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
         </div>
 
         <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>NAME</label>
-          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder="e.g. Sarah the Maid" value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NAME *</label>
+          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder={`e.g. ${serviceType.label} name`} value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>FREQUENCY</label>
-            <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
+            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
               {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
             </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>COST (₹)</label>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
             <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="number" placeholder="500" value={formData.cost} onChange={e=>setFormData(f=>({...f,cost:e.target.value}))}/>
           </div>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>APPROVED DAYS</label>
-            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder="e.g. 4/week" value={formData.approved_days} onChange={e=>setFormData(f=>({...f,approved_days:e.target.value}))}/>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PAY PERIOD</label>
+            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.pay_period} onChange={e=>setFormData(f=>({...f,pay_period:e.target.value}))}>
+              {payPeriods.map(p=><option key={p} value={p}>{p.charAt(0).toUpperCase()+p.slice(1)}</option>)}
+            </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>PHONE</label>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
             <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
           </div>
         </div>
 
+        <div style={{marginBottom:12,padding:12,background:T.cream,borderRadius:12}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8}}>OFF-DAYS (Per Week)</label>
+          <div style={{display:"flex",gap:8}}>
+            <input style={{flex:1,padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} type="number" min="0" placeholder="2" value={formData.off_days_count} onChange={e=>setFormData(f=>({...f,off_days_count:e.target.value}))}/>
+            <select style={{flex:1,padding:"10px 8px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F"}} value={formData.off_days_period} onChange={e=>setFormData(f=>({...f,off_days_period:e.target.value}))}>
+              <option value="weekly">Per Week</option>
+              <option value="monthly">Per Month</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NOTES</label>
+          <textarea style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:50,resize:"none"}} placeholder="e.g. Background info, preferences" value={formData.notes} onChange={e=>setFormData(f=>({...f,notes:e.target.value}))}/>
+        </div>
+
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>SPECIAL INSTRUCTIONS</label>
-          <textarea style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:60,resize:"none"}} placeholder="e.g. Use own supplies, focus on kitchen" value={formData.special_instructions} onChange={e=>setFormData(f=>({...f,special_instructions:e.target.value}))}/>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>SPECIAL INSTRUCTIONS</label>
+          <textarea style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:50,resize:"none"}} placeholder="e.g. Use own supplies, focus on kitchen" value={formData.special_instructions} onChange={e=>setFormData(f=>({...f,special_instructions:e.target.value}))}/>
         </div>
 
         <div style={{display:"flex",gap:8}}>
-          <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer"}}>Cancel</button>
-          <button onClick={()=>{if(formData.name&&formData.cost){onSave(formData);setFormData({name:"",type:"maid",frequency:"weekly",cost:"",approved_days:"",phone:"",special_instructions:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Service</button>
+          <button onClick={()=>setSelectedType(null)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
+          <button onClick={()=>{if(formData.name&&formData.cost){onSave({...formData,type:selectedType});setSelectedType(null);setFormData({name:"",frequency:"weekly",cost:"",pay_period:"monthly",off_days_count:"2",off_days_period:"weekly",phone:"",notes:"",special_instructions:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {serviceType.label}</button>
         </div>
       </div>
     </div>
@@ -4965,13 +5005,14 @@ function AddServiceForm({ onClose, onSave, members }) {
 }
 
 function AddShopForm({ onClose, onSave, members }) {
+  const [selectedType, setSelectedType] = useState(null);
   const [formData, setFormData] = useState({
     name: "",
-    type: "milk",
     frequency: "daily",
     cost_per_visit: "",
     settlement_mode: "weekly",
-    phone: ""
+    phone: "",
+    notes: ""
   });
 
   const shopTypes = [
@@ -4987,61 +5028,84 @@ function AddShopForm({ onClose, onSave, members }) {
   const frequencies = ["daily", "weekly", "bi-weekly", "monthly"];
   const settlements = ["daily", "weekly", "monthly"];
 
-  return (
-    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
-      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:360,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:"#0F1F3D"}}>Add Shop / Vendor</div>
-          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,color:"#999",cursor:"pointer"}}>✕</button>
-        </div>
-
-        <div style={{marginBottom:14}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>SHOP TYPE</label>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+  // STEP 1: TYPE PICKER (Detached pop-up)
+  if (!selectedType) {
+    return (
+      <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+        <div style={{background:"#fff",borderRadius:22,padding:"32px 24px",width:"100%",maxWidth:420,position:"relative",boxShadow:"0 12px 40px rgba(0,0,0,0.3)"}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:"#0F1F3D",marginBottom:6,textAlign:"center"}}>Choose Shop / Vendor</div>
+          <div style={{fontSize:12,color:T.muted,marginBottom:20,textAlign:"center"}}>What shop do you need to track?</div>
+          
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
             {shopTypes.map(t=>(
-              <button key={t.id} onClick={()=>setFormData(f=>({...f,type:t.id}))} style={{padding:"12px 8px",borderRadius:12,border:formData.type===t.id?"2px solid #0A6B58":"1.5px solid #EDE0D0",background:formData.type===t.id?"#E0F7F2":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
-                <span style={{fontSize:20}}>{t.emoji}</span>
-                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F"}}>{t.label}</span>
+              <button key={t.id} onClick={()=>setSelectedType(t.id)} style={{padding:"16px 12px",borderRadius:14,border:"1.5px solid #EDE0D0",background:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:8,transition:"all 0.2s"}}>
+                <span style={{fontSize:28}}>{t.emoji}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F",textAlign:"center",lineHeight:1.3}}>{t.label}</span>
               </button>
             ))}
           </div>
+
+          <button onClick={onClose} style={{width:"100%",padding:"12px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  // STEP 2: SHOP FORM (Only after type selected)
+  const shopType = shopTypes.find(t => t.id === selectedType);
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:380,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,fontWeight:700,color:"#0F1F3D"}}>Add {shopType.label}</div>
+            <div style={{fontSize:11,color:T.muted,marginTop:2}}>Track {shopType.label.toLowerCase()} deliveries</div>
+          </div>
+          <button onClick={()=>setSelectedType(null)} style={{background:"none",border:"none",fontSize:18,color:"#999",cursor:"pointer"}}>←</button>
         </div>
 
         <div style={{marginBottom:12}}>
-          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>NAME</label>
-          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder="e.g. Amul Milk" value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NAME *</label>
+          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder={`e.g. ${shopType.label} name`} value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>FREQUENCY</label>
-            <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>FREQUENCY</label>
+            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
               {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
             </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>COST PER (₹)</label>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>COST (₹) *</label>
             <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="number" placeholder="60" value={formData.cost_per_visit} onChange={e=>setFormData(f=>({...f,cost_per_visit:e.target.value}))}/>
           </div>
         </div>
 
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>SETTLE</label>
-            <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} value={formData.settlement_mode} onChange={e=>setFormData(f=>({...f,settlement_mode:e.target.value}))}>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>SETTLE</label>
+            <select style={{width:"100%",padding:"12px 10px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:13,color:"#3D2B1F",boxSizing:"border-box"}} value={formData.settlement_mode} onChange={e=>setFormData(f=>({...f,settlement_mode:e.target.value}))}>
               {settlements.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
             </select>
           </div>
           <div>
-            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>PHONE</label>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>PHONE</label>
             <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
           </div>
         </div>
 
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6}}>NOTES</label>
+          <textarea style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:12,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:50,resize:"none"}} placeholder="e.g. Background, preferences, terms" value={formData.notes} onChange={e=>setFormData(f=>({...f,notes:e.target.value}))}/>
+        </div>
+
         <div style={{display:"flex",gap:8}}>
-          <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer"}}>Cancel</button>
-          <button onClick={()=>{if(formData.name&&formData.cost_per_visit){onSave(formData);setFormData({name:"",type:"milk",frequency:"daily",cost_per_visit:"",settlement_mode:"weekly",phone:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Shop</button>
+          <button onClick={()=>setSelectedType(null)} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
+          <button onClick={()=>{if(formData.name&&formData.cost_per_visit){onSave({...formData,type:selectedType});setSelectedType(null);setFormData({name:"",frequency:"daily",cost_per_visit:"",settlement_mode:"weekly",phone:"",notes:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {shopType.label}</button>
         </div>
       </div>
     </div>
@@ -5049,14 +5113,44 @@ function AddShopForm({ onClose, onSave, members }) {
 }
 
 function ServicesShopsScreen({ familyId, members, services, shops, serviceAttendance }) {
-  const [tab, setTab] = useState("services"); // "services" | "shops"
-  const [svc, setSvc] = useState(services.data[0] || null);
-  const [shp, setShp] = useState(shops.data[0] || null);
+  const [tab, setTab] = useState("services");
+  const [savedServices, setSavedServices] = useState([]);
+  const [savedShops, setSavedShops] = useState([]);
+  const allServices = [...services.data, ...savedServices];
+  const allShops = [...shops.data, ...savedShops];
+  const [svc, setSvc] = useState(allServices[0] || null);
+  const [shp, setShp] = useState(allShops[0] || null);
   const [expDay, setExpDay] = useState(null);
   const [noteOpen, setNoteOpen] = useState({});
   const [dayNotes, setDayNotes] = useState({});
   const [showAddService, setShowAddService] = useState(false);
   const [showAddShop, setShowAddShop] = useState(false);
+
+  const handleSaveService = (data) => {
+    const newService = {
+      id: `temp_${Date.now()}`,
+      family_id: familyId,
+      ...data,
+      type: data.type,
+      created_at: new Date().toISOString()
+    };
+    setSavedServices(s => [...s, newService]);
+    setSvc(newService);
+    setShowAddService(false);
+  };
+
+  const handleSaveShop = (data) => {
+    const newShop = {
+      id: `temp_${Date.now()}`,
+      family_id: familyId,
+      ...data,
+      type: data.type,
+      created_at: new Date().toISOString()
+    };
+    setSavedShops(s => [...s, newShop]);
+    setShp(newShop);
+    setShowAddShop(false);
+  };
   
   if (services.loading || shops.loading) return <Spinner />;
 
@@ -5073,7 +5167,7 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
       {/* SERVICES TAB */}
       {tab==="services"&&(
         <div>
-          {services.data.length===0?(
+          {allServices.length===0?(
             <Card style={{textAlign:"center",padding:32}}>
               <div style={{fontSize:36,marginBottom:8}}>🧹</div>
               <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No service providers yet</div>
@@ -5084,7 +5178,7 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
             <>
               {/* Service provider tabs */}
               <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
-                {services.data.map(s=>(
+                {allServices.map(s=>(
                   <button key={s.id} onClick={()=>setSvc(s)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:svc?.id===s.id?T.teal+"30":"#fff",color:svc?.id===s.id?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",borderBottom:svc?.id===s.id?`2px solid ${T.teal}`:"2px solid transparent"}}>
                     {s.name}
                   </button>
@@ -5096,18 +5190,20 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
                     <div>
                       <div style={{fontWeight:700,color:T.dark,fontSize:15}}>📍 {svc.name}</div>
-                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>{svc.frequency} • ₹{svc.cost}/visit</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>{svc.frequency} • ₹{svc.cost} ({svc.pay_period})</div>
                     </div>
                   </div>
                   <div style={{marginBottom:14}}>
                     <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Timings & Policy</div>
                     <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>
                       <div>📍 {svc.frequency}</div>
-                      <div>💰 ₹{svc.cost}/visit</div>
-                      <div>📅 {svc.approved_days||"—"} days approved</div>
+                      <div>💰 ₹{svc.cost} (Paid {svc.pay_period})</div>
+                      <div>⏱️ Off-days: {svc.off_days_count} {svc.off_days_period}</div>
                       <div>📞 {svc.phone||"—"}</div>
+                      {svc.notes&&<div>📝 {svc.notes}</div>}
                     </div>
                   </div>
+                  {svc.special_instructions&&<div style={{marginBottom:14,padding:10,background:T.cream,borderRadius:10,fontSize:12,color:T.text}}><strong>Special:</strong> {svc.special_instructions}</div>}
                 </Card>
               )}
 
@@ -5115,14 +5211,14 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
             </>
           )}
 
-          {showAddService&&<AddServiceForm onClose={()=>setShowAddService(false)} onSave={(data)=>{console.log("Service saved (placeholder):",data);setShowAddService(false);}} members={members}/>}
+          {showAddService&&<AddServiceForm onClose={()=>setShowAddService(false)} onSave={handleSaveService} members={members}/>}
         </div>
       )}
 
       {/* SHOPS TAB */}
       {tab==="shops"&&(
         <div>
-          {shops.data.length===0?(
+          {allShops.length===0?(
             <Card style={{textAlign:"center",padding:32}}>
               <div style={{fontSize:36,marginBottom:8}}>🛒</div>
               <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No shops yet</div>
@@ -5133,7 +5229,7 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
             <>
               {/* Shop provider tabs */}
               <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
-                {shops.data.map(s=>(
+                {allShops.map(s=>(
                   <button key={s.id} onClick={()=>setShp(s)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:shp?.id===s.id?T.teal+"30":"#fff",color:shp?.id===s.id?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",borderBottom:shp?.id===s.id?`2px solid ${T.teal}`:"2px solid transparent"}}>
                     {s.name}
                   </button>
@@ -5155,6 +5251,7 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
                       <div>💰 ₹{shp.cost_per_visit}/delivery</div>
                       <div>🔄 Settle: {shp.settlement_mode}</div>
                       <div>📞 {shp.phone||"—"}</div>
+                      {shp.notes&&<div>📝 {shp.notes}</div>}
                     </div>
                   </div>
                 </Card>
@@ -5164,7 +5261,7 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
             </>
           )}
 
-          {showAddShop&&<AddShopForm onClose={()=>setShowAddShop(false)} onSave={(data)=>{console.log("Shop saved (placeholder):",data);setShowAddShop(false);}} members={members}/>}
+          {showAddShop&&<AddShopForm onClose={()=>setShowAddShop(false)} onSave={handleSaveShop} members={members}/>}
         </div>
       )}
     </div>
