@@ -4877,131 +4877,296 @@ function NotifShape({shape="popcorn",message="",color="#FF7020"}) {
 }
 
 // Services & Shops Screen
+function AddServiceForm({ onClose, onSave, members }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "maid",
+    frequency: "weekly",
+    cost: "",
+    approved_days: "",
+    phone: "",
+    special_instructions: ""
+  });
+
+  const serviceTypes = [
+    { id: "maid", label: "Maid", emoji: "🧹" },
+    { id: "driver", label: "Driver", emoji: "🚗" },
+    { id: "cook", label: "Cook", emoji: "👨‍🍳" },
+    { id: "dhobi", label: "Dhobi", emoji: "👕" },
+    { id: "gardener", label: "Gardener", emoji: "🌿" },
+    { id: "watchman", label: "Watchman", emoji: "💂" },
+    { id: "custom", label: "Other", emoji: "🔧" }
+  ];
+
+  const frequencies = ["daily", "weekly", "bi-weekly", "monthly"];
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:360,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:"#0F1F3D"}}>Add Service</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,color:"#999",cursor:"pointer"}}>✕</button>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>SERVICE TYPE</label>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {serviceTypes.map(t=>(
+              <button key={t.id} onClick={()=>setFormData(f=>({...f,type:t.id}))} style={{padding:"12px 8px",borderRadius:12,border:formData.type===t.id?"2px solid #0A6B58":"1.5px solid #EDE0D0",background:formData.type===t.id?"#E0F7F2":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                <span style={{fontSize:20}}>{t.emoji}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F"}}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>NAME</label>
+          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder="e.g. Sarah the Maid" value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>FREQUENCY</label>
+            <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+              {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>COST (₹)</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="number" placeholder="500" value={formData.cost} onChange={e=>setFormData(f=>({...f,cost:e.target.value}))}/>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>APPROVED DAYS</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder="e.g. 4/week" value={formData.approved_days} onChange={e=>setFormData(f=>({...f,approved_days:e.target.value}))}/>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>PHONE</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
+          </div>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>SPECIAL INSTRUCTIONS</label>
+          <textarea style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none",height:60,resize:"none"}} placeholder="e.g. Use own supplies, focus on kitchen" value={formData.special_instructions} onChange={e=>setFormData(f=>({...f,special_instructions:e.target.value}))}/>
+        </div>
+
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer"}}>Cancel</button>
+          <button onClick={()=>{if(formData.name&&formData.cost){onSave(formData);setFormData({name:"",type:"maid",frequency:"weekly",cost:"",approved_days:"",phone:"",special_instructions:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Service</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AddShopForm({ onClose, onSave, members }) {
+  const [formData, setFormData] = useState({
+    name: "",
+    type: "milk",
+    frequency: "daily",
+    cost_per_visit: "",
+    settlement_mode: "weekly",
+    phone: ""
+  });
+
+  const shopTypes = [
+    { id: "milk", label: "Milk", emoji: "🥛" },
+    { id: "laundry", label: "Laundry", emoji: "👕" },
+    { id: "grocer", label: "Grocer", emoji: "🛒" },
+    { id: "tuck_shop", label: "Tuck Shop", emoji: "🍫" },
+    { id: "canteen", label: "Canteen", emoji: "🍜" },
+    { id: "pharmacy", label: "Pharmacy", emoji: "💊" },
+    { id: "custom", label: "Other", emoji: "🔧" }
+  ];
+
+  const frequencies = ["daily", "weekly", "bi-weekly", "monthly"];
+  const settlements = ["daily", "weekly", "monthly"];
+
+  return (
+    <div style={{position:"fixed",inset:0,zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div onClick={onClose} style={{position:"absolute",inset:0,background:"rgba(15,31,61,0.55)"}}/>
+      <div style={{background:"#fff",borderRadius:22,padding:"24px",width:"100%",maxWidth:360,position:"relative",boxShadow:"0 8px 30px rgba(0,0,0,0.25)",maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:700,color:"#0F1F3D"}}>Add Shop / Vendor</div>
+          <button onClick={onClose} style={{background:"none",border:"none",fontSize:20,color:"#999",cursor:"pointer"}}>✕</button>
+        </div>
+
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:8,letterSpacing:0.3}}>SHOP TYPE</label>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8}}>
+            {shopTypes.map(t=>(
+              <button key={t.id} onClick={()=>setFormData(f=>({...f,type:t.id}))} style={{padding:"12px 8px",borderRadius:12,border:formData.type===t.id?"2px solid #0A6B58":"1.5px solid #EDE0D0",background:formData.type===t.id?"#E0F7F2":"#fff",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:6}}>
+                <span style={{fontSize:20}}>{t.emoji}</span>
+                <span style={{fontSize:11,fontWeight:700,color:"#3D2B1F"}}>{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{marginBottom:12}}>
+          <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>NAME</label>
+          <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} placeholder="e.g. Amul Milk" value={formData.name} onChange={e=>setFormData(f=>({...f,name:e.target.value}))}/>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>FREQUENCY</label>
+            <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} value={formData.frequency} onChange={e=>setFormData(f=>({...f,frequency:e.target.value}))}>
+              {frequencies.map(f=><option key={f} value={f}>{f.charAt(0).toUpperCase()+f.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>COST PER (₹)</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="number" placeholder="60" value={formData.cost_per_visit} onChange={e=>setFormData(f=>({...f,cost_per_visit:e.target.value}))}/>
+          </div>
+        </div>
+
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>SETTLE</label>
+            <select style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} value={formData.settlement_mode} onChange={e=>setFormData(f=>({...f,settlement_mode:e.target.value}))}>
+              {settlements.map(s=><option key={s} value={s}>{s.charAt(0).toUpperCase()+s.slice(1)}</option>)}
+            </select>
+          </div>
+          <div>
+            <label style={{display:"block",fontSize:12,fontWeight:700,color:"#8B5E3C",marginBottom:6,letterSpacing:0.3}}>PHONE</label>
+            <input style={{width:"100%",padding:"12px 14px",borderRadius:12,border:"1.5px solid #EDE0D0",background:"#fff",fontSize:14,color:"#3D2B1F",boxSizing:"border-box",outline:"none"}} type="tel" placeholder="9876543210" value={formData.phone} onChange={e=>setFormData(f=>({...f,phone:e.target.value}))}/>
+          </div>
+        </div>
+
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={onClose} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer"}}>Cancel</button>
+          <button onClick={()=>{if(formData.name&&formData.cost_per_visit){onSave(formData);setFormData({name:"",type:"milk",frequency:"daily",cost_per_visit:"",settlement_mode:"weekly",phone:""});}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Shop</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ServicesShopsScreen({ familyId, members, services, shops, serviceAttendance }) {
+  const [tab, setTab] = useState("services"); // "services" | "shops"
   const [svc, setSvc] = useState(services.data[0] || null);
+  const [shp, setShp] = useState(shops.data[0] || null);
   const [expDay, setExpDay] = useState(null);
   const [noteOpen, setNoteOpen] = useState({});
   const [dayNotes, setDayNotes] = useState({});
+  const [showAddService, setShowAddService] = useState(false);
+  const [showAddShop, setShowAddShop] = useState(false);
   
-  if (services.loading) return <Spinner />;
-  if (!svc && services.data.length === 0) {
-    return (
-      <div style={{padding:"0 16px 16px"}}>
-        <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Services & Shops</div>
-        <Card style={{textAlign:"center",padding:32,marginTop:16}}>
-          <div style={{fontSize:36,marginBottom:8}}>🧹</div>
-          <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>Add your first service provider</div>
-          <div style={{fontSize:12,color:T.muted}}>Track maids, drivers, delivery & more</div>
-          <button style={{marginTop:14,padding:"10px 20px",borderRadius:12,border:"none",background:T.teal,color:"#fff",fontWeight:700,cursor:"pointer"}}>+ Add Service</button>
-        </Card>
-      </div>
-    );
-  }
-
-  const currentYear=new Date().getFullYear();
-  const currentMonth=new Date().getMonth();
-  const daysInMonth=new Date(currentYear,currentMonth+1,0).getDate();
-  const attendance=serviceAttendance.data.filter(a=>a.service_id===svc?.id);
-  
-  const getDateStatus=(day)=>{
-    const dateStr=`${currentYear}-${String(currentMonth+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
-    const att=attendance.find(a=>a.date?.startsWith(dateStr));
-    return att?.status||"nodata"; // worked, leave, unapproved_leave, nodata
-  };
-
-  const getStatusColor=(status)=>{
-    switch(status){
-      case "worked":return{bg:"#E0F7F2",border:"#5B9B9B",text:"#0A6B58"};
-      case "leave":return{bg:"#FFF8E8",border:"#E8A838",text:"#E8A838"};
-      case "unapproved_leave":return{bg:"#FCE8E8",border:"#D4A5A5",text:"#A32D2D"};
-      default:return{bg:"transparent",border:"#EDE0D0",text:"#A08070"};
-    }
-  };
+  if (services.loading || shops.loading) return <Spinner />;
 
   return (
     <div style={{padding:"0 16px 16px"}}>
-      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>🧹 Services & Shops</div>
+      <div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>Services & Shops</div>
       
-      {/* Service tabs */}
-      <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
-        {services.data.map(s=>(
-          <button key={s.id} onClick={()=>setSvc(s)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:svc?.id===s.id?T.teal+"30":"#fff",color:svc?.id===s.id?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",borderBottom:svc?.id===s.id?`2px solid ${T.teal}`:"2px solid transparent"}}>
-            {s.name}
-          </button>
-        ))}
+      {/* TAB NAVIGATION */}
+      <div style={{display:"flex",gap:8,marginBottom:14,borderBottom:`2px solid ${T.border}`,paddingBottom:12}}>
+        <button onClick={()=>setTab("services")} style={{padding:"8px 16px",borderRadius:10,border:"none",background:tab==="services"?T.teal:"transparent",color:tab==="services"?"#fff":T.muted,fontWeight:700,fontSize:14,cursor:"pointer"}}>🧹 Services</button>
+        <button onClick={()=>setTab("shops")} style={{padding:"8px 16px",borderRadius:10,border:"none",background:tab==="shops"?T.teal:"transparent",color:tab==="shops"?"#fff":T.muted,fontWeight:700,fontSize:14,cursor:"pointer"}}>🛒 Shops</button>
       </div>
 
-      {svc&&(
-        <Card>
-          {/* Expanded Service Detail */}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
-            <div>
-              <div style={{fontWeight:700,color:T.dark,fontSize:15}}>📍 {svc.name}</div>
-              <div style={{fontSize:11,color:T.muted,marginTop:2}}>{svc.frequency} • ₹{svc.cost}/visit</div>
-            </div>
-            <span style={{fontSize:12,color:T.teal}}>▼</span>
-          </div>
+      {/* SERVICES TAB */}
+      {tab==="services"&&(
+        <div>
+          {services.data.length===0?(
+            <Card style={{textAlign:"center",padding:32}}>
+              <div style={{fontSize:36,marginBottom:8}}>🧹</div>
+              <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No service providers yet</div>
+              <div style={{fontSize:12,color:T.muted,marginBottom:14}}>Track maids, drivers & more</div>
+              <button onClick={()=>setShowAddService(true)} style={{padding:"10px 20px",borderRadius:12,border:"none",background:T.teal,color:"#fff",fontWeight:700,cursor:"pointer"}}>+ Add Service</button>
+            </Card>
+          ):(
+            <>
+              {/* Service provider tabs */}
+              <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
+                {services.data.map(s=>(
+                  <button key={s.id} onClick={()=>setSvc(s)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:svc?.id===s.id?T.teal+"30":"#fff",color:svc?.id===s.id?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",borderBottom:svc?.id===s.id?`2px solid ${T.teal}`:"2px solid transparent"}}>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
 
-          {/* Timings & Policy */}
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Timings & Policy</div>
-            <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>
-              <div>📍 {svc.frequency}</div>
-              <div>💰 ₹{svc.cost}/visit</div>
-              <div>📅 {svc.approved_days||"—"} days approved</div>
-              <div>📞 {svc.phone||"—"}</div>
-            </div>
-          </div>
-
-          {/* Attendance Calendar */}
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:8,letterSpacing:1,textTransform:"uppercase"}}>Attendance - {new Date(currentYear,currentMonth).toLocaleDateString("en-IN",{month:"long",year:"numeric"})}</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:4,marginBottom:8}}>
-              {["S","M","T","W","T","F","S"].map((d,i)=><div key={i} style={{textAlign:"center",fontSize:10,fontWeight:700,color:T.muted,padding:"4px 0"}}>{d}</div>)}
-              {[...Array(daysInMonth)].map((_,i)=>{
-                const day=i+1;
-                const status=getDateStatus(day);
-                const colors=getStatusColor(status);
-                return(
-                  <div key={day} onClick={()=>setExpDay(expDay===day?null:day)} style={{aspect:"1",display:"flex",alignItems:"center",justifyContent:"center",borderRadius:8,background:colors.bg,border:`1px solid ${colors.border}`,fontSize:11,fontWeight:700,color:colors.text,cursor:"pointer",transition:"all 0.2s"}}>
-                    {status==="worked"?"✓":status==="leave"?"○":status==="unapproved_leave"?"✕":day}
+              {svc&&(
+                <Card>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
+                    <div>
+                      <div style={{fontWeight:700,color:T.dark,fontSize:15}}>📍 {svc.name}</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>{svc.frequency} • ₹{svc.cost}/visit</div>
+                    </div>
                   </div>
-                );
-              })}
-            </div>
-            <div style={{fontSize:10,color:T.muted}}>✓ Worked (teal) • ○ Off day (gold) • ✕ Unapproved (red)</div>
-          </div>
-
-          {/* Expanded day detail */}
-          {expDay&&(
-            <div style={{background:T.warm,padding:12,borderRadius:10,marginBottom:14}}>
-              <div style={{fontWeight:700,color:T.dark,marginBottom:8}}>Day {expDay} - {getDateStatus(expDay).toUpperCase()}</div>
-              {!noteOpen[expDay]?(
-                <button onClick={()=>setNoteOpen(n=>({...n,[expDay]:true}))} style={{width:"100%",padding:"8px",borderRadius:8,border:`1px dashed ${T.brown}`,background:"transparent",color:T.teal,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Add note</button>
-              ):(
-                <div>
-                  <textarea placeholder="e.g., 'Did extra', 'Great work'" value={dayNotes[expDay]||""} onChange={e=>setDayNotes(n=>({...n,[expDay]:e.target.value}))} style={{width:"100%",padding:"8px",borderRadius:8,border:`1px solid ${T.border}`,fontSize:11,marginBottom:8,height:"50px",resize:"none",boxSizing:"border-box"}}/>
-                  <button style={{width:"100%",padding:"8px",borderRadius:8,border:"none",background:T.teal,color:"#fff",fontWeight:600,cursor:"pointer",fontSize:11}}>Save note</button>
-                </div>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Timings & Policy</div>
+                    <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>
+                      <div>📍 {svc.frequency}</div>
+                      <div>💰 ₹{svc.cost}/visit</div>
+                      <div>📅 {svc.approved_days||"—"} days approved</div>
+                      <div>📞 {svc.phone||"—"}</div>
+                    </div>
+                  </div>
+                </Card>
               )}
-            </div>
+
+              <button onClick={()=>setShowAddService(true)} style={{width:"100%",padding:14,marginTop:14,borderRadius:14,border:`2px dashed ${T.teal}`,background:"transparent",color:T.teal,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Service</button>
+            </>
           )}
 
-          {/* Special Instructions */}
-          <div style={{marginBottom:14}}>
-            <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Special Instructions</div>
-            <div style={{fontSize:12,color:T.text,background:T.cream,padding:"8px",borderRadius:8}}>{svc.special_instructions||"—"}</div>
-          </div>
-
-          {/* Payment Status */}
-          <div style={{background:"#E0F7F2",padding:10,borderRadius:10}}>
-            <div style={{fontSize:11,fontWeight:800,color:T.teal}}>✓ PAID THIS MONTH</div>
-            <div style={{fontSize:10,color:T.teal}}>₹{svc.cost} • Cash</div>
-          </div>
-        </Card>
+          {showAddService&&<AddServiceForm onClose={()=>setShowAddService(false)} onSave={(data)=>{console.log("Service saved (placeholder):",data);setShowAddService(false);}} members={members}/>}
+        </div>
       )}
 
-      <button style={{width:"100%",padding:14,marginTop:14,borderRadius:14,border:`2px dashed ${T.teal}`,background:"transparent",color:T.teal,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Service Provider</button>
+      {/* SHOPS TAB */}
+      {tab==="shops"&&(
+        <div>
+          {shops.data.length===0?(
+            <Card style={{textAlign:"center",padding:32}}>
+              <div style={{fontSize:36,marginBottom:8}}>🛒</div>
+              <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No shops yet</div>
+              <div style={{fontSize:12,color:T.muted,marginBottom:14}}>Track milk delivery, laundry & more</div>
+              <button onClick={()=>setShowAddShop(true)} style={{padding:"10px 20px",borderRadius:12,border:"none",background:T.teal,color:"#fff",fontWeight:700,cursor:"pointer"}}>+ Add Shop</button>
+            </Card>
+          ):(
+            <>
+              {/* Shop provider tabs */}
+              <div style={{display:"flex",gap:8,overflowX:"auto",marginBottom:14,paddingBottom:4}}>
+                {shops.data.map(s=>(
+                  <button key={s.id} onClick={()=>setShp(s)} style={{padding:"8px 14px",borderRadius:10,border:"none",background:shp?.id===s.id?T.teal+"30":"#fff",color:shp?.id===s.id?T.teal:T.muted,fontWeight:700,fontSize:12,cursor:"pointer",whiteSpace:"nowrap",borderBottom:shp?.id===s.id?`2px solid ${T.teal}`:"2px solid transparent"}}>
+                    {s.name}
+                  </button>
+                ))}
+              </div>
+
+              {shp&&(
+                <Card>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,paddingBottom:14,borderBottom:`1px solid ${T.border}`}}>
+                    <div>
+                      <div style={{fontWeight:700,color:T.dark,fontSize:15}}>🛍️ {shp.name}</div>
+                      <div style={{fontSize:11,color:T.muted,marginTop:2}}>{shp.frequency} • ₹{shp.cost_per_visit}/delivery</div>
+                    </div>
+                  </div>
+                  <div style={{marginBottom:14}}>
+                    <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:6,letterSpacing:1,textTransform:"uppercase"}}>Delivery Info</div>
+                    <div style={{fontSize:12,color:T.text,lineHeight:1.6}}>
+                      <div>📅 Frequency: {shp.frequency}</div>
+                      <div>💰 ₹{shp.cost_per_visit}/delivery</div>
+                      <div>🔄 Settle: {shp.settlement_mode}</div>
+                      <div>📞 {shp.phone||"—"}</div>
+                    </div>
+                  </div>
+                </Card>
+              )}
+
+              <button onClick={()=>setShowAddShop(true)} style={{width:"100%",padding:14,marginTop:14,borderRadius:14,border:`2px dashed ${T.teal}`,background:"transparent",color:T.teal,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Shop</button>
+            </>
+          )}
+
+          {showAddShop&&<AddShopForm onClose={()=>setShowAddShop(false)} onSave={(data)=>{console.log("Shop saved (placeholder):",data);setShowAddShop(false);}} members={members}/>}
+        </div>
+      )}
     </div>
   );
 }
