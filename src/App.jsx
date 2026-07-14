@@ -33,6 +33,9 @@ async signIn(email, password) {
     async signOut() { sb._token = null; sb._userId = null; ["fn_token","fn_uid","fn_email","fn_refresh"].forEach(k => localStorage.removeItem(k)); },
     restore() { const t = localStorage.getItem("fn_token"), u = localStorage.getItem("fn_uid"); if (t && u) { sb._token = t; sb._userId = u; return true; } return false; },
   },
+  async rpc(fn, args) {
+    return sb._req(`/rest/v1/rpc/${fn}`, { method: "POST", body: JSON.stringify(args || {}) });
+  },
   from(table) {
     return {
       _table: table, _filters: [], _body: null, _method: "GET", _headers: {}, _order: null,
@@ -417,15 +420,19 @@ function AuthScreen({ onAuth }) {
           }
         } else {
           // Complete family creation
-          const {data:famData, error:famErr} = await sb.from("families").insert({
+          // Generate the id up front. Once RLS is on, we cannot read a family back
+          // before our user_profiles row exists — so we never try to.
+          const fid = (crypto?.randomUUID?.() ) || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+          const {error:famErr} = await sb.from("families").insert({
+            id:fid,
             name:p.familyName, city:p.city,
             monthly_income:p.monthly_income, monthly_expenses:p.monthly_expenses,
             savings:p.savings, debts:p.debts, insurance:p.insurance, age:p.age,
             points:0, badges:[], invite_code:p.invite_code,
-          }).select();
+          });
           if (!famErr) {
-            const fid = Array.isArray(famData)?famData[0]?.id:famData?.id;
-            if (fid) {
+            {
+              // Profile first — every later policy depends on it existing.
               await sb.from("user_profiles").insert({
                 id:sb._userId, family_id:fid, display_name:p.email,
               });
@@ -476,7 +483,10 @@ function AuthScreen({ onAuth }) {
       if (authError) throw new Error(authError.message||"Signup failed");
       const userId = authData?.user?.id || sb._userId;
       if (!userId) throw new Error("Could not get your user ID. Please try again.");
-      const inviteRef = `INV-${Math.random().toString(36).substr(2,8).toUpperCase()}`;
+      const _codeChars="ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no confusable O/0/I/1
+      const _rand=new Uint8Array(10);
+      (crypto?.getRandomValues?crypto.getRandomValues(_rand):_rand.forEach((_,i)=>_rand[i]=Math.floor(Math.random()*256)));
+      const inviteRef = `INV-${Array.from(_rand).map(b=>_codeChars[b%_codeChars.length]).join("")}`;
       const pendingSetup = {
         type: "create",
         userId,
@@ -515,11 +525,15 @@ function AuthScreen({ onAuth }) {
     if(!inviteCode.trim()){setError("Enter an invite code.");return;}
     setLoading(true);setError("");
     try{
-      const {data:fams}=await sb.from("families").select("*").eq("invite_code",inviteCode.toUpperCase().trim());
-      const fam=Array.isArray(fams)?fams[0]:fams;
+      const code=inviteCode.toUpperCase().trim();
+      // Narrow lookup: returns name/city only — never income, savings, debts or other codes
+      const {data:famRows,error:famErr}=await sb.rpc("lookup_family_by_invite",{code});
+      if(famErr)throw new Error(famErr.message||"Could not check that code. Please try again.");
+      const fam=Array.isArray(famRows)?famRows[0]:famRows;
       if(!fam)throw new Error("Invite code not found. Please check and try again.");
-      const {data:mems}=await sb.from("members").select("*").eq("family_id",fam.id).order("created_at",{ascending:true});
-      setJoinFamily(fam);setJoinMembers(Array.isArray(mems)?mems:[]);setJoinStep(2);
+      const {data:memRows}=await sb.rpc("lookup_members_by_invite",{code});
+      const mems=Array.isArray(memRows)?memRows:[];
+      setJoinFamily(fam);setJoinMembers(mems);setJoinStep(2);
     }catch(e){setError(e.message);}
     setLoading(false);
   };
