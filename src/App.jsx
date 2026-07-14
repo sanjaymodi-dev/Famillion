@@ -84,6 +84,48 @@ const MEMBER_EMOJIS=[
   {e:"🧑",label:"Adult"},{e:"👶",label:"Baby"},{e:"👱",label:"Fair-haired"},{e:"🧔",label:"Bearded"},
 ];
 
+const PET_EMOJIS=[
+  {e:"🐶",label:"Dog"},{e:"🐱",label:"Cat"},{e:"🐦",label:"Bird"},
+  {e:"🐠",label:"Fish"},{e:"🐰",label:"Rabbit"},{e:"🐹",label:"Hamster"},
+  {e:"🐢",label:"Turtle"},{e:"🐴",label:"Horse"},{e:"🐾",label:"Other"},
+];
+const SPECIES=["Dog","Cat","Bird","Fish","Rabbit","Other"];
+
+// ---- Pet & birthday helpers (used app-wide) ----
+const isPet    = (m) => !!(m&&m.is_pet);
+const humansOf = (list) => (list||[]).filter(m=>!isPet(m));
+const petsOf   = (list) => (list||[]).filter(m=>isPet(m));
+
+// "14 March" — day + month only, never the year
+const fmtBirthday = (dob) => {
+  if(!dob) return null;
+  const d=new Date(dob);
+  if(isNaN(d.getTime())) return null;
+  return d.toLocaleDateString("en-IN",{day:"numeric",month:"long"});
+};
+
+// "5 yrs" / "1 yr" / "7 mo"
+const calcAge = (dob) => {
+  if(!dob) return null;
+  const d=new Date(dob);
+  if(isNaN(d.getTime())) return null;
+  const now=new Date();
+  let yrs=now.getFullYear()-d.getFullYear();
+  const m=now.getMonth()-d.getMonth();
+  if(m<0||(m===0&&now.getDate()<d.getDate())) yrs--;
+  if(yrs<0) return null;
+  if(yrs===0){
+    let mo=(now.getFullYear()-d.getFullYear())*12+m;
+    if(now.getDate()<d.getDate()) mo--;
+    mo=Math.max(0,mo);
+    return mo<=1?`${mo} mo`:`${mo} mo`;
+  }
+  return yrs===1?"1 yr":`${yrs} yrs`;
+};
+
+// Species · Breed  (falls back gracefully)
+const petSubtitle = (m) => [m.species,m.breed].filter(Boolean).join(" · ")||"Pet";
+
 const Bar = ({value,max,color,h=8}) => (<div style={{background:"#E8DDD0",borderRadius:99,height:h,overflow:"hidden"}}><div style={{width:`${Math.min(100,Math.round((value/(max||1))*100))}%`,background:color,height:"100%",borderRadius:99,transition:"width 0.8s ease"}}/></div>);
 const Card = ({children,style={}}) => <div style={{background:T.card,borderRadius:18,padding:16,boxShadow:"0 2px 14px rgba(0,0,0,0.07)",marginBottom:12,...style}}>{children}</div>;
 const Sec = ({children,style={}}) => <div style={{fontSize:11,fontWeight:800,color:T.brown,marginBottom:10,letterSpacing:1,textTransform:"uppercase",...style}}>{children}</div>;
@@ -598,7 +640,7 @@ function AuthScreen({ onAuth }) {
           {joinStep===2&&<>
             <div style={{fontSize:13,color:"#A08070",marginBottom:16,lineHeight:1.6}}>Welcome to <strong style={{color:NAV}}>{joinFamily?.name}</strong>! Who are you?</div>
             <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:12}}>
-              {joinMembers.map(m=>(
+              {humansOf(joinMembers).map(m=>(
                 <div key={m.id} onClick={()=>{setSelectedMemberId(m.id);setJoinName(m.name);setJoinEmoji(m.emoji);setJoinNew(false);}}
                   style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px",borderRadius:12,
                     border:`2px solid ${selectedMemberId===m.id?SAF:"#E8DDD0"}`,
@@ -1975,7 +2017,7 @@ function MoneyScreen({ family, members, familyId, onPts, nudges, myMemberId }) {
                 <div style={{marginBottom:14}}>
                   <div style={{fontSize:11,fontWeight:700,color:"#8B5E3C",marginBottom:7,letterSpacing:0.3}}>PAID BY</div>
                   <div style={{display:"flex",gap:7,flexWrap:"wrap"}}>
-                    {members?.map(m=>(
+                    {humansOf(members).map(m=>(
                       <button key={m.id} onClick={()=>setEf(f=>({...f,who:m.name}))}
                         style={{padding:"7px 12px",borderRadius:99,border:`2px solid ${ef.who===m.name?SAF:"#E8DDD0"}`,
                           background:ef.who===m.name?"#FFF8E8":"#fff",fontWeight:700,fontSize:12,cursor:"pointer",color:NAV}}>
@@ -2557,10 +2599,12 @@ function HealthScreen({ familyId, members, onPts }) {
 
 const MOODS=["😊","😔","😤","😴","🤩","😌","😟","🥳","😰","❤️"];
 
-function JournalScreen({ familyId, members, userId }) {
+function JournalScreen({ familyId, members, userId, currentUserName }) {
   const journal=useTable("journal_entries",familyId);
   const [showAdd,setShowAdd]=useState(false);
   const [filter,setFilter]=useState("all");
+  const petNames=new Set(petsOf(members).map(m=>m.name));
+  const authorIsPet=(n)=>petNames.has(n);
   const [jf,setJf]=useState({title:"",content:"",mood:"😊",member:"",private:false});
   const filtered=filter==="all"?journal.data:journal.data.filter(j=>j.member===filter);
   return (
@@ -2573,8 +2617,8 @@ function JournalScreen({ familyId, members, userId }) {
       </div>
       {journal.loading&&<Spinner/>}
       {!journal.loading&&filtered.length===0&&(<Card style={{textAlign:"center",padding:32}}><div style={{fontSize:48,marginBottom:12}}>📓</div><div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:T.dark,marginBottom:8}}>Start writing</div><div style={{fontSize:13,color:T.muted,lineHeight:1.7}}>Capture thoughts, feelings and memories.</div></Card>)}
-      {filtered.map(entry=>(<Card key={entry.id} style={{borderLeft:`4px solid ${T.orange}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:22}}>{entry.mood}</span><div><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{entry.title}</div><div style={{fontSize:11,color:T.muted}}>{entry.member} · {new Date(entry.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div></div></div><div style={{display:"flex",alignItems:"center",gap:6}}>{entry.private&&<Badge label="🔒 Private" color={T.muted}/>}<button onClick={()=>journal.remove(entry.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted}}>×</button></div></div><div style={{fontSize:13,color:T.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{entry.content}</div></Card>))}
-      {showAdd?(<Card style={{marginTop:8}}><div style={{fontWeight:700,color:T.dark,marginBottom:14}}>New Entry</div><div style={{marginBottom:10}}><label style={lbl}>Title</label><input style={inp} placeholder="What's on your mind?" value={jf.title} onChange={e=>setJf(f=>({...f,title:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Mood</label><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{MOODS.map(m=><button key={m} onClick={()=>setJf(f=>({...f,mood:m}))} style={{width:38,height:38,borderRadius:10,border:`2px solid ${jf.mood===m?T.orange:T.border}`,background:jf.mood===m?T.orange+"20":"#fff",fontSize:20,cursor:"pointer"}}>{m}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Member</label><select style={inp} value={jf.member} onChange={e=>setJf(f=>({...f,member:e.target.value}))}><option value="">Select</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div style={{marginBottom:10}}><label style={lbl}>Write here...</label><textarea style={{...inp,minHeight:120,resize:"none"}} value={jf.content} onChange={e=>setJf(f=>({...f,content:e.target.value}))}/></div><div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}><input type="checkbox" id="priv" checked={jf.private} onChange={e=>setJf(f=>({...f,private:e.target.checked}))} style={{width:18,height:18}}/><label htmlFor="priv" style={{fontSize:13,color:T.dark,cursor:"pointer"}}>🔒 Private entry (only for me)</label></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(jf.title&&jf.content&&jf.member){await journal.add({title:jf.title,content:jf.content,mood:jf.mood,member:jf.member,private:jf.private});setJf({title:"",content:"",mood:"😊",member:"",private:false});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.orange,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Entry 📓</button></div></Card>):(<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.orange}`,background:"transparent",color:T.orange,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}}>+ New Journal Entry</button>)}
+      {filtered.map(entry=>(<Card key={entry.id} style={{borderLeft:`4px solid ${T.orange}`}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}><div style={{display:"flex",alignItems:"center",gap:8}}><span style={{fontSize:22}}>{entry.mood}</span><div><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{entry.title}</div><div style={{fontSize:11,color:T.muted}}>{entry.member} · {new Date(entry.created_at).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div></div></div><div style={{display:"flex",alignItems:"center",gap:6}}>{authorIsPet(entry.member)&&<Badge label="🐾 PET" color={T.orange}/>}{entry.private&&<Badge label="🔒 Private" color={T.muted}/>}<button onClick={()=>journal.remove(entry.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted}}>×</button></div></div><div style={{fontSize:13,color:T.text,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{entry.content}</div>{entry.written_by&&<div style={{fontSize:11,color:T.muted,fontStyle:"italic",marginTop:8}}>Written by {entry.written_by}</div>}</Card>))}
+      {showAdd?(<Card style={{marginTop:8}}><div style={{fontWeight:700,color:T.dark,marginBottom:14}}>New Entry</div><div style={{marginBottom:10}}><label style={lbl}>Title</label><input style={inp} placeholder="What's on your mind?" value={jf.title} onChange={e=>setJf(f=>({...f,title:e.target.value}))}/></div><div style={{marginBottom:10}}><label style={lbl}>Mood</label><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{MOODS.map(m=><button key={m} onClick={()=>setJf(f=>({...f,mood:m}))} style={{width:38,height:38,borderRadius:10,border:`2px solid ${jf.mood===m?T.orange:T.border}`,background:jf.mood===m?T.orange+"20":"#fff",fontSize:20,cursor:"pointer"}}>{m}</button>)}</div></div><div style={{marginBottom:10}}><label style={lbl}>Writing as</label><select style={inp} value={jf.member} onChange={e=>setJf(f=>({...f,member:e.target.value}))}><option value="">Select</option><optgroup label="Family">{humansOf(members).map(m=><option key={m.id}>{m.name}</option>)}</optgroup>{petsOf(members).length>0&&<optgroup label="Pets">{petsOf(members).map(m=><option key={m.id}>{m.name}</option>)}</optgroup>}</select>{authorIsPet(jf.member)&&<div style={{fontSize:11,color:T.brown,marginTop:6,background:T.warm,borderRadius:8,padding:"7px 10px",lineHeight:1.5}}>🐾 Writing as {jf.member}. This will be recorded as written by {currentUserName||"you"}.</div>}</div><div style={{marginBottom:10}}><label style={lbl}>Write here...</label><textarea style={{...inp,minHeight:120,resize:"none"}} value={jf.content} onChange={e=>setJf(f=>({...f,content:e.target.value}))}/></div><div style={{marginBottom:14,display:"flex",alignItems:"center",gap:10}}><input type="checkbox" id="priv" checked={jf.private} onChange={e=>setJf(f=>({...f,private:e.target.checked}))} style={{width:18,height:18}}/><label htmlFor="priv" style={{fontSize:13,color:T.dark,cursor:"pointer"}}>🔒 Private entry (only for me)</label></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(jf.title&&jf.content&&jf.member){await journal.add({title:jf.title,content:jf.content,mood:jf.mood,member:jf.member,private:jf.private,written_by:authorIsPet(jf.member)?(currentUserName||null):null});setJf({title:"",content:"",mood:"😊",member:"",private:false});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.orange,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save Entry 📓</button></div></Card>):(<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.orange}`,background:"transparent",color:T.orange,fontWeight:700,fontSize:14,cursor:"pointer",marginTop:8}}>+ New Journal Entry</button>)}
     </div>
   );
 }
@@ -4185,7 +4229,7 @@ function KidsZoneScreen({ familyId, members, onPts }) {
       {homework.loading&&<Spinner/>}
       {pending.map(h=>{const pri=priorities.find(p=>p.v===h.priority)||priorities[1];return(<Card key={h.id} style={{borderLeft:`4px solid ${pri.c}`,marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:8,marginBottom:4}}><span style={{fontSize:16}}>{h.subject?.split(" ")[0]}</span><div style={{fontWeight:700,fontSize:14,color:T.dark}}>{h.task}</div></div><div style={{fontSize:12,color:T.muted}}>{h.member}{h.due_date?" · Due "+new Date(h.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short"}):""}</div></div><div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:6}}><button onClick={async()=>{await homework.update(h.id,{done:true});await onPts(15);}} style={{fontSize:11,color:T.green,fontWeight:700,background:T.green+"15",border:"none",borderRadius:8,padding:"4px 8px",cursor:"pointer"}}>✓ Done +15pts</button><button onClick={()=>homework.remove(h.id)} style={{background:"none",border:"none",cursor:"pointer",color:T.muted,fontSize:14}}>×</button></div></div></Card>);})}
       {!homework.loading&&pending.length===0&&<Card style={{textAlign:"center",padding:20}}><div style={{color:T.green,fontSize:14,fontWeight:700}}>🎉 All caught up!</div></Card>}
-      {showAdd?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Homework / Task</div><div style={{marginBottom:10}}><label style={lbl}>Subject</label><select style={inp} value={hf.subject} onChange={e=>setHf(f=>({...f,subject:e.target.value}))}><option value="">Select</option>{subjects.map(s=><option key={s}>{s}</option>)}</select></div><div style={{marginBottom:10}}><label style={lbl}>Task</label><input style={inp} value={hf.task} onChange={e=>setHf(f=>({...f,task:e.target.value}))} placeholder="e.g. Chapter 5 exercises"/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}><div><label style={lbl}>For</label><select style={inp} value={hf.member} onChange={e=>setHf(f=>({...f,member:e.target.value}))}><option value="">Select</option>{members?.map(m=><option key={m.id}>{m.name}</option>)}</select></div><div><label style={lbl}>Due Date</label><input style={inp} type="date" value={hf.due_date} onChange={e=>setHf(f=>({...f,due_date:e.target.value}))}/></div></div><div style={{marginBottom:14}}><label style={lbl}>Priority</label><div style={{display:"flex",gap:8}}>{priorities.map(p=><button key={p.v} onClick={()=>setHf(f=>({...f,priority:p.v}))} style={{flex:1,padding:"8px 4px",borderRadius:10,border:`2px solid ${hf.priority===p.v?p.c:T.border}`,background:hf.priority===p.v?p.c+"20":"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>{p.l}</button>)}</div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(hf.task&&hf.member){await homework.add({...hf,done:false});setHf({subject:"",task:"",member:"",due_date:"",priority:"medium"});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.blue,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.blue}`,background:"transparent",color:T.blue,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Homework / Task</button>}
+      {showAdd?(<Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Homework / Task</div><div style={{marginBottom:10}}><label style={lbl}>Subject</label><select style={inp} value={hf.subject} onChange={e=>setHf(f=>({...f,subject:e.target.value}))}><option value="">Select</option>{subjects.map(s=><option key={s}>{s}</option>)}</select></div><div style={{marginBottom:10}}><label style={lbl}>Task</label><input style={inp} value={hf.task} onChange={e=>setHf(f=>({...f,task:e.target.value}))} placeholder="e.g. Chapter 5 exercises"/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}><div><label style={lbl}>For</label><select style={inp} value={hf.member} onChange={e=>setHf(f=>({...f,member:e.target.value}))}><option value="">Select</option>{humansOf(members).map(m=><option key={m.id}>{m.name}</option>)}</select></div><div><label style={lbl}>Due Date</label><input style={inp} type="date" value={hf.due_date} onChange={e=>setHf(f=>({...f,due_date:e.target.value}))}/></div></div><div style={{marginBottom:14}}><label style={lbl}>Priority</label><div style={{display:"flex",gap:8}}>{priorities.map(p=><button key={p.v} onClick={()=>setHf(f=>({...f,priority:p.v}))} style={{flex:1,padding:"8px 4px",borderRadius:10,border:`2px solid ${hf.priority===p.v?p.c:T.border}`,background:hf.priority===p.v?p.c+"20":"#fff",cursor:"pointer",fontSize:12,fontWeight:700}}>{p.l}</button>)}</div></div><div style={{display:"flex",gap:8}}><button onClick={()=>setShowAdd(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button><button onClick={async()=>{if(hf.task&&hf.member){await homework.add({...hf,done:false});setHf({subject:"",task:"",member:"",due_date:"",priority:"medium"});setShowAdd(false);}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.blue,color:"#fff",fontWeight:700,cursor:"pointer"}}>Save</button></div></Card>):<button onClick={()=>setShowAdd(true)} style={{width:"100%",padding:14,borderRadius:14,border:`2px dashed ${T.blue}`,background:"transparent",color:T.blue,fontWeight:700,fontSize:14,cursor:"pointer"}}>+ Add Homework / Task</button>}
       <Card style={{marginTop:8,background:`linear-gradient(135deg,#1DB95422,#1DB95411)`,border:"1.5px solid #1DB95440"}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:32}}>🎵</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark,fontSize:14}}>Music Integration</div><div style={{fontSize:12,color:T.muted,marginTop:2}}>Coming soon!</div></div><Badge label="SOON" color="#1DB954"/></div></Card>
     </div>
   );
@@ -4281,7 +4325,7 @@ function ConciergeScreen({ family, members }) {
   return (
     <div style={{padding:"0 0 16px",display:"flex",flexDirection:"column",height:"calc(100vh - 130px)"}}>
       <div style={{padding:"0 16px",marginBottom:12}}><div style={{fontFamily:"'Playfair Display',serif",fontSize:22,fontWeight:700,color:T.dark,marginBottom:4}}>AI Concierge 🤖</div><div style={{fontSize:13,color:T.muted}}>Your family's smart assistant</div></div>
-      <div style={{padding:"0 16px",marginBottom:12}}><div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>{members?.map(m=>(<button key={m.id} onClick={()=>setMsg(`Hey, speaking as ${m.name}... `)} style={{flexShrink:0,padding:"6px 12px",borderRadius:99,border:`1.5px solid ${T.lav}`,background:T.lav+"15",color:T.dark,fontSize:12,fontWeight:600,cursor:"pointer"}}>{m.emoji} {m.name}</button>))}</div></div>
+      <div style={{padding:"0 16px",marginBottom:12}}><div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>{humansOf(members).map(m=>(<button key={m.id} onClick={()=>setMsg(`Hey, speaking as ${m.name}... `)} style={{flexShrink:0,padding:"6px 12px",borderRadius:99,border:`1.5px solid ${T.lav}`,background:T.lav+"15",color:T.dark,fontSize:12,fontWeight:600,cursor:"pointer"}}>{m.emoji} {m.name}</button>))}</div></div>
       <div style={{flex:1,overflowY:"auto",padding:"0 16px",display:"flex",flexDirection:"column",gap:12}}>
         {chat.map((c,i)=>(<div key={i} style={{display:"flex",justifyContent:c.role==="user"?"flex-end":"flex-start"}}>{c.role==="assistant"&&<div style={{width:32,height:32,borderRadius:"50%",background:T.lav+"30",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,marginRight:8,flexShrink:0,alignSelf:"flex-end"}}>🤖</div>}<div style={{maxWidth:"78%",background:c.role==="user"?`linear-gradient(135deg,${T.brown},${T.dark})`:"#fff",color:c.role==="user"?"#fff":T.text,borderRadius:c.role==="user"?"18px 18px 4px 18px":"18px 18px 18px 4px",padding:"12px 16px",boxShadow:"0 2px 10px rgba(0,0,0,0.08)",fontSize:13,lineHeight:1.7,whiteSpace:"pre-wrap"}}>{c.text}</div></div>))}
         {typing&&(<div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:32,height:32,borderRadius:"50%",background:T.lav+"30",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div><div style={{background:"#fff",borderRadius:"18px 18px 18px 4px",padding:"12px 16px",boxShadow:"0 2px 10px rgba(0,0,0,0.08)"}}><div style={{display:"flex",gap:4}}>{[0,1,2].map(i=><div key={i} style={{width:8,height:8,borderRadius:"50%",background:T.muted,animation:`dot 1.2s ease-in-out ${i*0.2}s infinite`}}/>)}</div></div></div>)}
@@ -4310,7 +4354,7 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
   const [saving,setSaving]=useState(false);
   const [showAddMember,setShowAddMember]=useState(false);
   const [savingMember,setSavingMember]=useState(false);
-  const [newMember,setNewMember]=useState({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});
+  const [newMember,setNewMember]=useState({name:"",emoji:"👤",relationship:"",dob:"",occupation:"",is_pet:false,species:"",species_other:"",breed:"",show_birthday:true,show_age:true});
   const [pf,setPf]=useState({name:"",city:"",monthly_income:"",monthly_expenses:"",savings:"",debts:"",insurance:"",age:""});
   const cities=["Gurgaon","Mumbai","Delhi","Bangalore","Chennai","Hyderabad","Pune","Kolkata","Ahmedabad","Jaipur","Noida","Chandigarh"];
   const copyCode=()=>{if(family?.invite_code){navigator.clipboard?.writeText(family.invite_code).catch(()=>{});setCopied(true);setTimeout(()=>setCopied(false),2000);}};
@@ -4362,28 +4406,53 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
         </Card>)}
         <Sec>Members</Sec>
         {(members||[]).map(m=>{
-          const hasJoined=linkedIds===null||linkedIds.has(m.id);
+          const pet=isPet(m);
+          // Pets never "join" — they have no login
+          const hasJoined=pet||linkedIds===null||linkedIds.has(m.id);
+          const bday=m.show_birthday!==false?fmtBirthday(m.dob):null;
+          const age=m.show_age!==false?calcAge(m.dob):null;
+          const sub=pet
+            ? [petSubtitle(m),age].filter(Boolean).join(" · ")
+            : [m.relationship||"",age,m.occupation||""].filter(Boolean).join(" · ");
           return(
-          <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
-            <div style={{width:58,height:58,borderRadius:12,background:T.warm,border:`2px solid ${hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,overflow:"hidden",flexShrink:0}}>
+          <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:pet?`1.5px solid ${T.brown}`:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
+            <div style={{width:58,height:58,borderRadius:12,background:T.warm,border:`2px solid ${pet?T.brown:hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,overflow:"hidden",flexShrink:0}}>
               {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
             </div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div>
-              <div style={{fontSize:11,color:T.muted}}>{m.relationship||""}{m.dob?" · Born "+new Date(m.dob).getFullYear():""}{m.occupation?" · "+m.occupation:""}</div>
-              {!hasJoined&&<div style={{fontSize:10,color:T.amber,fontWeight:700,marginTop:3}}>⏳ Waiting to join — share invite code</div>}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div>
+                {pet&&<Badge label="🐾 PET" color={T.brown}/>}
+              </div>
+              {sub&&<div style={{fontSize:11,color:T.muted,marginTop:2}}>{sub}</div>}
+              {bday&&<div style={{fontSize:10,color:T.brown,marginTop:3}}>🎂 {bday}</div>}
+              {!pet&&!hasJoined&&<div style={{fontSize:10,color:T.amber,fontWeight:700,marginTop:3}}>⏳ Waiting to join — share invite code</div>}
             </div>
           </div>
           );
         })}
         {showAddMember?(
           <Card style={{marginBottom:8}}>
-            <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Add Family Member</div>
-            <div style={{marginBottom:10}}><label style={lbl}>Name</label><input style={inp} value={newMember.name} onChange={e=>setNewMember(p=>({...p,name:e.target.value}))} placeholder="e.g. Ashi Modi"/></div>
+            <div style={{fontWeight:700,color:T.dark,marginBottom:12}}>{newMember.is_pet?"Add a Pet":"Add Family Member"}</div>
+
+            {/* HUMAN / PET TOGGLE */}
+            <div style={{display:"flex",gap:6,background:T.border,borderRadius:12,padding:4,marginBottom:14}}>
+              {[{k:false,l:"👤 Human"},{k:true,l:"🐾 Pet"}].map(o=>(
+                <button key={String(o.k)} onClick={()=>setNewMember(p=>({...p,is_pet:o.k,emoji:o.k?"🐶":"👤",relationship:"",occupation:"",species:"",species_other:"",breed:""}))}
+                  style={{flex:1,padding:"9px 0",borderRadius:9,border:"none",cursor:"pointer",fontSize:13,fontWeight:700,
+                    background:newMember.is_pet===o.k?T.dark:"transparent",
+                    color:newMember.is_pet===o.k?"#fff":T.muted}}>
+                  {o.l}
+                </button>
+              ))}
+            </div>
+
+            <div style={{marginBottom:10}}><label style={lbl}>Name</label><input style={inp} value={newMember.name} onChange={e=>setNewMember(p=>({...p,name:e.target.value}))} placeholder={newMember.is_pet?"e.g. Bruno":"e.g. Ashi Modi"}/></div>
+
             <div style={{marginBottom:10}}>
               <label style={lbl}>Icon</label>
               <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-                {MEMBER_EMOJIS.map(({e,label})=>(
+                {(newMember.is_pet?PET_EMOJIS:MEMBER_EMOJIS).map(({e,label})=>(
                   <button key={e} title={label} onClick={()=>setNewMember(p=>({...p,emoji:e}))}
                     style={{width:58,height:62,borderRadius:10,border:`2px solid ${newMember.emoji===e?T.brown:T.border}`,
                       background:newMember.emoji===e?T.warm:"#fff",cursor:"pointer",
@@ -4394,42 +4463,107 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
                 ))}
               </div>
             </div>
-            <div style={{marginBottom:10}}>
-              <label style={lbl}>Relationship</label>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-                {["Spouse","Son","Daughter","Father","Mother","Brother","Sister","Grandfather","Grandmother","Uncle","Aunt","Cousin","In-law","Other"].map(r=>(
-                  <button key={r} onClick={()=>setNewMember(p=>({...p,relationship:r}))}
-                    style={{padding:"5px 11px",borderRadius:99,fontSize:11,fontWeight:700,cursor:"pointer",
-                      border:`1.5px solid ${newMember.relationship===r?T.brown:T.border}`,
-                      background:newMember.relationship===r?T.warm:"#fff",
-                      color:newMember.relationship===r?T.dark:T.muted}}>
-                    {r}
-                  </button>
-                ))}
+
+            {/* ---- HUMAN-ONLY FIELDS ---- */}
+            {!newMember.is_pet&&(<>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>Relationship</label>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+                  {["Spouse","Son","Daughter","Father","Mother","Brother","Sister","Grandfather","Grandmother","Uncle","Aunt","Cousin","In-law","Other"].map(r=>(
+                    <button key={r} onClick={()=>setNewMember(p=>({...p,relationship:r}))}
+                      style={{padding:"5px 11px",borderRadius:99,fontSize:11,fontWeight:700,cursor:"pointer",
+                        border:`1.5px solid ${newMember.relationship===r?T.brown:T.border}`,
+                        background:newMember.relationship===r?T.warm:"#fff",
+                        color:newMember.relationship===r?T.dark:T.muted}}>
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <input style={inp} value={newMember.relationship} onChange={e=>setNewMember(p=>({...p,relationship:e.target.value}))} placeholder="Or type: Sister-in-law, Nani, Maasi…"/>
               </div>
-              <input style={inp} value={newMember.relationship} onChange={e=>setNewMember(p=>({...p,relationship:e.target.value}))} placeholder="Or type: Sister-in-law, Nani, Maasi…"/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:12}}>
+                <div><label style={lbl}>Date of Birth</label><input style={inp} type="date" value={newMember.dob} onChange={e=>setNewMember(p=>({...p,dob:e.target.value}))}/></div>
+                <div><label style={lbl}>Occupation</label><input style={inp} value={newMember.occupation} onChange={e=>setNewMember(p=>({...p,occupation:e.target.value}))} placeholder="Optional"/></div>
+              </div>
+            </>)}
+
+            {/* ---- PET-ONLY FIELDS ---- */}
+            {newMember.is_pet&&(<>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>Species</label>
+                <select style={inp} value={newMember.species} onChange={e=>setNewMember(p=>({...p,species:e.target.value,species_other:e.target.value==="Other"?p.species_other:""}))}>
+                  <option value="">Select species</option>
+                  {SPECIES.map(s=><option key={s} value={s}>{s}</option>)}
+                </select>
+                {newMember.species==="Other"&&(
+                  <input style={{...inp,marginTop:8}} value={newMember.species_other} onChange={e=>setNewMember(p=>({...p,species_other:e.target.value}))} placeholder="Type it in — Pigeon, Tortoise, Hamster…"/>
+                )}
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={lbl}>Breed <span style={{fontWeight:400,color:T.muted}}>— optional</span></label>
+                <input style={inp} value={newMember.breed} onChange={e=>setNewMember(p=>({...p,breed:e.target.value}))} placeholder="Labrador, Indie, Rooftop Racer…"/>
+              </div>
+              <div style={{marginBottom:12}}>
+                <label style={lbl}>Birthday <span style={{fontWeight:400,color:T.muted}}>— optional</span></label>
+                <input style={inp} type="date" value={newMember.dob} onChange={e=>setNewMember(p=>({...p,dob:e.target.value}))}/>
+              </div>
+            </>)}
+
+            {/* ---- SHOW ON PROFILE (both) ---- */}
+            <div style={{background:"#fff",border:`1.5px solid ${T.border}`,borderRadius:12,padding:"12px 14px",marginBottom:12}}>
+              <div style={{...lbl,marginBottom:10}}>Show on profile</div>
+              {[
+                {k:"show_birthday",l:"Birthday",v:fmtBirthday(newMember.dob)},
+                {k:"show_age",     l:"Age",     v:calcAge(newMember.dob)},
+              ].map(o=>(
+                <div key={o.k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+                  <span style={{fontSize:13,color:T.dark}}>{o.l}{o.v?<span style={{color:T.muted}}> ({o.v})</span>:<span style={{color:T.muted}}> (add a date first)</span>}</span>
+                  <button onClick={()=>setNewMember(p=>({...p,[o.k]:!p[o.k]}))}
+                    style={{width:44,height:24,borderRadius:99,border:"none",cursor:"pointer",position:"relative",flexShrink:0,
+                      background:newMember[o.k]?T.green:T.border,transition:"background 0.2s"}}>
+                    <span style={{position:"absolute",top:3,left:newMember[o.k]?23:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:"left 0.2s",boxShadow:"0 1px 3px rgba(0,0,0,0.2)"}}/>
+                  </button>
+                </div>
+              ))}
+              <div style={{fontSize:11,color:T.muted,lineHeight:1.5,borderTop:`1px solid ${T.border}`,paddingTop:8,marginTop:2}}>
+                Year of birth is never shown to anyone.
+              </div>
             </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
-              <div><label style={lbl}>Date of Birth</label><input style={inp} type="date" value={newMember.dob} onChange={e=>setNewMember(p=>({...p,dob:e.target.value}))}/></div>
-              <div><label style={lbl}>Occupation</label><input style={inp} value={newMember.occupation} onChange={e=>setNewMember(p=>({...p,occupation:e.target.value}))} placeholder="Optional"/></div>
-            </div>
+
             <div style={{display:"flex",gap:8}}>
               <button onClick={()=>setShowAddMember(false)} style={{flex:1,padding:12,borderRadius:12,border:`1.5px solid ${T.border}`,background:"transparent",color:T.muted,cursor:"pointer",fontWeight:700}}>Cancel</button>
               <button onClick={async()=>{
                 if(!newMember.name.trim()){alert("Please enter a name.");return;}
+                if(newMember.is_pet&&!newMember.species){alert("Please choose a species.");return;}
                 setSavingMember(true);
-                const {data:inserted,error:memErr}=await sb.from("members").insert({family_id:family.id,name:newMember.name.trim(),emoji:newMember.emoji,relationship:newMember.relationship,dob:newMember.dob||null,occupation:newMember.occupation||null}).select();
+                const speciesFinal=newMember.is_pet
+                  ? (newMember.species==="Other" ? (newMember.species_other.trim()||"Other") : newMember.species)
+                  : null;
+                const payload={
+                  family_id:family.id,
+                  name:newMember.name.trim(),
+                  emoji:newMember.emoji,
+                  dob:newMember.dob||null,
+                  is_pet:newMember.is_pet,
+                  species:speciesFinal,
+                  breed:newMember.is_pet?(newMember.breed.trim()||null):null,
+                  relationship:newMember.is_pet?null:newMember.relationship,
+                  occupation:newMember.is_pet?null:(newMember.occupation||null),
+                  show_birthday:newMember.show_birthday,
+                  show_age:newMember.show_age,
+                };
+                const {data:inserted,error:memErr}=await sb.from("members").insert(payload).select();
                 setSavingMember(false);
-                if(memErr){alert("Could not save member: "+memErr.message);return;}
+                if(memErr){alert("Could not save: "+memErr.message);return;}
                 const newM=Array.isArray(inserted)?inserted[0]:inserted;
                 if(newM&&setMembers)setMembers(p=>[...p,newM]);
-                setNewMember({name:"",emoji:"👤",relationship:"",dob:"",occupation:""});
+                setNewMember({name:"",emoji:"👤",relationship:"",dob:"",occupation:"",is_pet:false,species:"",species_other:"",breed:"",show_birthday:true,show_age:true});
                 setShowAddMember(false);
-              }} disabled={savingMember} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{savingMember?"Saving...":"Add Member ✓"}</button>
+              }} disabled={savingMember} style={{flex:2,padding:12,borderRadius:12,border:"none",background:T.brown,color:"#fff",fontWeight:700,cursor:"pointer"}}>{savingMember?"Saving...":newMember.is_pet?"Add Pet 🐾":"Add Member ✓"}</button>
             </div>
           </Card>
         ):(
-          <button onClick={()=>setShowAddMember(true)} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed ${T.amber}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:8}}>+ Add Family Member</button>
+          <button onClick={()=>setShowAddMember(true)} style={{width:"100%",padding:12,borderRadius:12,border:`2px dashed ${T.amber}`,background:"transparent",color:T.brown,fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:8}}>+ Add member or pet</button>
         )}
         <Sec style={{marginTop:16}}>Invite Family Members</Sec>
         <Card style={{background:"#FFFBF0",border:`1.5px solid ${T.amber}40`}}>
@@ -4537,6 +4671,125 @@ function SettingsScreen({ onSignOut, bgmOn, bgmPref, bgmTrack, bgmFile, bgmPause
 }
 
 // ── MEMBER PROFILE SCREEN ────────────────────────────────────────────────────
+function PetProfileScreen({ member, familyId, onBack, onTabChange }) {
+  const medicines=useTable("medicines",familyId);
+  const vaccinations=useTable("vaccinations",familyId);
+  const events=useTable("events",familyId);
+  const photos=useTable("photos",familyId);
+
+  const name=member.name;
+  const myMeds=medicines.data.filter(m=>m.member===name);
+  const myVax=vaccinations.data.filter(v=>v.member===name);
+  const myPhotos=photos.data.filter(p=>Array.isArray(p.tagged_members)&&p.tagged_members.includes(name));
+
+  const today=new Date(); today.setHours(0,0,0,0);
+  const myEvents=events.data
+    .filter(e=>e.member===name&&new Date(e.date)>=today)
+    .sort((a,b)=>new Date(a.date)-new Date(b.date))
+    .slice(0,3);
+
+  const age=member.show_age!==false?calcAge(member.dob):null;
+  const bday=member.show_birthday!==false?fmtBirthday(member.dob):null;
+  const isOverdue=(d)=>d&&new Date(d)<today;
+
+  const stat=(val,label,color)=>(
+    <div style={{flex:1,background:T.card,borderRadius:14,padding:"12px 6px",textAlign:"center",boxShadow:"0 2px 8px rgba(0,0,0,0.05)"}}>
+      <div style={{fontSize:18,fontWeight:800,color}}>{val}</div>
+      <div style={{fontSize:9,fontWeight:800,color:T.muted,letterSpacing:0.5,marginTop:2}}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div style={{padding:"0 16px 16px"}}>
+      <button onClick={onBack} style={{background:"none",border:"none",color:T.brown,fontWeight:700,fontSize:14,cursor:"pointer",marginBottom:16,padding:0}}>Back</button>
+
+      <div style={{textAlign:"center",marginBottom:18}}>
+        <div style={{width:80,height:80,borderRadius:"50%",background:`linear-gradient(135deg,${T.amber},${T.brown})`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:40,margin:"0 auto 12px",boxShadow:`0 4px 20px ${T.amber}44`,overflow:"hidden"}}>
+          {member.avatar_url?<img src={member.avatar_url} alt={name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:member.emoji}
+        </div>
+        <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{name}</div>
+        <div style={{fontSize:13,color:T.muted,marginTop:2}}>{petSubtitle(member)}</div>
+        <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
+          {bday&&<span style={{fontSize:11,fontWeight:700,color:T.brown,background:T.warm,borderRadius:99,padding:"4px 12px"}}>🎂 {bday}</span>}
+          {age&&<span style={{fontSize:11,fontWeight:700,color:T.brown,background:T.warm,borderRadius:99,padding:"4px 12px"}}>{age}</span>}
+          <span style={{fontSize:11,fontWeight:700,color:"#fff",background:T.brown,borderRadius:99,padding:"4px 12px"}}>🐾 Pet</span>
+        </div>
+      </div>
+
+      <div style={{display:"flex",gap:8,marginBottom:18}}>
+        {stat(age||"—","AGE",T.dark)}
+        {stat(myVax.length,"VACCINES",T.green)}
+        {stat(myPhotos.length,"PHOTOS",T.brown)}
+      </div>
+
+      <Sec>Health</Sec>
+      {(medicines.loading||vaccinations.loading)&&<Spinner/>}
+      {!medicines.loading&&!vaccinations.loading&&myVax.length===0&&myMeds.length===0&&(
+        <Card style={{textAlign:"center",padding:24}}>
+          <div style={{fontSize:36,marginBottom:8}}>💉</div>
+          <div style={{fontWeight:700,color:T.dark,marginBottom:4}}>No health records yet</div>
+          <div style={{fontSize:12,color:T.muted}}>Track {name.split(" ")[0]}'s vaccines and medicines</div>
+        </Card>
+      )}
+      {myVax.map(v=>(
+        <Card key={v.id} style={{borderLeft:`4px solid ${isOverdue(v.due_date)?T.rose:T.green}`,borderRadius:12}}>
+          <div style={{fontWeight:700,fontSize:14,color:T.dark}}>💉 {v.name}</div>
+          <div style={{fontSize:11,color:isOverdue(v.due_date)?T.rose:T.muted,marginTop:3}}>
+            {v.given_date?`Given ${new Date(v.given_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}`:"Not given yet"}
+            {v.due_date?` · ${isOverdue(v.due_date)?"Overdue":"Due"} ${new Date(v.due_date).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}`:""}
+          </div>
+          {v.notes&&<div style={{fontSize:11,color:T.muted,marginTop:4,fontStyle:"italic"}}>{v.notes}</div>}
+        </Card>
+      ))}
+      {myMeds.map(m=>(
+        <Card key={m.id} style={{borderLeft:`4px solid ${T.amber}`,borderRadius:12}}>
+          <div style={{fontWeight:700,fontSize:14,color:T.dark}}>💊 {m.name}</div>
+          <div style={{fontSize:11,color:T.muted,marginTop:3}}>{[m.dose,m.frequency,m.time].filter(Boolean).join(" · ")}</div>
+          {m.notes&&<div style={{fontSize:11,color:T.muted,marginTop:4,fontStyle:"italic"}}>{m.notes}</div>}
+        </Card>
+      ))}
+      <button onClick={()=>onTabChange&&onTabChange("health")} style={{width:"100%",padding:13,borderRadius:14,border:"none",background:"linear-gradient(135deg,#0A6B58,#0F1F3D)",color:"#fff",fontWeight:700,fontSize:13,cursor:"pointer",marginBottom:18}}>
+        + Add health record
+      </button>
+
+      <Sec>Upcoming</Sec>
+      {myEvents.length===0?(
+        <Card style={{textAlign:"center",padding:20}}>
+          <div style={{fontSize:12,color:T.muted}}>Nothing scheduled — add a vet visit or grooming from the Plan tab</div>
+        </Card>
+      ):myEvents.map(e=>(
+        <div key={e.id} onClick={()=>onTabChange&&onTabChange("plan")} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",borderLeft:`4px solid ${T.green}`,cursor:"pointer"}}>
+          <span style={{fontSize:22}}>{e.emoji||"📅"}</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:700,color:T.dark}}>{e.title}</div>
+            <div style={{fontSize:12,color:T.muted}}>{new Date(e.date).toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}</div>
+          </div>
+        </div>
+      ))}
+
+      <Sec style={{marginTop:18}}>Photos</Sec>
+      {myPhotos.length===0?(
+        <Card style={{textAlign:"center",padding:20}}>
+          <div style={{fontSize:12,color:T.muted}}>Tag {name.split(" ")[0]} in photos from the Memories tab</div>
+        </Card>
+      ):(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6}}>
+          {myPhotos.slice(0,7).map(p=>(
+            <div key={p.id} style={{width:"100%",height:72,borderRadius:10,overflow:"hidden",background:T.border}}>
+              <img src={p.url} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>
+            </div>
+          ))}
+          {myPhotos.length>7&&(
+            <div onClick={()=>onTabChange&&onTabChange("journey")} style={{width:"100%",height:72,borderRadius:10,background:T.dark,display:"flex",alignItems:"center",justifyContent:"center",color:"#fff",fontSize:12,fontWeight:700,cursor:"pointer"}}>
+              +{myPhotos.length-7}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMembers, currentUserName }) {
   const memberExpenses=(expenses||[]).filter(e=>e.who===member.name);
   const memberEvents=(events||[]).filter(e=>e.member===member.name);
@@ -4663,8 +4916,18 @@ function MemberProfileScreen({ member, familyId, expenses, events, onBack, setMe
           <input type="file" accept="image/*" onChange={handleFileSelect} style={{display:"none"}} disabled={uploading}/>
         </label>
         <div style={{fontFamily:"'Playfair Display',serif",fontSize:24,fontWeight:700,color:T.dark}}>{member.name}</div>
-        {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}{member.dob?" · Born "+new Date(member.dob).getFullYear():""}</div>}
-        {member.occupation&&<div style={{fontSize:12,color:T.brown,marginTop:4,background:T.warm,borderRadius:99,padding:"4px 12px",display:"inline-block"}}>{member.occupation}</div>}
+        {member.relationship&&<div style={{fontSize:13,color:T.muted,marginTop:2}}>{member.relationship}</div>}
+        <div style={{display:"flex",gap:6,justifyContent:"center",flexWrap:"wrap",marginTop:8}}>
+          {member.show_birthday!==false&&fmtBirthday(member.dob)&&
+            <span style={{fontSize:11,fontWeight:700,color:T.brown,background:T.warm,borderRadius:99,padding:"4px 12px"}}>🎂 {fmtBirthday(member.dob)}</span>}
+          {member.show_age!==false&&calcAge(member.dob)&&
+            <span style={{fontSize:11,fontWeight:700,color:T.brown,background:T.warm,borderRadius:99,padding:"4px 12px"}}>{calcAge(member.dob)}</span>}
+          {member.show_age===false&&
+            <span style={{fontSize:11,fontWeight:700,color:T.muted,background:T.border,borderRadius:99,padding:"4px 12px"}}>Age hidden</span>}
+          {member.show_birthday===false&&
+            <span style={{fontSize:11,fontWeight:700,color:T.muted,background:T.border,borderRadius:99,padding:"4px 12px"}}>Birthday hidden</span>}
+        </div>
+        {member.occupation&&<div style={{fontSize:12,color:T.brown,marginTop:6,background:T.warm,borderRadius:99,padding:"4px 12px",display:"inline-block"}}>{member.occupation}</div>}
         <div style={{fontSize:11,color:T.muted,marginTop:8}}>Tap photo to change picture</div>
       </div>
 
@@ -5812,7 +6075,9 @@ useEffect(()=>{
     <div style={{minHeight:"100vh",background:currentTheme.bg,fontFamily:"'Lato',sans-serif"}}>
       <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=Lato:wght@400;600;700&display=swap" rel="stylesheet"/>
       <div style={{width:"100%",maxWidth:420,margin:"0 auto"}}>
-        <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers} currentUserName={members.find(m=>m.id===myMemberId)?.name||members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone"}/>
+        {isPet(selectedMember)
+          ? <PetProfileScreen member={selectedMember} familyId={family?.id} onBack={()=>setSelectedMember(null)} onTabChange={(t)=>{setSelectedMember(null);handleTabChange(t);}}/>
+          : <MemberProfileScreen member={selectedMember} familyId={family?.id} expenses={expenses.data} events={events.data} onBack={()=>setSelectedMember(null)} setMembers={setMembers} currentUserName={members.find(m=>m.id===myMemberId)?.name||members.find(m=>m.name.toLowerCase().includes((user?.email||"").split("@")[0].toLowerCase()))?.name||members[0]?.name||"Someone"}/>}
       </div>
     </div>
   );
@@ -5831,7 +6096,7 @@ useEffect(()=>{
     errands:  <ErrandsScreen   familyId={family?.id} onPts={handlePts}/>,
     services: <ServicesShopsScreen familyId={family?.id} members={members} services={services} shops={shops} serviceAttendance={serviceAttendance}/>,
     journey:  <PhotoJourneyScreen familyId={family?.id} family={family} members={members} myMemberId={myMemberId}/>,
-    journal:  <JournalScreen   familyId={family?.id} members={members} userId={user?.id}/>,
+    journal:  <JournalScreen   familyId={family?.id} members={members} userId={user?.id} currentUserName={currentUserName}/>,
     kids:     <KidsZoneScreen  familyId={family?.id} members={members} onPts={handlePts}/>,
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
