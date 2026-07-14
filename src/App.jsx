@@ -5117,7 +5117,13 @@ function AddServiceForm({ onClose, onSave, members }) {
 
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>setStep("template")} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
-            <button onClick={()=>{if(formData.name&&(formData.cost||hasServices)){onSave({...formData,type:selectedType,template:selectedTemplate.id});localStorage.setItem(`service_${selectedType}_${Date.now()}`,JSON.stringify({...formData,type:selectedType}));}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {serviceType.label}</button>
+            <button onClick={()=>{
+              const isValid = formData.name && (hasServices ? formData.services.some(s=>s.name&&s.rate) : formData.cost);
+              if(isValid){
+                onSave({...formData,type:selectedType,template:selectedTemplate.id});
+                localStorage.setItem(`service_${selectedType}_${Date.now()}`,JSON.stringify({...formData,type:selectedType}));
+              }
+            }} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {serviceType.label}</button>
           </div>
         </div>
       </div>
@@ -5289,7 +5295,13 @@ function AddShopForm({ onClose, onSave, members }) {
 
           <div style={{display:"flex",gap:8}}>
             <button onClick={()=>setStep("template")} style={{flex:1,padding:12,borderRadius:12,border:"1.5px solid #EDE0D0",background:"transparent",color:"#8B5E3C",fontWeight:700,cursor:"pointer",fontSize:13}}>Back</button>
-            <button onClick={()=>{if(formData.name&&formData.items.length>0&&formData.items[0].name){onSave({...formData,type:selectedType,template:selectedTemplate.id});localStorage.setItem(`shop_${selectedType}_${Date.now()}`,JSON.stringify({...formData,type:selectedType}));}}} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {shopType.label}</button>
+            <button onClick={()=>{
+              const isValid = formData.name && formData.items.some(i=>i.name&&i.rate);
+              if(isValid){
+                onSave({...formData,type:selectedType,template:selectedTemplate.id});
+                localStorage.setItem(`shop_${selectedType}_${Date.now()}`,JSON.stringify({...formData,type:selectedType}));
+              }
+            }} style={{flex:2,padding:12,borderRadius:12,border:"none",background:"linear-gradient(135deg, #0A6B58, #0F1F3D)",color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13}}>Save {shopType.label}</button>
           </div>
         </div>
       </div>
@@ -5307,13 +5319,44 @@ function ServicesShopsScreen({ familyId, members, services, shops, serviceAttend
   const [savedShops, setSavedShops] = useState([]);
   const allServices = [...services.data, ...savedServices];
   const allShops = [...shops.data, ...savedShops];
-  const [svc, setSvc] = useState(allServices[0] || null);
-  const [shp, setShp] = useState(allShops[0] || null);
   const [expDay, setExpDay] = useState(null);
   const [noteOpen, setNoteOpen] = useState({});
   const [dayNotes, setDayNotes] = useState({});
+  const [svc, setSvc] = useState(null);  // Start null, will be set after data loads
+  const [shp, setShp] = useState(null);
   const [showAddService, setShowAddService] = useState(false);
   const [showAddShop, setShowAddShop] = useState(false);
+
+  // Load saved data from localStorage on mount
+  useEffect(() => {
+    const savedSvcs = [];
+    const savedShps = [];
+    
+    for (let key in localStorage) {
+      try {
+        if (key.startsWith('service_')) {
+          savedSvcs.push(JSON.parse(localStorage[key]));
+        } else if (key.startsWith('shop_')) {
+          savedShps.push(JSON.parse(localStorage[key]));
+        }
+      } catch(e) {
+        console.error(`Error loading ${key}:`, e);
+      }
+    }
+    
+    if (savedSvcs.length > 0) setSavedServices(savedSvcs);
+    if (savedShps.length > 0) setSavedShops(savedShps);
+  }, []);
+
+  // Update selected service/shop after data loads
+  useEffect(() => {
+    if (allServices.length > 0 && !svc) {
+      setSvc(allServices[0]);
+    }
+    if (allShops.length > 0 && !shp) {
+      setShp(allShops[0]);
+    }
+  }, [allServices, allShops, svc, shp]);
 
   const handleSaveService = (data) => {
     const newService = {
