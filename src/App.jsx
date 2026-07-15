@@ -530,7 +530,7 @@ function AuthScreen({ onAuth }) {
       const {data:famRows,error:famErr}=await sb.rpc("lookup_family_by_invite",{code});
       if(famErr)throw new Error(famErr.message||"Could not check that code. Please try again.");
       const fam=Array.isArray(famRows)?famRows[0]:famRows;
-      if(!fam)throw new Error("Invite code not found. Please check and try again.");
+      if(!fam)throw new Error("That code didn't match any family. Please check it and try again.");
       const {data:memRows}=await sb.rpc("lookup_members_by_invite",{code});
       const mems=Array.isArray(memRows)?memRows:[];
       setJoinFamily(fam);setJoinMembers(mems);setJoinStep(2);
