@@ -4353,7 +4353,26 @@ function ConciergeScreen({ family, members }) {
   );
 }
 
-function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme }) {
+function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, setTheme, myMemberId }) {
+  const me = (members||[]).find(m=>m.id===myMemberId) || null;
+  const iAmAdmin   = !!me?.is_admin;
+  const iAmFounder = !!me?.is_founder;
+  const iCanDemote = !!me?.can_demote;
+  const adminCount = (members||[]).filter(m=>m.is_admin).length;
+
+  // Update a member's admin flags in Supabase + local state, honouring founder/zero-admin guards
+  const setMemberFlags = async (target, patch, confirmMsg) => {
+    if(confirmMsg && !window.confirm(confirmMsg)) return;
+    // Client-side guards (DB trigger is the real backstop)
+    if(patch.is_admin===false){
+      if(target.is_founder){ alert("The founder can't be removed as admin. Transfer the founder role first."); return; }
+      if(adminCount<=1){ alert("A family must always have at least one admin. Make someone else an admin first."); return; }
+    }
+    const {data,error}=await sb.from("members").update(patch).eq("id",target.id).select();
+    if(error){ alert("Couldn't update: "+error.message); return; }
+    const updated=Array.isArray(data)?data[0]:data;
+    if(updated&&setMembers) setMembers(prev=>prev.map(m=>m.id===updated.id?{...m,...updated}:m));
+  };
   const [linkedIds,setLinkedIds]=useState(null); // null = loading, Set = loaded
   useEffect(()=>{
     if(!family?.id)return;
@@ -4385,7 +4404,7 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
       <div style={{display:"flex",gap:8,marginBottom:16}}>
         <Pill label="👤 Profile" active={activeTab==="profile"} onClick={()=>setActiveTab("profile")}/>
         <Pill label="🎨 Theme"   active={activeTab==="theme"}   onClick={()=>setActiveTab("theme")}/>
-        <Pill label="👑 Admin"   active={activeTab==="admin"}   onClick={()=>setActiveTab("admin")}/>
+        {iAmAdmin&&<Pill label="👑 Admin"   active={activeTab==="admin"}   onClick={()=>setActiveTab("admin")}/>}
       </div>
       {activeTab==="profile"&&<>
         {!editing?(<>
@@ -4419,6 +4438,21 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
           </div>
         </Card>)}
         <Sec>Members</Sec>
+        {iAmAdmin&&(
+          <div style={{background:T.teal?`${T.teal}18`:"#E0F7F2",border:`1.5px solid ${T.teal||"#0A6B58"}`,borderRadius:12,padding:"11px 12px",marginBottom:12,display:"flex",gap:9,alignItems:"flex-start"}}>
+            <span style={{fontSize:16}}>👑</span>
+            <div>
+              <div style={{fontSize:12,fontWeight:700,color:T.teal||"#0A6B58"}}>{iAmFounder?"You're the family head (founder)":"You're a family admin"}</div>
+              <div style={{fontSize:11,color:T.teal||"#0A6B58",opacity:0.85,lineHeight:1.5,marginTop:2}}>
+                {iAmFounder
+                  ? "You can manage members, make others admins, and grant the right to remove admins."
+                  : (iCanDemote
+                      ? "You can manage members and remove other (non-founder) admins."
+                      : "You can manage members. Only the founder can grant the right to remove admins.")}
+              </div>
+            </div>
+          </div>
+        )}
         {(members||[]).map(m=>{
           const pet=isPet(m);
           // Pets never "join" — they have no login
@@ -4429,19 +4463,47 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
             ? [petSubtitle(m),age].filter(Boolean).join(" · ")
             : [m.relationship||"",age,m.occupation||""].filter(Boolean).join(" · ");
           return(
-          <div key={m.id} style={{display:"flex",alignItems:"center",gap:12,background:T.card,borderRadius:12,padding:"12px 14px",marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",border:pet?`1.5px solid ${T.brown}`:hasJoined?"none":`1.5px dashed ${T.amber}`}}>
+          <div key={m.id} style={{background:T.card,borderRadius:12,marginBottom:8,boxShadow:"0 2px 8px rgba(0,0,0,0.05)",overflow:"hidden"}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 14px"}}>
             <div style={{width:58,height:58,borderRadius:12,background:T.warm,border:`2px solid ${pet?T.brown:hasJoined?T.amber:T.muted}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,overflow:"hidden",flexShrink:0}}>
               {m.avatar_url?<img src={m.avatar_url} alt={m.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>:m.emoji}
             </div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
                 <div style={{fontWeight:700,fontSize:14,color:T.dark}}>{m.name}</div>
+                {m.id===myMemberId&&<span style={{fontSize:10,color:T.muted}}>(you)</span>}
+                {m.is_founder&&<Badge label="👑 HEAD" color={T.brown}/>}
+                {m.is_admin&&!m.is_founder&&<Badge label="👑 ADMIN" color={T.brown}/>}
                 {pet&&<Badge label="🐾 PET" color={T.brown}/>}
               </div>
               {sub&&<div style={{fontSize:11,color:T.muted,marginTop:2}}>{sub}</div>}
               {bday&&<div style={{fontSize:10,color:T.brown,marginTop:3}}>🎂 {bday}</div>}
               {!pet&&!hasJoined&&<div style={{fontSize:10,color:T.amber,fontWeight:700,marginTop:3}}>⏳ Waiting to join — share invite code</div>}
             </div>
+          </div>
+          {/* Admin actions: visible to admins, on non-pet, non-self rows */}
+          {iAmAdmin&&!pet&&m.id!==myMemberId&&(
+            <div style={{display:"flex",gap:6,padding:"0 14px 12px"}}>
+              {!m.is_admin&&(
+                <button onClick={()=>setMemberFlags(m,{is_admin:true},`Make ${m.name} an admin?`)}
+                  style={{flex:1,background:`linear-gradient(135deg,${T.teal||"#0A6B58"},${T.dark})`,border:"none",borderRadius:8,padding:"8px",color:"#fff",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  👑 Make admin
+                </button>
+              )}
+              {m.is_admin&&!m.is_founder&&iCanDemote&&(
+                <button onClick={()=>setMemberFlags(m,{is_admin:false,can_demote:false},`Remove ${m.name} as admin?`)}
+                  style={{flex:1,background:"#fff",border:`1px solid ${T.border}`,borderRadius:8,padding:"8px",color:T.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  Remove admin
+                </button>
+              )}
+              {m.is_admin&&!m.is_founder&&iAmFounder&&(
+                <button onClick={()=>setMemberFlags(m,{can_demote:!m.can_demote},m.can_demote?`Revoke ${m.name}'s right to remove admins?`:`Allow ${m.name} to remove other admins?`)}
+                  style={{flex:1,background:m.can_demote?T.warm:"#fff",border:`1px solid ${m.can_demote?T.brown:T.border}`,borderRadius:8,padding:"8px",color:m.can_demote?T.brown:T.muted,fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                  {m.can_demote?"✓ Can remove admins":"Allow remove-admins"}
+                </button>
+              )}
+            </div>
+          )}
           </div>
           );
         })}
@@ -4593,7 +4655,7 @@ function ProfileScreen({ family, members, setMembers, email, onSignOut, theme, s
         </Card>
       </>}
       {activeTab==="theme"&&<><Sec>App Theme</Sec><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>{THEMES.map(th=>(<button key={th.id} onClick={()=>setTheme(th.id)} style={{padding:16,borderRadius:16,border:`3px solid ${theme===th.id?th.accent:T.border}`,background:th.bg,cursor:"pointer",textAlign:"center",fontWeight:700,color:th.accent,fontSize:13,boxShadow:theme===th.id?`0 4px 16px ${th.accent}44`:"none",transition:"all 0.2s"}}><div style={{fontSize:24,marginBottom:6}}>🎨</div>{th.label}{theme===th.id&&<div style={{fontSize:10,marginTop:4}}>✓ Active</div>}</button>))}</div></>}
-      {activeTab==="admin"&&<><Sec>Admin Dashboard</Sec><Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Family Overview</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[{label:"Members",value:members?.length||0,icon:"👥"},{label:"Points",value:family?.points||0,icon:"🏆"},{label:"City",value:family?.city||"—",icon:"📍"},{label:"Freedom Score",value:score?score.score+"/100":"N/A",icon:"📊"}].map(s=>(<div key={s.label} style={{background:T.warm,borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:20,marginBottom:4}}>{s.icon}</div><div style={{fontWeight:800,fontSize:18,color:T.dark}}>{s.value}</div><div style={{fontSize:11,color:T.muted}}>{s.label}</div></div>))}</div></Card><Sec style={{marginTop:8}}>Voice AI Assistant</Sec><Card style={{background:`linear-gradient(135deg,${T.teal}15,${T.blue}10)`,border:`1.5px solid ${T.teal}40`}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:36}}>🎙️</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark}}>Voice AI Assistant</div><div style={{fontSize:12,color:T.muted,marginTop:4}}>Coming soon!</div></div><Badge label="SOON" color={T.teal}/></div><div style={{marginTop:12}}><input style={{...inp,fontSize:12}} placeholder="Enter AI API key to activate..." disabled/></div></Card><Card style={{background:T.warm,border:`1px solid ${T.border}`}}><div style={{fontSize:12,color:T.brown,lineHeight:1.7}}>🔒 <strong>Privacy-first.</strong> Your data is never sold or shared.</div></Card></>}
+      {activeTab==="admin"&&iAmAdmin&&<><Sec>Admin Dashboard</Sec><Card><div style={{fontWeight:700,color:T.dark,marginBottom:12}}>Family Overview</div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{[{label:"Members",value:members?.length||0,icon:"👥"},{label:"Points",value:family?.points||0,icon:"🏆"},{label:"City",value:family?.city||"—",icon:"📍"},{label:"Freedom Score",value:score?score.score+"/100":"N/A",icon:"📊"}].map(s=>(<div key={s.label} style={{background:T.warm,borderRadius:12,padding:"12px 14px"}}><div style={{fontSize:20,marginBottom:4}}>{s.icon}</div><div style={{fontWeight:800,fontSize:18,color:T.dark}}>{s.value}</div><div style={{fontSize:11,color:T.muted}}>{s.label}</div></div>))}</div></Card><Sec style={{marginTop:8}}>Voice AI Assistant</Sec><Card style={{background:`linear-gradient(135deg,${T.teal}15,${T.blue}10)`,border:`1.5px solid ${T.teal}40`}}><div style={{display:"flex",alignItems:"center",gap:12}}><div style={{fontSize:36}}>🎙️</div><div style={{flex:1}}><div style={{fontWeight:700,color:T.dark}}>Voice AI Assistant</div><div style={{fontSize:12,color:T.muted,marginTop:4}}>Coming soon!</div></div><Badge label="SOON" color={T.teal}/></div><div style={{marginTop:12}}><input style={{...inp,fontSize:12}} placeholder="Enter AI API key to activate..." disabled/></div></Card><Card style={{background:T.warm,border:`1px solid ${T.border}`}}><div style={{fontSize:12,color:T.brown,lineHeight:1.7}}>🔒 <strong>Privacy-first.</strong> Your data is never sold or shared.</div></Card></>}
     </div>
   );
 }
@@ -6115,7 +6177,7 @@ useEffect(()=>{
     concierge:<ConciergeScreen family={family} members={members}/>,
     rewards:  <RewardsScreen   family={family}/>,
     settings: <SettingsScreen  onSignOut={handleSignOut} bgmOn={bgmOn} bgmPref={bgmPref} bgmTrack={bgmTrack} bgmFile={bgmFile} bgmPauseOnHide={bgmPauseOnHide} toggleBgm={toggleBgm} handleBgmPref={handleBgmPref} handleBgmTrack={handleBgmTrack} onBgmFile={handleBgmFile} onBgmPauseOnHide={(v)=>{setBgmPauseOnHide(v);localStorage.setItem("fn_bgm_pause_hide",v.toString());}}/>,
-    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme}/>,
+    profile:  <ProfileScreen   family={family} members={members} setMembers={setMembers} email={user?.email} onSignOut={handleSignOut} theme={theme} setTheme={setTheme} myMemberId={myMemberId}/>,
   };
 
   const NAV=[{id:"home",icon:"🏠",label:"Home"},{id:"health",icon:"❤️",label:"Health"},{id:"budget",icon:"💸",label:"Budget"},{id:"plan",icon:"📅",label:"Plan"},{id:"more",icon:"☰",label:"More"}];
